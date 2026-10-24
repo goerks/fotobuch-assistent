@@ -50,6 +50,7 @@ Die Zeiten sind Schätzungen inklusive Abnahmen.
 
 - [docs/konzept.md](docs/konzept.md): Problem, Wettbewerb, Differenzierung, Technik, Etappen
 - [docs/handbuch.md](docs/handbuch.md): Bedienung für Nutzer
+- [docs/pitch/](docs/pitch/): Pitch und Demo vor jedem Testlauf
 - [docs/testen.md](docs/testen.md): Testkonzept und bekannte Lücken
 - [docs/design.md](docs/design.md): Oberflächen-Richtungen und Entscheidung
 - [docs/etappe-0.md](docs/etappe-0.md): Plan der Machbarkeits-Etappe
