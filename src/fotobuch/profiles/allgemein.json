@@ -1,0 +1,14 @@
+{
+  "name": "Allgemein (Annahmen)",
+  "verifiziert": false,
+  "hinweis": "Platzhalter ohne Anbieterbezug. Werte sind Annahmen und müssen durch ein echtes Profil ersetzt werden.",
+  "seiten_min": 24,
+  "seiten_schritt": 2,
+  "seiten_max": 200,
+  "beschnitt_mm": null,
+  "einzel_oder_doppelseiten": null,
+  "dateityp": null,
+  "aufloesung_dpi": 300,
+  "quelle": null,
+  "geprueft_am": null
+}

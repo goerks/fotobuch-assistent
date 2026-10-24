@@ -1,0 +1,31 @@
+name: Windows-exe bauen
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[raw,dev]"
+      - name: Tests
+        run: python -m pytest -q
+      - name: exe bauen
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles;fotobuch/profiles" packaging/start.py
+      - name: Selbsttest der exe
+        run: ./dist/fotobuch-assistent.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fotobuch-assistent-windows
+          path: dist/fotobuch-assistent.exe
+          if-no-files-found: error

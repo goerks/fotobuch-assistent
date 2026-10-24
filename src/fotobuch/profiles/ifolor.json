@@ -1,0 +1,14 @@
+{
+  "name": "Ifolor (Entwurf, unverifiziert)",
+  "verifiziert": false,
+  "hinweis": "Ifolor bietet laut einer Quelle nur feste Seitenzahlen, die zu Projektbeginn gewählt werden. Genaue Werte noch nicht geprüft. Platzhalter, bis Etappe 0 geklärt ist.",
+  "seiten_min": null,
+  "seiten_schritt": null,
+  "seiten_max": null,
+  "beschnitt_mm": null,
+  "einzel_oder_doppelseiten": null,
+  "dateityp": null,
+  "aufloesung_dpi": null,
+  "quelle": null,
+  "geprueft_am": null
+}

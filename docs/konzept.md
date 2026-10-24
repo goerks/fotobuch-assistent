@@ -1,8 +1,14 @@
-# Fotobuch-Assistent: Konzept (Version 0.2)
+# Fotobuch-Assistent: Konzept (Version 0.3)
 
-Stand: 24.10.2026. Dies ist ein Konzept. Es existiert noch kein lauffähiger Code.
+Stand: 24.10.2026. Ein erster lauffähiger Kern existiert (siehe `src/`), die Oberfläche noch nicht.
 
-Änderungen gegenüber v0.1: Windows als Startplattform, Anbieter-Export-Strategie, Technologie-Vorschlag mit Leistungsstufen, Risiken.
+Änderungen gegenüber v0.2:
+- **Auslieferung als einzelne `.exe` ohne Voraussetzungen** (Python wird eingepackt, PyInstaller). Auf dem Zielrechner muss nichts installiert werden.
+- **Lizenzmodell: Open-Source-Kern**, Komfort-Version kostenpflichtig. Alle Abhängigkeiten müssen dafür lizenzverträglich sein.
+- **Formate:** JPG, HEIC (pillow-heif) und PNG laufen. RAW zuerst über die eingebettete Vorschau (rawpy), keine volle RAW-Entwicklung.
+- **Tempoziel:** höchstens 15 Minuten pro 1000 Fotos auf einem normalen PC ohne Grafikkarte.
+- **Erste Anbieter-Profile** für Cewe/Pixum und Ifolor angelegt, noch ohne geprüfte Werte (`verifiziert: false`).
+- **Teilbarer Bericht:** Läufe mit echten Fotos erzeugen einen Bericht ohne Bilder, Namen, Pfade und GPS.
 
 ## 1. Problemstellung
 
@@ -55,7 +61,7 @@ Schnittstellen für Dritte sind **kein Ziel**. Gemeint ist ausschliesslich der E
 | Schicht | Wahl | Begründung |
 |---|---|---|
 | Kern | Python, Daten in SQLite | Schnell iterierbar, Pillow, pillow-heif, imagehash, onnxruntime |
-| Oberfläche MVP | Lokale Web-App (127.0.0.1) im Browser | Kein Installer nötig |
+| Oberfläche MVP | Wird mit den Design-Vorschlägen entschieden (siehe [design.md](design.md)) | Zeichenfläche liegt zur Auswahl vor |
 | Oberfläche MMP | Tauri 2 | Deutlich kleiner als Electron, nutzt unter Windows WebView2 |
 | Seitenplanung | Eigene Logik (dynamische Programmierung, ggf. OR-Tools) | Kernprodukt |
 | Export | JPEG pro Seite, dann PDF, Profile als Dateien | JPEG ist am universellsten |
