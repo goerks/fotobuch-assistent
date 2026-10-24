@@ -1,0 +1,65 @@
+# Keine Fotos im Repository: Das Produkt ist offline und privat.
+# Bilddateien jeder Art ausschliessen.
+*.jpg
+*.jpeg
+*.jpe
+*.png
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.heic
+*.heif
+*.avif
+# RAW-Formate
+*.raw
+*.dng
+*.cr2
+*.cr3
+*.nef
+*.arw
+*.orf
+*.rw2
+*.raf
+*.pef
+*.srw
+# Videos
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Testdaten und Arbeitsordner (lokal halten)
+/testdaten/
+/photos/
+/fotos/
+/output/
+*.sqlite
+*.sqlite3
+*.db
+
+# Modelle werden lokal geladen, nicht eingecheckt
+/models/
+*.onnx
+*.mlpackage
+*.safetensors
+*.gguf
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
