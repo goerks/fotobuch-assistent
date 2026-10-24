@@ -57,3 +57,13 @@ Im Fotoordner entsteht der Unterordner `.fotobuch` (Zwischenspeicher, deine Ents
 
 ## Fehler melden
 Zum Teilen mit dem Entwickler dient der Bericht ohne Bilder: `fotobuch-assistent.exe bericht` erzeugt `bericht-teilbar.json` (keine Bilder, Namen, Pfade oder GPS-Daten).
+
+## Mac (Apple Silicon)
+Die Mac-Version ist ein Programm für M1 und neuer (`fotobuch-assistent-mac.tar.gz`). Doppelklick auf die Datei entpackt sie. Die Datei ist nicht signiert, deshalb blockiert macOS den ersten Start. Öffne das Terminal im Ordner der Datei und gib einmal ein:
+
+```
+xattr -d com.apple.quarantine fotobuch-assistent
+./fotobuch-assistent
+```
+
+Danach öffnet sich die App im Browser. Alternativ: Rechtsklick auf die Datei, «Öffnen», und in den Systemeinstellungen unter «Datenschutz & Sicherheit» «Trotzdem öffnen» wählen. Beim ersten Zugriff auf Ordner wie «Bilder» fragt macOS nach der Erlaubnis. Erlaube sie.

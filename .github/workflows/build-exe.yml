@@ -52,3 +52,40 @@ jobs:
           name: fotobuch-assistent-windows
           path: dist/fotobuch-assistent.exe
           if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest   # Apple Silicon (M1 und neuer)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[raw,dev]"
+      - name: Tests (Python)
+        run: python -m pytest -q
+      - name: Programm bauen
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles:fotobuch/profiles" --add-data "src/fotobuch/web:fotobuch/web" packaging/start.py
+      - name: Selbsttest (App startet und liefert die Oberfläche)
+        run: |
+          ./dist/fotobuch-assistent --version
+          ./dist/fotobuch-assistent app --kein-browser --port 8765 > app.log 2>&1 &
+          PID=$!
+          ok=0
+          for i in $(seq 1 40); do
+            sleep 0.5
+            if curl -fs http://127.0.0.1:8765/ | grep -q "Fotobuch-Assistent"; then ok=1; break; fi
+          done
+          curl -fs http://127.0.0.1:8765/app.css > /dev/null || ok=0
+          kill $PID || true
+          if [ "$ok" != "1" ]; then cat app.log; exit 1; fi
+      - name: Verpacken (erhält die Ausführungsrechte)
+        run: tar -czf fotobuch-assistent-mac.tar.gz -C dist fotobuch-assistent
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fotobuch-assistent-mac
+          path: fotobuch-assistent-mac.tar.gz
+          if-no-files-found: error
