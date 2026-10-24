@@ -15,4 +15,6 @@ Gemeinsame Regeln, unabhängig von der Wahl:
 - Der Seitenzähler ist immer sichtbar (Seiten, Fotos, «es fehlen N»).
 - Hinweis «Alles lokal, nichts wird hochgeladen» bleibt sichtbar.
 
-Entscheidung steht aus.
+## Entscheidung (24.10.2026)
+
+Gewählt hat der Entwickler im Auftrag des Auftraggebers nach dessen Anforderungen (Durchgängigkeit, Führung, intuitiv): **C Assistent als Gerüst**, ergänzt um **A: ständig sichtbare Ereignisliste und Seitenzähler** (Leiste «Dein Buch»). **B Buch zuerst** wird für MVP 2 zurückgestellt (Seitenplan mit Doppelseiten). Alle drei Entwürfe bleiben als Quelle unter `docs/design/vorschlaege/` erhalten, falls sich die Richtung ändert.

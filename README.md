@@ -2,7 +2,7 @@
 
 Arbeitstitel. Ein **lokales, offline arbeitendes Werkzeug**, das die Vorarbeit für ein Fotobuch übernimmt: Fotos ordnen, zu Ereignissen gruppieren, Doppelte und fast Gleiche reduzieren, das beste Bild je Serie vorschlagen und alles auf Seiten planen. Danach exportiert es für den Druckdienst deiner Wahl.
 
-**Stand:** Erster Kern läuft (Einlesen, Ereignisse, Duplikate, Serien, Seitenzähler, Bericht). Oberfläche noch offen. Siehe [docs/fortschritt.md](docs/fortschritt.md).
+**Stand:** Erste lauffähige App (MVP 1 in Arbeit): geführte Oberfläche in fünf Schritten (Laden, Ereignisse, Aussortieren, Seiten, Export), lokal im Browser. Siehe [docs/fortschritt.md](docs/fortschritt.md).
 
 ## Ausprobieren
 
@@ -11,10 +11,10 @@ Aus dem Quellcode (Python 3.10 oder neuer):
 ```
 pip install -e ".[raw,dev]"
 python -m pytest -q
-fotobuch analyse "C:\Pfad\zu\Fotos"
+fotobuch app            # öffnet die App im Browser
 ```
 
-Die fertige Windows-`.exe` braucht keine Installation. Ein Doppelklick öffnet einen Ordner-Dialog und legt die Berichte im Ordner `fotobuch-bericht` ab. Die `.exe` entsteht in der GitHub-Aktion «Windows-exe bauen» (siehe `.github/workflows/build-exe.yml`). Zum Teilen mit dem Entwickler dient nur `bericht-teilbar.json`: Es enthält keine Bilder, Namen, Pfade oder GPS-Daten.
+Die fertige Windows-`.exe` braucht keine Installation: Doppelklick, der Browser öffnet die App. Sie entsteht in der GitHub-Aktion «Windows-exe bauen» (`.github/workflows/build-exe.yml`). Anleitung für Nutzer: [docs/handbuch.md](docs/handbuch.md). Zum Teilen mit dem Entwickler dient nur `bericht-teilbar.json` (`fotobuch-assistent.exe bericht`): keine Bilder, Namen, Pfade oder GPS-Daten.
 
 ## Das Problem
 
@@ -49,7 +49,9 @@ Die Zeiten sind Schätzungen inklusive Abnahmen.
 ## Dokumentation
 
 - [docs/konzept.md](docs/konzept.md): Problem, Wettbewerb, Differenzierung, Technik, Etappen
-- [docs/design.md](docs/design.md): drei Oberflächen-Richtungen zur Auswahl
+- [docs/handbuch.md](docs/handbuch.md): Bedienung für Nutzer
+- [docs/testen.md](docs/testen.md): Testkonzept und bekannte Lücken
+- [docs/design.md](docs/design.md): Oberflächen-Richtungen und Entscheidung
 - [docs/etappe-0.md](docs/etappe-0.md): Plan der Machbarkeits-Etappe
 - [docs/fortschritt.md](docs/fortschritt.md): Fortschrittsprotokoll und offene Entscheidungen
 - [profiles/](profiles/): Anbieter-Profile (Entwurf)

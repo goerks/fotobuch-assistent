@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Assistent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;display:flex;flex-direction:column;background:#F5F7F6;color:#10231F;box-sizing:border-box;overflow:hidden">
+
+  <div style="height:64px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:#FFFFFF;border-bottom:1px solid #CFE0DC">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:30px;height:30px;border-radius:9px;background:#0F766E"></div>
+      <div style="font-size:16px;font-weight:700">Fotobuch-Assistent</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0">
+      <sc-for list="{{schritte}}" as="s" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center">
+          <div style="display:flex;align-items:center;gap:10px;padding:0 12px">
+            <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:{{s.kreisBg}};color:{{s.kreisFg}};border:{{s.kreisRand}};box-sizing:border-box">{{s.nr}}</div>
+            <div style="font-size:14px;font-weight:{{s.gewicht}};color:{{s.textFarbe}}">{{s.name}}</div>
+          </div>
+          <div style="width:28px;height:2px;background:{{s.linie}}"></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:13px;color:#4F6661">Alles lokal, nichts wird hochgeladen</div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0">
+
+    <div style="flex:1;min-width:0;padding:32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#0F766E">Schritt 3 von 5, Serie 7 von 31</div>
+        <div style="font-size:28px;font-weight:700;margin-top:4px">Welches Foto soll ins Buch?</div>
+        <div style="font-size:15px;color:#4F6661;margin-top:6px">Diese drei Fotos wurden innerhalb von 40 Sekunden aufgenommen und sehen fast gleich aus.</div>
+      </div>
+
+      <div style="display:flex;gap:20px">
+        <sc-for list="{{kandidaten}}" as="k" hint-placeholder-count="3">
+          <div style="width:260px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:16px;background:#FFFFFF;border:{{k.rand}};box-sizing:border-box">
+            <div style="height:190px;border-radius:10px;background:{{k.bg}}"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;min-height:26px">
+              <sc-for list="{{k.chips}}" as="c" hint-placeholder-count="2">
+                <div style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#E6F4F1;color:#0B4F49">{{c}}</div>
+              </sc-for>
+            </div>
+            <div style="font-size:13px;color:#4F6661">{{k.info}}</div>
+            <button style="height:44px;border-radius:10px;font-size:15px;font-weight:600;border:{{k.btnRand}};background:{{k.btnBg}};color:{{k.btnFg}}">{{k.btn}}</button>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
+        <button style="height:48px;padding:0 22px;border-radius:12px;border:1px solid #CFE0DC;background:#FFFFFF;color:#10231F;font-size:15px;font-weight:600">Zurück</button>
+        <button style="height:48px;padding:0 22px;border-radius:12px;border:1px solid #CFE0DC;background:#FFFFFF;color:#10231F;font-size:15px;font-weight:600">Mehrere behalten</button>
+        <button style="height:48px;padding:0 22px;border-radius:12px;border:1px solid #CFE0DC;background:#FFFFFF;color:#10231F;font-size:15px;font-weight:600">Keines davon</button>
+      </div>
+    </div>
+
+    <div style="width:340px;flex:none;background:#FFFFFF;border-left:1px solid #CFE0DC;padding:28px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:15px;font-weight:700">Dein Buch bisher</div>
+      <div style="display:flex;gap:12px">
+        <div style="flex:1;padding:14px;border-radius:12px;background:#E6F4F1">
+          <div style="font-size:30px;font-weight:700;line-height:1">62</div>
+          <div style="font-size:13px;color:#0B4F49;margin-top:4px">Seiten</div>
+        </div>
+        <div style="flex:1;padding:14px;border-radius:12px;background:#F1F4F3">
+          <div style="font-size:30px;font-weight:700;line-height:1">184</div>
+          <div style="font-size:13px;color:#4F6661;margin-top:4px">Fotos</div>
+        </div>
+      </div>
+      <div style="font-size:14px;padding:12px;border-radius:12px;background:#FFF4E5;color:#7A3E00;line-height:1.4">Es fehlen noch <b>2 Fotos</b>, damit alle 62 Seiten voll sind. Das kannst du am Ende ausgleichen.</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:600">Fotos pro Ereignis</div>
+        <sc-for list="{{ereignisse}}" as="e" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+            <div style="width:84px;color:#4F6661">{{e.name}}</div>
+            <div style="flex:1;height:8px;border-radius:4px;background:#E3EAE8;overflow:hidden"><div style="height:100%;width:{{e.breite}}%;background:#0F766E"></div></div>
+            <div style="width:24px;text-align:right;font-weight:600">{{e.n}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="height:1px;background:#CFE0DC"></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:14px;font-weight:700">Keine Lust auf jede Serie?</div>
+        <div style="font-size:13px;color:#4F6661;line-height:1.4">Übernimm alle Vorschläge auf einmal. Du kannst später jede Entscheidung ändern.</div>
+        <button style="height:44px;border-radius:10px;border:0;background:#0F766E;color:#FFFFFF;font-size:15px;font-weight:600">Alle 24 offenen Vorschläge übernehmen</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pal = [
+      ['#7FB3D5','#3B6E4F'], ['#F0B27A','#7A4B2A'], ['#A9CCE3','#5D6D7E'], ['#F7DC6F','#6E8B3D'],
+      ['#85C1E9','#2E5E8A'], ['#D7BDE2','#5B4B6E'], ['#ABEBC6','#2F6F4E'], ['#F5B7B1','#8E4B45']
+    ];
+    const bg = (i) => { const p = pal[i % pal.length]; return 'linear-gradient(180deg,' + p[0] + ' 0%,' + p[0] + ' 45%,' + p[1] + ' 100%)'; };
+
+    const namen = ['Import', 'Ereignisse', 'Aussortieren', 'Seitenplan', 'Export'];
+    const schritte = namen.map((name, i) => {
+      const fertig = i < 2, aktiv = i === 2;
+      return {
+        nr: fertig ? '✓' : String(i + 1),
+        name: name,
+        kreisBg: fertig ? '#0F766E' : '#FFFFFF',
+        kreisFg: fertig ? '#FFFFFF' : (aktiv ? '#0F766E' : '#4F6661'),
+        kreisRand: fertig ? '2px solid #0F766E' : (aktiv ? '2px solid #0F766E' : '2px solid #B7C9C5'),
+        gewicht: aktiv ? 700 : 500,
+        textFarbe: aktiv ? '#10231F' : '#4F6661',
+        linie: i < 2 ? '#0F766E' : '#CFE0DC'
+      };
+    }).map((s, i, arr) => Object.assign(s, i === arr.length - 1 ? { linie: 'transparent' } : {}));
+
+    const kandidaten = [
+      { bg: bg(4), chips: [], info: '12,2 Megapixel, etwas unschärfer', rand: '1px solid #CFE0DC', btn: 'Dieses wählen', btnBg: '#FFFFFF', btnFg: '#10231F', btnRand: '1px solid #9DB5AF' },
+      { bg: bg(4), chips: ['Vorschlag', 'Am schärfsten'], info: '12,2 Megapixel, schärfster Moment der Serie', rand: '3px solid #0F766E', btn: 'Dieses wählen', btnBg: '#0F766E', btnFg: '#FFFFFF', btnRand: '0' },
+      { bg: bg(4), chips: [], info: '12,2 Megapixel, leichte Bewegungsunschärfe', rand: '1px solid #CFE0DC', btn: 'Dieses wählen', btnBg: '#FFFFFF', btnFg: '#10231F', btnRand: '1px solid #9DB5AF' }
+    ];
+    const ev = [['Fr vormittags', 31], ['Fr nachmittags', 38], ['Sa 04.07.', 52], ['So 05.07.', 41], ['Mo 06.07.', 22]];
+    const ereignisse = ev.map((e) => ({ name: e[0], n: e[1], breite: Math.round(e[1] / 52 * 100) }));
+    return { schritte: schritte, kandidaten: kandidaten, ereignisse: ereignisse };
+  }
+}
+</script>
+</body>
+</html>

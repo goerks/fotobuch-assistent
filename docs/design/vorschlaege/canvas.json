@@ -1,0 +1,17 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-24T14:10:00Z" },
+  "title": "Fotobuch-Assistent UI-Vorschläge",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 800, "title": "A Zeitleiste: Ereignisse links, Plan rechts" },
+    "B-Buch.dc.html": { "x": 1360, "y": 0, "w": 1280, "h": 800, "title": "B Buch zuerst: Doppelseiten im Zentrum" },
+    "C-Assistent.dc.html": { "x": 2720, "y": 0, "w": 1280, "h": 800, "title": "C Assistent: Schritt für Schritt" }
+  },
+  "order": ["Main.dc.html", "B-Buch.dc.html", "C-Assistent.dc.html"],
+  "notes": {
+    "titel": { "x": 0, "y": -300, "text": "Drei Oberflächen-Richtungen (Beispieldaten, keine echten Fotos)", "kind": "title1", "maxW": 4000 }
+  },
+  "designSystems": []
+}

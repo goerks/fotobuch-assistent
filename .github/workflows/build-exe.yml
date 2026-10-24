@@ -17,13 +17,36 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install ".[raw,dev]"
-      - name: Tests
+      - name: Tests (Python)
         run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Tests (Oberfläche)
+        working-directory: tests/ui
+        run: |
+          npm ci
+          node --test app.test.mjs
       - name: exe bauen
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles;fotobuch/profiles" packaging/start.py
+          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles;fotobuch/profiles" --add-data "src/fotobuch/web;fotobuch/web" packaging/start.py
       - name: Selbsttest der exe
         run: ./dist/fotobuch-assistent.exe --version
+      - name: Selbsttest der exe (App startet und liefert die Oberfläche)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath ./dist/fotobuch-assistent.exe -ArgumentList "app","--kein-browser","--port","8765" -PassThru -RedirectStandardOutput app.log
+          $ok = $false
+          for ($i = 0; $i -lt 40; $i++) {
+            Start-Sleep -Milliseconds 500
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/
+              if ($r.StatusCode -eq 200 -and $r.Content -match "Fotobuch-Assistent") { $ok = $true; break }
+            } catch {}
+          }
+          $css = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/app.css
+          Stop-Process -Id $p.Id -Force
+          if (-not $ok -or $css.StatusCode -ne 200) { Get-Content app.log; throw "App startet nicht oder Oberfläche fehlt in der exe" }
       - uses: actions/upload-artifact@v4
         with:
           name: fotobuch-assistent-windows

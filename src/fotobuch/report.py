@@ -86,6 +86,30 @@ def hardware() -> dict:
     }
 
 
+def baue_ergebnis(ordner, fotos: list[Foto], opt: Optionen, zeiten: dict[str, float] | None = None) -> Ergebnis:
+    """Gruppiert bereits eingelesene Fotos zu Ereignissen, Duplikaten und Serien."""
+    zeiten = dict(zeiten or {})
+    t = time.perf_counter()
+    ereignisse = bilde_ereignisse(fotos, opt.luecke_stunden, opt.max_km)
+    zeiten["ereignisse"] = time.perf_counter() - t
+    t = time.perf_counter()
+    exakt = finde_exakte(fotos)
+    zeiten["exakte_duplikate"] = time.perf_counter() - t
+    t = time.perf_counter()
+    # Screenshots bilden keine Serien mit echten Fotos
+    serien = finde_aehnliche([f for f in fotos if not f.screenshot_verdacht], opt.aehnlich_abstand, opt.serie_minuten * 60)
+    zeiten["serien"] = time.perf_counter() - t
+    zeiten.setdefault("gesamt", sum(zeiten.values()))
+
+    erg = Ergebnis(str(ordner), fotos, ereignisse, exakt, serien, zeiten, opt)
+    for g in exakt:
+        erg.zu_entfernen_exakt.update(f.pfad for f in g.fotos if f is not g.vorschlag)
+    for g in serien:
+        erg.zu_entfernen_serien.update(f.pfad for f in g.fotos if f is not g.vorschlag)
+    erg.screenshots = {f.pfad for f in fotos if f.screenshot_verdacht}
+    return erg
+
+
 def analysiere_ordner(
     ordner: str | Path,
     opt: Optionen,
@@ -100,25 +124,8 @@ def analysiere_ordner(
     fotos = scanne(pfade, threads=opt.threads, fortschritt=fortschritt)
     zeiten["einlesen_und_analysieren"] = time.perf_counter() - t
 
-    t = time.perf_counter()
-    ereignisse = bilde_ereignisse(fotos, opt.luecke_stunden, opt.max_km)
-    zeiten["ereignisse"] = time.perf_counter() - t
-
-    t = time.perf_counter()
-    exakt = finde_exakte(fotos)
-    zeiten["exakte_duplikate"] = time.perf_counter() - t
-
-    t = time.perf_counter()
-    serien = finde_aehnliche(fotos, opt.aehnlich_abstand, opt.serie_minuten * 60)
-    zeiten["serien"] = time.perf_counter() - t
-    zeiten["gesamt"] = time.perf_counter() - t0
-
-    erg = Ergebnis(str(ordner), fotos, ereignisse, exakt, serien, zeiten, opt)
-    for g in exakt:
-        erg.zu_entfernen_exakt.update(f.pfad for f in g.fotos if f is not g.vorschlag)
-    for g in serien:
-        erg.zu_entfernen_serien.update(f.pfad for f in g.fotos if f is not g.vorschlag)
-    erg.screenshots = {f.pfad for f in fotos if f.screenshot_verdacht}
+    erg = baue_ergebnis(ordner, fotos, opt, zeiten)
+    erg.zeiten["gesamt"] = time.perf_counter() - t0
     return erg
 
 

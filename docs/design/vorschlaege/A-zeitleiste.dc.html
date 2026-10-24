@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Zeitleiste</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;display:flex;flex-direction:column;background:#F3F5F7;color:#16222E;box-sizing:border-box;overflow:hidden">
+
+  <div style="height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:#FFFFFF;border-bottom:1px solid #D9E0E6">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:28px;height:28px;border-radius:7px;background:#1D4ED8"></div>
+      <div style="font-size:15px;font-weight:700">Fotobuch-Assistent</div>
+      <div style="font-size:13px;color:#5B6B7A">Sommer 2026 (Beispieldaten)</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:13px;color:#5B6B7A">Alles lokal, nichts wird hochgeladen</div>
+      <button style="height:36px;padding:0 16px;border-radius:8px;border:0;background:#1D4ED8;color:#FFFFFF;font-size:14px;font-weight:600">Exportieren</button>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0">
+
+    <div style="width:300px;flex:none;background:#FFFFFF;border-right:1px solid #D9E0E6;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-size:14px;font-weight:700">Ereignisse</div>
+        <div style="font-size:12px;color:#5B6B7A">5 gefunden</div>
+      </div>
+      <sc-for list="{{ereignisse}}" as="e" hint-placeholder-count="5">
+        <div style="border-radius:10px;padding:12px;border:{{e.rand}};background:{{e.hg}};display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font-size:14px;font-weight:600">{{e.titel}}</div>
+            <div style="font-size:12px;color:#5B6B7A">{{e.zeit}}</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            <sc-for list="{{e.streifen}}" as="s" hint-placeholder-count="6">
+              <div style="flex:1;height:30px;border-radius:4px;background:{{s.bg}}"></div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px;color:#5B6B7A">{{e.anzahl}} Fotos, davon {{e.behalten}} im Vorschlag</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="flex:1;min-width:0;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end">
+        <div>
+          <div style="font-size:20px;font-weight:700">Sa 04.07.2026</div>
+          <div style="font-size:13px;color:#5B6B7A">09:10 bis 17:45, 88 Fotos</div>
+        </div>
+        <div style="display:flex;gap:14px;font-size:12px;color:#16222E">
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:2px;background:#166534"></div>Behalten</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#1D4ED8"></div>Vorschlag aus Serie</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;background:#475569;transform:rotate(45deg)"></div>Duplikat</div>
+          <div style="display:flex;align-items:center;gap:6px"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #9A3412"></div>Screenshot</div>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow:hidden;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start">
+        <sc-for list="{{bloecke}}" as="b" hint-placeholder-count="8">
+          <div style="display:flex;flex-direction:column;gap:4px;padding:{{b.pad}};border-radius:10px;background:{{b.hg}};border:{{b.rand}}">
+            <sc-if value="{{b.istSerie}}" hint-placeholder-val="{{false}}">
+              <div style="font-size:12px;font-weight:600;color:#1D4ED8">{{b.label}}</div>
+            </sc-if>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{b.tiles}}" as="t" hint-placeholder-count="2">
+                <div style="position:relative;width:{{t.w}}px;height:92px;border-radius:6px;background:{{t.bg}};opacity:{{t.op}};outline:{{t.outline}};outline-offset:2px">
+                  <div style="position:absolute;left:4px;bottom:4px;padding:1px 5px;border-radius:4px;font-size:11px;font-weight:600;background:{{t.badgeBg}};color:{{t.badgeFg}}">{{t.badge}}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="width:300px;flex:none;background:#FFFFFF;border-left:1px solid #D9E0E6;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:14px;font-weight:700">Seitenplan</div>
+
+      <div>
+        <div style="font-size:48px;font-weight:700;line-height:1">62</div>
+        <div style="font-size:13px;color:#5B6B7A">Seiten bei 3 Fotos pro Seite</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="height:10px;border-radius:5px;background:#E2E8F0;overflow:hidden"><div style="width:97%;height:100%;background:#1D4ED8"></div></div>
+        <div style="font-size:13px">Es fehlen <b>2 Fotos</b>, um 62 Seiten zu füllen.</div>
+        <div style="font-size:13px;color:#5B6B7A">Oder 4 Fotos weglassen für 60 Seiten.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;background:#F3F5F7">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Alle Fotos</span><b>296</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Exakte Duplikate</span><b>-24</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Serien-Reste</span><b>-78</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Screenshots</span><b>-10</b></div>
+        <div style="height:1px;background:#D9E0E6;margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px"><span>Im Buch</span><b>184</b></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:13px;font-weight:600">Anbieter-Profil</div>
+        <div style="height:40px;border-radius:8px;border:1px solid #B8C4CE;display:flex;align-items:center;padding:0 12px;font-size:14px;justify-content:space-between"><span>Cewe / Pixum</span><span style="font-size:12px;color:#9A3412;font-weight:600">unverifiziert</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pal = [
+      ['#7FB3D5','#3B6E4F'], ['#F0B27A','#7A4B2A'], ['#A9CCE3','#5D6D7E'], ['#F7DC6F','#6E8B3D'],
+      ['#85C1E9','#2E5E8A'], ['#D7BDE2','#5B4B6E'], ['#ABEBC6','#2F6F4E'], ['#F5B7B1','#8E4B45']
+    ];
+    const bg = (i) => { const p = pal[i % pal.length]; return 'linear-gradient(180deg,' + p[0] + ' 0%,' + p[0] + ' 45%,' + p[1] + ' 100%)'; };
+
+    const ev = [
+      ['Fr 03.07.', '08:40 bis 12:15', 42, 31],
+      ['Fr 03.07.', '14:05 bis 19:30', 61, 38],
+      ['Sa 04.07.', '09:10 bis 17:45', 88, 52],
+      ['So 05.07.', '10:00 bis 16:20', 74, 41],
+      ['Mo 06.07.', '11:30 bis 13:00', 31, 22]
+    ];
+    const ereignisse = ev.map((e, i) => ({
+      titel: e[0], zeit: e[1], anzahl: e[2], behalten: e[3],
+      rand: i === 2 ? '2px solid #1D4ED8' : '1px solid #D9E0E6',
+      hg: i === 2 ? '#EFF4FF' : '#FFFFFF',
+      streifen: [0,1,2,3,4,5].map((k) => ({ bg: bg(i * 3 + k) }))
+    }));
+
+    const stat = {
+      keep:   { badge: 'Behalten', badgeBg: '#DCFCE7', badgeFg: '#14532D', op: 1, outline: 'none' },
+      pick:   { badge: 'Vorschlag', badgeBg: '#DBEAFE', badgeFg: '#1E3A8A', op: 1, outline: '2px solid #1D4ED8' },
+      rest:   { badge: 'Serie', badgeBg: '#E2E8F0', badgeFg: '#334155', op: 0.55, outline: 'none' },
+      dup:    { badge: 'Duplikat', badgeBg: '#E2E8F0', badgeFg: '#334155', op: 0.45, outline: 'none' },
+      shot:   { badge: 'Screenshot', badgeBg: '#FFEDD5', badgeFg: '#7C2D12', op: 0.6, outline: 'none' }
+    };
+    let n = 0;
+    const tile = (s, w) => { n++; return Object.assign({ bg: bg(n + 2), w: w }, stat[s]); };
+    const einzel = (s, w) => ({ istSerie: false, label: '', pad: '0', hg: 'transparent', rand: 'none', tiles: [tile(s, w)] });
+    const serie = (label, items) => ({ istSerie: true, label: label, pad: '8px', hg: '#FFFFFF', rand: '1px solid #BFD3FA', tiles: items.map((x) => tile(x[0], x[1])) });
+
+    const bloecke = [
+      einzel('keep', 123), einzel('keep', 69),
+      serie('Serie, 3 Fotos', [['rest', 123], ['pick', 123], ['rest', 123]]),
+      einzel('keep', 123),
+      serie('Serie, 2 Fotos', [['pick', 69], ['rest', 69]]),
+      einzel('dup', 123), einzel('keep', 123), einzel('shot', 69),
+      serie('Serie, 4 Fotos', [['rest', 123], ['rest', 123], ['pick', 123], ['rest', 123]]),
+      einzel('keep', 69), einzel('keep', 123)
+    ];
+    return { ereignisse: ereignisse, bloecke: bloecke };
+  }
+}
+</script>
+</body>
+</html>

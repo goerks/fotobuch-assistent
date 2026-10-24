@@ -91,9 +91,20 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--mit-exakten-duplikaten", action="store_true")
     e.add_argument("--luecke-stunden", type=float, default=6.0)
 
+    ap = sub.add_parser("app", help="Oberfläche im Browser starten (Standard bei Doppelklick)")
+    ap.add_argument("ordner", nargs="?", help="Fotoordner direkt öffnen (sonst Auswahl in der App)")
+    ap.add_argument("--port", type=int, default=0)
+    ap.add_argument("--kein-browser", action="store_true", help="Browser nicht automatisch öffnen")
+
+    sub.add_parser("bericht", help="Alter Doppelklick-Modus: nur Berichte schreiben")
+
     args = p.parse_args(argv)
 
     if args.befehl is None:
+        return _app(None, 0, False)
+    if args.befehl == "app":
+        return _app(args.ordner, args.port, not args.kein_browser)
+    if args.befehl == "bericht":
         return _doppelklick()
 
     if args.befehl == "analyse":
@@ -171,4 +182,46 @@ def _doppelklick() -> int:
         input("Enter drücken zum Beenden ...")
         return 1
     input("Enter drücken zum Beenden ...")
+    return 0
+
+
+def _app(ordner: str | None, port: int, browser: bool) -> int:
+    """Startet den lokalen Server und öffnet die Oberfläche im Standardbrowser."""
+    import threading
+    import webbrowser
+
+    from .server import App, ordner_dialog_tk, starte_server, url
+
+    print(f"Fotobuch-Assistent {__version__}")
+    print("Alles läuft lokal auf diesem Rechner. Es werden keine Fotos hochgeladen.")
+    try:
+        import tkinter  # noqa: F401
+        dialog = ordner_dialog_tk
+    except Exception:
+        dialog = None
+    app = App(ordner_dialog=dialog)
+    if ordner:
+        try:
+            app.oeffne(ordner)
+        except Exception as e:
+            print(f"Ordner kann nicht geöffnet werden: {e}", file=sys.stderr)
+            return 2
+    httpd = starte_server(app, port)
+    adresse = url(httpd)
+    print()
+    print(f"Die App läuft unter {adresse}")
+    print("Dieses Fenster offen lassen, solange du arbeitest. Zum Beenden: Fenster schliessen oder Strg+C.")
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    if browser:
+        try:
+            webbrowser.open(adresse)
+        except Exception:
+            print("Der Browser konnte nicht automatisch geöffnet werden. Öffne die Adresse oben von Hand.")
+    try:
+        while not app.beenden.wait(0.5):
+            pass
+    except KeyboardInterrupt:
+        pass
+    httpd.shutdown()
+    print("Beendet.")
     return 0

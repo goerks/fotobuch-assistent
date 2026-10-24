@@ -2,6 +2,24 @@
 
 Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
+## 2026-10-24: Erste lauffähige App (zweiter Wurf Richtung MVP 1)
+
+**Fertig**
+- App mit geführter Oberfläche (Richtung C plus A-Elemente), fünf Schritte: Fotos laden, Ereignisse (umbenennbar, Zeitlücke einstellbar), Aussortieren (Serien per Klick und Tastatur, Duplikate/Screenshots zurückholbar), Seiten (Seitenzähler, Auffüllen/Kürzen mit konkreten Fotos, Seitenregeln einstellbar), Export (nummerierte Ereignis-Ordner, `seitenliste.csv`, `LIESMICH.txt`)
+- Lokaler Server nur auf 127.0.0.1 mit Token und Host-Prüfung, Oberfläche ohne externe Ressourcen
+- Entscheidungen und Analyse bleiben im Fotoordner (`.fotobuch`) gespeichert, zweiter Start liest nur Neues
+- Handbuch ([handbuch.md](handbuch.md)), Testkonzept ([testen.md](testen.md))
+- Tests: 34 Python-Tests (Kern und App-Schicht inkl. Sicherheit) und 7 Oberflächentests, die die echte App in jsdom bedienen. Alle grün (Linux)
+- Pipeline: CI führt beide Testarten aus, baut die Windows-exe und startet sie als Selbsttest
+
+**Nicht geprüft**
+- Windows-exe nie von Hand ausgeführt (Ordner-Dialog, Browserstart, SmartScreen-Hinweis)
+- Aussehen im echten Browser nicht angeschaut (kein Browser in der Entwicklungsumgebung); nur Verhalten ist getestet
+- Echte Fotos, echtes RAW, Anbieter-Seitenregeln wie bisher offen
+
+**Bewusst noch nicht drin (MVP 2)**
+- Buchvorschau mit Doppelseiten, Hoch/Quer-Paarung, Panorama, Seitenexport als JPEG/PDF, Ereignisse verschieben oder zusammenlegen, echte Anbieter-Importdateien
+
 ## 2026-10-24: Erste Iteration Richtung MVP 1
 
 **Fertig**

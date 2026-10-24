@@ -24,7 +24,7 @@ fotobuch = "fotobuch.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-fotobuch = ["profiles/*.json"]
+fotobuch = ["profiles/*.json", "web/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

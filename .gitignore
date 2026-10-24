@@ -63,3 +63,10 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Node (nur für Oberflächentests)
+node_modules/
+# Arbeitsordner der App neben Fotos
+.fotobuch/
+fotobuch-bericht/
+fotobuch-export/

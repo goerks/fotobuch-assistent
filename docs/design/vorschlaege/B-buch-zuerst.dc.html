@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Buch zuerst</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;display:flex;flex-direction:column;background:#14181D;color:#F2F4F6;box-sizing:border-box;overflow:hidden">
+
+  <div style="height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:#1D232A;border-bottom:1px solid #323C47">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:28px;height:28px;border-radius:7px;background:#F2B84B"></div>
+      <div style="font-size:15px;font-weight:700">Fotobuch-Assistent</div>
+      <div style="font-size:13px;color:#A7B3BF">Sommer 2026 (Beispieldaten)</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:22px;font-size:13px">
+      <div><b style="font-size:18px">62</b> <span style="color:#A7B3BF">Seiten</span></div>
+      <div><b style="font-size:18px">184</b> <span style="color:#A7B3BF">Fotos im Buch</span></div>
+      <div><b style="font-size:18px">3</b> <span style="color:#A7B3BF">pro Seite im Schnitt</span></div>
+      <div style="padding:5px 10px;border-radius:999px;background:#262E37;border:1px solid #3F4B58">Es fehlen <b>2 Fotos</b> bis voll</div>
+    </div>
+    <button style="height:36px;padding:0 16px;border-radius:8px;border:0;background:#F2B84B;color:#1A1405;font-size:14px;font-weight:700">Exportieren</button>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0">
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;padding:24px 24px 0;box-sizing:border-box;gap:16px">
+      <div style="width:860px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-size:16px;font-weight:700">Doppelseite 12 von 31</div>
+        <div style="font-size:13px;color:#A7B3BF">Seite 23 und 24, Ereignis 3: Sa 04.07.</div>
+      </div>
+
+      <div style="width:860px;height:430px;display:flex;position:relative;box-shadow:0 12px 32px rgba(0,0,0,0.45)">
+        <div style="width:430px;height:430px;background:#F7F7F4;position:relative;box-sizing:border-box">
+          <div style="position:absolute;left:20px;top:20px;width:390px;height:230px;border-radius:2px;background:{{p.a}}"></div>
+          <div style="position:absolute;left:20px;top:260px;width:190px;height:150px;border-radius:2px;background:{{p.b}}"></div>
+          <div style="position:absolute;left:220px;top:260px;width:190px;height:150px;border-radius:2px;background:{{p.c}}"></div>
+          <div style="position:absolute;left:10px;bottom:4px;font-size:11px;color:#5B6B7A">23</div>
+        </div>
+        <div style="width:430px;height:430px;background:#F7F7F4;position:relative;box-sizing:border-box;border-left:1px solid #D5D5CF">
+          <div style="position:absolute;left:20px;top:20px;width:190px;height:390px;border-radius:2px;background:{{p.d}};outline:3px solid #F2B84B;outline-offset:2px"></div>
+          <div style="position:absolute;left:220px;top:20px;width:190px;height:190px;border-radius:2px;background:{{p.e}}"></div>
+          <div style="position:absolute;left:220px;top:220px;width:190px;height:190px;border-radius:2px;background:{{p.f}}"></div>
+          <div style="position:absolute;right:10px;bottom:4px;font-size:11px;color:#5B6B7A">24</div>
+        </div>
+      </div>
+
+      <div style="width:860px;display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#A7B3BF">
+          <span>Alle Doppelseiten, Farbband = Ereignis</span>
+          <span>Doppelseiten mit Panorama: 2 (empfohlen höchstens 3)</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{streifen}}" as="s" hint-placeholder-count="12">
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+              <div style="height:44px;border-radius:3px;background:{{s.bg}};outline:{{s.outline}};outline-offset:2px"></div>
+              <div style="height:4px;border-radius:2px;background:{{s.band}}"></div>
+              <div style="font-size:11px;color:#A7B3BF;text-align:center">{{s.nr}}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px">
+          <sc-for list="{{legende}}" as="l" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:4px;border-radius:2px;background:{{l.c}}"></div><span>{{l.t}}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="width:300px;flex:none;background:#1D232A;border-left:1px solid #323C47;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:14px;font-weight:700">Ausgewähltes Foto</div>
+      <div style="display:flex;gap:12px">
+        <div style="width:72px;height:96px;border-radius:4px;background:{{p.d}};flex:none"></div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:13px">
+          <div style="font-weight:600">Hochformat</div>
+          <div style="color:#A7B3BF">Vorschlag aus Serie mit 4 Fotos, schärfstes Bild</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button style="height:40px;border-radius:8px;border:1px solid #3F4B58;background:#262E37;color:#F2F4F6;font-size:14px;font-weight:600">Anderes aus der Serie wählen</button>
+        <button style="height:40px;border-radius:8px;border:1px solid #3F4B58;background:#262E37;color:#F2F4F6;font-size:14px;font-weight:600">Zuschnitt anpassen</button>
+        <button style="height:40px;border-radius:8px;border:1px solid #3F4B58;background:#262E37;color:#F2F4F6;font-size:14px;font-weight:600">Aus dem Buch nehmen</button>
+      </div>
+      <div style="height:1px;background:#323C47"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-size:14px;font-weight:700">Ablage</div>
+        <div style="font-size:12px;color:#A7B3BF">112 aussortiert</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <sc-for list="{{ablage}}" as="a" hint-placeholder-count="8">
+          <div style="width:58px;height:44px;border-radius:4px;background:{{a.bg}};opacity:0.6"></div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#A7B3BF">Aussortiert wird nur vorgeschlagen. Jedes Foto lässt sich zurückholen.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pal = [
+      ['#7FB3D5','#3B6E4F'], ['#F0B27A','#7A4B2A'], ['#A9CCE3','#5D6D7E'], ['#F7DC6F','#6E8B3D'],
+      ['#85C1E9','#2E5E8A'], ['#D7BDE2','#5B4B6E'], ['#ABEBC6','#2F6F4E'], ['#F5B7B1','#8E4B45']
+    ];
+    const bg = (i) => { const p = pal[i % pal.length]; return 'linear-gradient(180deg,' + p[0] + ' 0%,' + p[0] + ' 45%,' + p[1] + ' 100%)'; };
+    const farben = ['#5BA4F5', '#F2B84B', '#4FC3A1', '#E58AB8', '#A99AF5'];
+    // Ereignis je Doppelseite (31 insgesamt): 5, 7, 9, 6, 4
+    const verteilung = [5, 7, 9, 6, 4];
+    const nachSeite = [];
+    verteilung.forEach((n, ei) => { for (let k = 0; k < n; k++) nachSeite.push(ei); });
+    const zeige = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+    const streifen = zeige.map((nr) => ({
+      nr: nr,
+      bg: bg(nr),
+      band: farben[nachSeite[nr - 1]],
+      outline: nr === 12 ? '2px solid #F2B84B' : 'none'
+    }));
+    const legende = ['Ereignis 1: Fr 03.07. vormittags', 'Ereignis 2: Fr 03.07. nachmittags', 'Ereignis 3: Sa 04.07.', 'Ereignis 4: So 05.07.', 'Ereignis 5: Mo 06.07.']
+      .map((t, i) => ({ t: t, c: farben[i] }));
+    return {
+      p: { a: bg(1), b: bg(4), c: bg(6), d: bg(2), e: bg(3), f: bg(7) },
+      streifen: streifen,
+      legende: legende,
+      ablage: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map((i) => ({ bg: bg(i + 3) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

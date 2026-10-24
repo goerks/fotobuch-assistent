@@ -7,5 +7,6 @@ python -m PyInstaller --noconfirm --clean --onefile --console `
   --collect-all pillow_heif `
   --collect-all rawpy `
   --add-data "src/fotobuch/profiles;fotobuch/profiles" `
+  --add-data "src/fotobuch/web;fotobuch/web" `
   packaging/start.py
 Write-Host "Fertig: dist\fotobuch-assistent.exe"

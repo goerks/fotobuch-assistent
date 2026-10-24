@@ -38,6 +38,7 @@ RAW_EXT = {".dng", ".cr2", ".cr3", ".nef", ".arw", ".orf", ".rw2", ".raf", ".pef
 ALL_EXT = JPEG_EXT | HEIC_EXT | PNG_EXT | OTHER_EXT | RAW_EXT
 
 SCREENSHOT_HINTS = ("screenshot", "bildschirmfoto", "bildschirmaufnahme", "screen shot", "capture")
+EIGENE_ORDNER = {".fotobuch", "fotobuch-bericht", "fotobuch-export"}
 ANALYSE_KANTE = 512  # Längste Kante der Analysebilder in Pixeln
 
 
@@ -80,7 +81,9 @@ class Foto:
 def finde_fotos(ordner: str | Path) -> list[Path]:
     """Alle unterstützten Bilddateien unterhalb von ``ordner``, sortiert nach Pfad."""
     gefunden: list[Path] = []
-    for wurzel, _dirs, dateien in os.walk(ordner):
+    for wurzel, dirs, dateien in os.walk(ordner):
+        # Eigene Arbeits- und Ausgabeordner nie als Fotos einlesen
+        dirs[:] = [d for d in dirs if d.lower() not in EIGENE_ORDNER]
         for d in dateien:
             if Path(d).suffix.lower() in ALL_EXT and not d.startswith("._"):
                 gefunden.append(Path(wurzel) / d)

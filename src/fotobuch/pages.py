@@ -80,3 +80,99 @@ def seitenplan(anzahl_fotos: int, fotos_pro_seite: float, profil: Profil) -> dic
         "fehlende_fotos": fehlend,
         "ueberzaehlige_fotos_fuer_kleinere_stufe": ueberzaehlig,
     }
+
+
+# ---------------------------------------------------------------------------
+# Ereignisbewusster Seitenplan (für die App)
+# ---------------------------------------------------------------------------
+
+
+def verteile(n: int, fps: int) -> list[int]:
+    """Verteilt ``n`` Fotos möglichst gleichmässig auf die nötigen Seiten (je höchstens ``fps``)."""
+    if n <= 0:
+        return []
+    seiten = math.ceil(n / fps)
+    basis, rest = divmod(n, seiten)
+    return [basis + 1 if i < rest else basis for i in range(seiten)]
+
+
+def _gruppen(counts: list[int], getrennt: bool) -> list[int]:
+    return [c for c in counts if c > 0] if getrennt else ([sum(counts)] if sum(counts) > 0 else [])
+
+
+def seiten_benoetigt(counts: list[int], fps: int, getrennt: bool = True) -> int:
+    """Seiten, wenn jedes Ereignis auf einer neuen Seite beginnt (``getrennt``) oder lückenlos gefüllt wird."""
+    return sum(math.ceil(c / fps) for c in _gruppen(counts, getrennt))
+
+
+def kuerzungsplan(counts: list[int], fps: int, getrennt: bool, seiten_sparen: int) -> dict[int, int]:
+    """Günstigste Verteilung, um ``seiten_sparen`` Seiten einzusparen: Ereignis-Index -> Fotos weglassen.
+
+    Eine Seite lässt sich je Ereignis zuerst über die Restfotos der letzten Seite sparen (billig),
+    danach über je ``fps`` Fotos. Ist ``getrennt`` falsch, gilt das ganze Buch als ein Ereignis.
+    """
+    if seiten_sparen <= 0:
+        return {}
+    if getrennt:
+        indizes = [i for i, c in enumerate(counts) if c > 0]
+        werte = [counts[i] for i in indizes]
+    else:
+        indizes = [0]
+        werte = [sum(counts)]
+    kandidaten: list[tuple[int, int]] = []
+    for idx, c in zip(indizes, werte):
+        seiten = math.ceil(c / fps)
+        rest = c % fps
+        kandidaten.append((rest if rest else fps, idx))
+        kandidaten.extend((fps, idx) for _ in range(seiten - 1))
+    kandidaten.sort()
+    plan: dict[int, int] = {}
+    for kosten, idx in kandidaten[:seiten_sparen]:
+        plan[idx] = plan.get(idx, 0) + kosten
+    return plan
+
+
+def seitenplan_ereignisse(counts: list[int], fps: int, profil: Profil, getrennt: bool = True) -> dict:
+    """Seitenzähler für die App.
+
+    ``fehlende_fotos``: So viele Fotos passen noch dazu, ohne dass die gewählte Buchseitenzahl überschritten wird.
+    ``weglassen_fuer_kleinere_stufe``: So viele Fotos müssten weg, um eine Seitenstufe zu sparen.
+    """
+    fps = max(1, int(fps))
+    total = sum(counts)
+    benoetigt = seiten_benoetigt(counts, fps, getrennt)
+    buch = erlaubte_seitenzahl(max(benoetigt, 1), profil)
+    kleinere = buch - profil.seiten_schritt
+    weglassen = None
+    plan: dict[int, int] = {}
+    if kleinere >= profil.seiten_min and benoetigt > kleinere:
+        plan = kuerzungsplan(counts, fps, getrennt, benoetigt - kleinere)
+        weglassen = sum(plan.values())
+    return {
+        "fotos": total,
+        "fotos_pro_seite": fps,
+        "ereignisse_getrennt": getrennt,
+        "seiten_benoetigt": benoetigt,
+        "buch_seiten": buch,
+        "leere_seiten": max(0, buch - benoetigt),
+        "ueber_maximum": buch > profil.seiten_max,
+        "fehlende_fotos": max(0, buch * fps - total),
+        "kleinere_stufe": kleinere if weglassen is not None else None,
+        "weglassen_fuer_kleinere_stufe": weglassen,
+        "kuerzungsplan": {str(k): v for k, v in plan.items()},
+        "seiten_je_ereignis": [math.ceil(c / fps) if c > 0 else 0 for c in counts],
+    }
+
+
+def seitenzuordnung(counts: list[int], fps: int, getrennt: bool = True) -> list[tuple[int, list[int]]]:
+    """Liste von Seiten: (Ereignis-Index oder -1 bei lückenloser Füllung, Fotos je Seite)."""
+    fps = max(1, int(fps))
+    seiten: list[tuple[int, list[int]]] = []
+    if getrennt:
+        for i, c in enumerate(counts):
+            for n in verteile(c, fps):
+                seiten.append((i, [n]))
+    else:
+        for n in verteile(sum(counts), fps):
+            seiten.append((-1, [n]))
+    return seiten

@@ -1,0 +1,160 @@
+// Oberflächentest: startet die echte App (Python) und bedient sie in jsdom wie ein Nutzer.
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdtempSync, existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
+
+const hier = dirname(fileURLToPath(import.meta.url));
+const wurzel = join(hier, "..", "..");
+const python = process.env.PYTHON || "python3";
+let proc, adresse, dom, win, doc, fotoOrdner;
+
+const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+async function warteBis(fn, text, ms = 15000) {
+  const ende = Date.now() + ms;
+  while (Date.now() < ende) {
+    try { const v = fn(); if (v) return v; } catch { /* weiter */ }
+    await warte(50);
+  }
+  throw new Error("Zeitüberschreitung: " + text + "\nSeite:\n" + doc.body.textContent.slice(0, 600));
+}
+const q = (s) => doc.querySelector(s);
+const qa = (s) => [...doc.querySelectorAll(s)];
+const klick = (el) => el.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+const taste = (key) => doc.dispatchEvent(new win.KeyboardEvent("keydown", { key, bubbles: true }));
+function setze(el, wert) {
+  el.value = wert;
+  el.dispatchEvent(new win.Event("change", { bubbles: true }));
+}
+const buttonMitText = (t) => qa("button").find((b) => b.textContent.includes(t));
+
+before(async () => {
+  const basis = mkdtempSync(join(tmpdir(), "fb-ui-"));
+  fotoOrdner = join(basis, "Fotos");
+  const r = spawnSync(python, [join(hier, "make_fixture.py"), fotoOrdner], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  proc = spawn(python, ["-u", "-m", "fotobuch", "app", "--kein-browser"], {
+    cwd: wurzel,
+    env: { ...process.env, PYTHONPATH: join(wurzel, "src") },
+  });
+  adresse = await new Promise((res, rej) => {
+    let puffer = "";
+    proc.stdout.on("data", (d) => {
+      puffer += d;
+      const m = puffer.match(/http:\/\/127\.0\.0\.1:\d+\//);
+      if (m) res(m[0]);
+    });
+    proc.on("exit", () => rej(new Error("App beendet: " + puffer)));
+    setTimeout(() => rej(new Error("Start dauert zu lange")), 15000);
+  });
+  dom = await JSDOM.fromURL(adresse, {
+    runScripts: "dangerously",
+    resources: "usable",
+    pretendToBeVisual: true,
+    beforeParse(w) { w.fetch = fetch; w.scrollTo = () => {}; },
+  });
+  win = dom.window;
+  doc = win.document;
+  win.addEventListener("error", (e) => { throw e.error; });
+});
+
+after(() => { proc && proc.kill(); win && win.close(); });
+
+test("Start: Schritt 1 zeigt Hilfe, Datenschutz und gesperrte Folgeschritte", async () => {
+  await warteBis(() => q("h1"), "Überschrift");
+  assert.match(q("h1").textContent, /Fotos laden/);
+  assert.ok(q(".privat").textContent.includes("lokal"));
+  assert.ok(q("details.hilfe"), "Hilfetext vorhanden");
+  const nav = qa("#schritte button");
+  assert.equal(nav.length, 5);
+  assert.ok(nav[1].disabled && nav[4].disabled, "Folgeschritte gesperrt");
+  assert.equal(nav[0].getAttribute("aria-current"), "step");
+  assert.ok(q("#buch").hidden, "Buch-Leiste erst nach Analyse");
+});
+
+test("Ordner öffnen mit falschem Pfad zeigt verständliche Meldung", async () => {
+  setze(q("#pfad"), join(fotoOrdner, "gibtsnicht"));
+  klick(q("#btn-oeffnen"));
+  await warteBis(() => !q("#meldung").hidden, "Fehlermeldung");
+  assert.match(q("#meldung").textContent, /existiert nicht/);
+});
+
+test("Ordner öffnen, analysieren, landet bei den Ereignissen", async () => {
+  q("#pfad").value = fotoOrdner;
+  klick(q("#btn-oeffnen"));
+  await warteBis(() => q("#btn-analyse"), "Analyse-Knopf");
+  assert.ok(q("#meldung").hidden);
+  klick(q("#btn-analyse"));
+  await warteBis(() => /Ereignisse/.test(q("h1")?.textContent) , "Schritt Ereignisse");
+  assert.equal(qa(".ereignis").length, 2);
+  assert.equal(q("#schritte [aria-current]").dataset.schritt, "2");
+  assert.ok(!q("#buch").hidden);
+  assert.equal(q("#buch-fotos").textContent, "19");
+  assert.equal(q("#buch-seiten").textContent, "24");
+});
+
+test("Ereignis umbenennen wird gespeichert und in der Buch-Leiste gezeigt", async () => {
+  const feld = q('input[data-key]');
+  setze(feld, "Toskana Tag 1");
+  await warteBis(() => q("#buch .liste").textContent.includes("Toskana Tag 1"), "Name in Leiste");
+  assert.equal(q('input[data-key]').value, "Toskana Tag 1");
+});
+
+test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswahl", async () => {
+  klick(q("#btn-naechster"));
+  await warteBis(() => q("#serie"), "Serienansicht");
+  assert.match(q("#serie-titel").textContent, /Serie 1 von 1/);
+  let karten = qa("#serie .karte");
+  assert.equal(karten.length, 2);
+  const vorschlag = karten.find((k) => k.querySelector(".marke-v"));
+  assert.ok(vorschlag.classList.contains("behalten"));
+  assert.ok(karten.find((k) => !k.querySelector(".marke-v")).classList.contains("weg"));
+  // Zweites Foto per Leertaste dazunehmen
+  taste("ArrowRight"); await warteBis(() => qa("#serie .karte")[1].classList.contains("fokus"), "Fokus");
+  taste(" ");
+  await warteBis(() => qa("#serie .karte").every((k) => k.classList.contains("behalten")), "beide behalten");
+  assert.equal(q("#buch-fotos").textContent, "20");
+  // Zurück zum Vorschlag mit V
+  taste("v");
+  await warteBis(() => qa("#serie .karte").filter((k) => k.classList.contains("behalten")).length === 1, "Vorschlag");
+  assert.equal(q("#buch-fotos").textContent, "19");
+  // Aussortierte Duplikate sichtbar und zurückholbar
+  const weg = qa("#aussortiert .karte");
+  assert.equal(weg.length, 1);
+  klick(weg[0]);
+  await warteBis(() => q("#buch-fotos").textContent === "20", "Duplikat zurückgeholt");
+  assert.ok(q("#btn-reset"));
+  klick(q("#btn-reset"));
+  await warteBis(() => q("#buch-fotos").textContent === "19", "zurückgesetzt");
+});
+
+test("Seiten: Zähler, Profilwarnung, Kürzen-Vorschlag", async () => {
+  klick(q("#btn-naechster"));
+  await warteBis(() => q("#zaehler"), "Zähler");
+  assert.match(q("#zaehler").textContent, /24 Seiten/);
+  assert.match(q("#zaehler").textContent, /fehlen/);
+  // Eigene Seitenregel: ab 4 Seiten. 19 Fotos in 2 Ereignissen brauchen 7 Seiten, Schritt 2 -> 8
+  setze(q("#seiten-min"), "4");
+  await warteBis(() => q("#zaehler .gross")?.textContent === "8 Seiten", "8 Seiten");
+  assert.equal(q("#seiten-min").value, "4");
+  assert.equal(qa("#tabelle tbody tr").length, 2);
+  assert.equal(q("#buch-seiten").textContent, "8");
+});
+
+test("Export: schreibt Dateien, zeigt Ergebnis, App lässt sich beenden", async () => {
+  klick(q("#btn-naechster"));
+  await warteBis(() => q("#btn-export"), "Export-Knopf");
+  const ziel = join(dirname(fotoOrdner), "Ausgabe");
+  q("#ziel").value = ziel;
+  klick(q("#btn-export"));
+  await warteBis(() => q("#export-ergebnis"), "Export-Ergebnis");
+  assert.match(q("#export-ergebnis").textContent, /19 Fotos kopiert/);
+  assert.ok(existsSync(join(ziel, "seitenliste.csv")));
+  assert.match(readFileSync(join(ziel, "LIESMICH.txt"), "utf8"), /Originalfotos wurden nicht verändert/);
+  klick(q("#btn-beenden"));
+  await warteBis(() => /Beendet/.test(q("h1").textContent), "Beendet-Seite");
+});

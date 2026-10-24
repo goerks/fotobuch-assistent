@@ -14,6 +14,11 @@ class Gruppe:
     vorschlag: Foto | None = None  # Vorschlag: dieses Bild behalten
 
 
+def schluessel(f: Foto) -> tuple:
+    """Einheitliche Reihenfolge, damit exakte und ähnliche Gruppen denselben Vertreter wählen."""
+    return (f.zeit, f.name.lower(), f.pfad.lower())
+
+
 def hamming(a: int, b: int) -> int:
     return (a ^ b).bit_count()
 
@@ -37,7 +42,7 @@ def finde_exakte(fotos: list[Foto]) -> list[Gruppe]:
     gruppen = []
     for liste in nach_hash.values():
         if len(liste) > 1:
-            g = Gruppe("exakt", sorted(liste, key=lambda f: f.pfad.lower()))
+            g = Gruppe("exakt", sorted(liste, key=schluessel))
             g.vorschlag = g.fotos[0]
             gruppen.append(g)
     return gruppen
@@ -64,7 +69,7 @@ def finde_aehnliche(
     kandidaten = [f for f in fotos if not f.fehler and f.breite > 0]
     gesehen: set[str] = set()
     vertreter: list[Foto] = []
-    for f in sorted(kandidaten, key=lambda f: (f.zeit, f.name.lower())):
+    for f in sorted(kandidaten, key=schluessel):
         if f.sha256 and f.sha256 in gesehen:
             continue
         if f.sha256:
