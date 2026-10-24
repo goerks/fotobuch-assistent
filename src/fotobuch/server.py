@@ -251,6 +251,9 @@ def baue_handler(app: App):
             if pfad == "/api/ereignis/name":
                 p.ereignis_umbenennen(str(d["key"]), str(d.get("name", "")))
                 return {"ok": True}
+            if pfad == "/api/ort/name":
+                p.ort_umbenennen(str(d["key"]), str(d.get("name", "")))
+                return {"ok": True}
             if pfad == "/api/vorschlag/anwenden":
                 n = p.vorschlag_anwenden(str(d["art"]), d.get("ids"))
                 return {"ok": True, "anzahl": n}

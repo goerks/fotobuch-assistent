@@ -1,6 +1,6 @@
 """Erzeugt einen realistischen Demo-Fotoordner (synthetische Bilder, keine echten Fotos).
 
-Nachgebildet ist eine Städtereise über vier Tage: Serienbilder, Duplikate aus Messenger-Kopien,
+Nachgebildet ist eine Städtereise nach New York über vier Tage mit GPS-Orten (Handy mit GPS, Spiegelreflex ohne): Serienbilder, Duplikate aus Messenger-Kopien,
 Screenshots, Hoch- und Querformat, zwei Kameras, einige Fotos ohne Aufnahmezeit.
 Aufruf: python tools/demo_fotos.py <zielordner>
 """
@@ -69,46 +69,65 @@ def screenshot(seed: int) -> Image.Image:
     return img
 
 
+# Städtereise New York: Tag, Startzeit, Orte mit (Name, Breite, Länge, Anzahl Fotos, Dauer in Minuten)
 TAGE = [
-    ("Ankunft und Altstadt", datetime(2026, 5, 14, 11, 40), 34, [(11.0, 3), (13.5, 2), (16.0, 4), (19.5, 1)]),
-    ("Hafen und Strand", datetime(2026, 5, 15, 9, 10), 62, [(9.0, 4), (11.5, 3), (14.0, 6), (17.5, 4)]),
-    ("Ausflug Bergdorf", datetime(2026, 5, 16, 8, 30), 71, [(8.5, 5), (11.0, 4), (13.0, 3), (16.0, 5)]),
-    ("Markt und Abreise", datetime(2026, 5, 17, 9, 45), 28, [(9.8, 3), (12.0, 2)]),
+    ("Ankunft", datetime(2026, 5, 14, 14, 20), [
+        ("Times Square", 40.7580, -73.9855, 52, 70),
+        ("Bryant Park", 40.7536, -73.9832, 12, 25),
+    ]),
+    ("Downtown", datetime(2026, 5, 15, 9, 30), [
+        ("Battery Park Fähre", 40.7033, -74.0170, 24, 40),
+        ("Brooklyn Bridge", 40.7061, -73.9969, 46, 75),
+        ("DUMBO", 40.7033, -73.9890, 18, 30),
+    ]),
+    ("Midtown und Park", datetime(2026, 5, 16, 9, 0), [
+        ("Top of the Rock", 40.7593, -73.9794, 30, 50),
+        ("MoMA", 40.7614, -73.9776, 14, 30),
+        ("Central Park Bethesda", 40.7739, -73.9712, 40, 80),
+        ("Times Square", 40.7580, -73.9855, 16, 20),
+    ]),
+    ("High Line und Abreise", datetime(2026, 5, 17, 10, 0), [
+        ("High Line", 40.7480, -74.0048, 26, 45),
+    ]),
 ]
 
 
 def main(ziel: Path) -> None:
     ziel.mkdir(parents=True, exist_ok=True)
-    zufall = random.Random(7)
+    zufall = random.Random(11)
     nr = 0
-    for ti, (titel, start, n, _) in enumerate(TAGE):
+    for ti, (_titel, start, orte) in enumerate(TAGE):
         zeit = start
-        i = 0
-        while i < n:
-            nr += 1
-            zeit += timedelta(minutes=zufall.randint(2, 14))
-            hoch = zufall.random() < 0.22
-            handy = zufall.random() < 0.65
-            stunde = zeit.hour + zeit.minute / 60
-            basis = szene(nr, stunde, hoch)
-            marke, modell = ("Apple", "iPhone 14") if handy else ("Canon", "EOS R50")
-            name = f"IMG_{1000 + nr}.jpg" if handy else f"_MG_{2000 + nr}.jpg"
-            art = zufall.random()
-            if art < 0.20:  # Serie aus 2 bis 4 Bildern
-                k = zufall.randint(2, 4)
-                weg = zufall.randrange(k)
-                for j in range(k):
-                    speichere(variante(basis, j, unscharf=(j == weg and k > 2 and j > 0)), ziel / f"{name[:-4]}_{j}.jpg",
-                              zeit + timedelta(seconds=j * 3), marke=marke, modell=modell, quality=92)
-                i += k
-            else:
-                speichere(basis, ziel / name, zeit, marke=marke, modell=modell, quality=92)
-                i += 1
-                if zufall.random() < 0.06:  # Messenger-Kopie: gleiche Datei
-                    (ziel / f"WhatsApp {name}").write_bytes((ziel / name).read_bytes())
+        for ort_name, lat, lon, n, dauer in orte:
+            i = 0
+            schritt = max(1.0, dauer / n)
+            while i < n:
+                nr += 1
+                zeit += timedelta(minutes=zufall.uniform(0.6 * schritt, 1.4 * schritt))
+                hoch = zufall.random() < 0.22
+                handy = zufall.random() < 0.7
+                stunde = zeit.hour + zeit.minute / 60
+                basis = szene(nr, stunde, hoch)
+                marke, modell = ("Apple", "iPhone 15") if handy else ("Canon", "EOS R50")
+                name = f"IMG_{1000 + nr}.jpg" if handy else f"_MG_{2000 + nr}.jpg"
+                # Handy kennt den Ort (Streuung etwa 40 m), die Spiegelreflex hat kein GPS
+                pos = (lat + zufall.gauss(0, 0.0003), lon + zufall.gauss(0, 0.0004)) if handy and zufall.random() > 0.04 else None
+                if zufall.random() < 0.18:  # Serie aus 2 bis 4 Bildern
+                    k = zufall.randint(2, 4)
+                    weg = zufall.randrange(1, k)
+                    for j in range(k):
+                        speichere(variante(basis, j, unscharf=(j == weg and k > 2)), ziel / f"{name[:-4]}_{j}.jpg",
+                                  zeit + timedelta(seconds=j * 3), marke=marke, modell=modell, gps=pos, quality=92)
+                    i += k
+                else:
+                    speichere(basis, ziel / name, zeit, marke=marke, modell=modell, gps=pos, quality=92)
+                    i += 1
+                    if zufall.random() < 0.05:  # Messenger-Kopie: gleiche Datei
+                        (ziel / f"WhatsApp {name}").write_bytes((ziel / name).read_bytes())
+            zeit += timedelta(minutes=zufall.randint(20, 45))  # Weg zum nächsten Ort
         if ti in (1, 2):
             screenshot(ti).save(ziel / f"Screenshot_2026-05-{14 + ti}.png")
-    for j in range(5):  # Fotos ohne Aufnahmezeit (z. B. aus Chat gespeichert)
+    for j in range(5):  # Fotos ohne Aufnahmezeit (z. B. aus einem Chat gespeichert)
         szene(900 + j, 12).save(ziel / f"gespeichert_{j}.jpg", quality=85)
     print(f"{len(list(ziel.iterdir()))} Dateien in {ziel}")
 

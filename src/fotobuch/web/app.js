@@ -19,6 +19,7 @@
     serie: 0, // Index der gezeigten Serie
     fokus: 0, // Fokus innerhalb der Serie
     zeigeEntfernt: 60,
+    zeigeOrte: 12,
     exportErgebnis: null,
     beendet: false,
     poll: null,
@@ -90,17 +91,22 @@
     }
   }
 
-  async function aktion(fn) {
-    if (S.busy) return;
-    S.busy = true;
-    meldung("");
-    try {
-      await fn();
-    } catch (e) {
-      meldung(e.message);
-    } finally {
-      S.busy = false;
-    }
+  // Aktionen laufen nacheinander. Eine zweite Eingabe während der ersten geht nicht verloren.
+  let warteschlange = Promise.resolve();
+  function aktion(fn) {
+    const lauf = warteschlange.then(async () => {
+      S.busy = true;
+      meldung("");
+      try {
+        await fn();
+      } catch (e) {
+        meldung(e.message);
+      } finally {
+        S.busy = false;
+      }
+    });
+    warteschlange = lauf;
+    return lauf;
   }
 
   async function lade() {
@@ -374,6 +380,22 @@
       })
     );
     v.append(h("div", { class: "zeile" }, h("label", { for: "luecke" }, "Neues Ereignis nach einer Pause von"), luecke, h("span", {}, "Stunden")));
+    const zo = a.zahlen_orte;
+    if (zo.mit_gps) {
+      const radius = h("input", { type: "number", id: "ort-radius", min: 25, max: 5000, step: 25, value: a.einstellungen.ort_radius_m, "aria-label": "Ortsradius in Metern" });
+      radius.addEventListener("change", () =>
+        aktion(async () => {
+          await api("/api/einstellungen", { ort_radius_m: Number(radius.value) });
+          await ladeUndZeige();
+        })
+      );
+      v.append(
+        h("div", { class: "zeile" }, h("label", { for: "ort-radius" }, "Fotos gelten als gleicher Ort bis"), radius, h("span", {}, "Meter Umkreis")),
+        h("p", { class: "still", id: "orte-info" }, zo.mit_gps + " von " + a.zahlen.lesbar + " Fotos haben GPS-Daten und ergeben " + pl(zo.orte, "Ort", "Orte") + ". Fotos ohne GPS bekommen den Ort des zeitlich nächsten Fotos (bis 30 Minuten). Die Orte prüfst und begrenzt du im nächsten Schritt.")
+      );
+    } else {
+      v.append(h("p", { class: "still", id: "orte-info" }, "Keines der Fotos hat GPS-Daten. Deshalb gibt es keine Orte. Das ist normal bei Kameras ohne Ortung oder wenn Ortungsdienste aus waren."));
+    }
 
     for (const e of a.ereignisse) {
       const name = h("input", { type: "text", class: "breit", "data-key": e.key, value: e.name, placeholder: e.titel, "aria-label": "Name von Ereignis " + e.nummer, maxlength: 80 });
@@ -389,6 +411,7 @@
           { class: "ereignis" },
           h("div", {}, name, h("div", { class: "zeit" }, zeitraum(e.von, e.bis) + (e.ohne_zeit ? " · " + e.ohne_zeit + " ohne Aufnahmezeit" : ""))),
           h("div", { class: "zahl" }, h("b", {}, e.im_buch), " von " + e.anzahl + " Fotos", h("br"), e.seiten + (e.seiten === 1 ? " Seite" : " Seiten")),
+          e.orte.length ? h("div", { class: "orte-zeile" }, "Orte: ", e.orte.slice(0, 6).map((o) => h("span", { class: "ortchip" }, o[1] + " · " + o[2])), e.orte.length > 6 ? " und " + (e.orte.length - 6) + " weitere" : null) : null,
           h("div", { class: "streifen" }, e.vorschau.map((id) => h("img", { src: vorschauUrl(id, 160), alt: "", loading: "lazy" })))
         )
       );
@@ -490,6 +513,8 @@
       );
     }
 
+    v.append(...viewOrte(a));
+
     // Automatisch entfernte
     const entfernt = Object.entries(a.fotos).filter(([id, f]) => !f.b && !f.g.startsWith("Serie") && !f.x);
     const serieWeg = Object.entries(a.fotos).filter(([id, f]) => !f.b && f.g.startsWith("Serie"));
@@ -515,6 +540,83 @@
     return v;
   }
 
+  function karteUrl(o) {
+    return "https://www.openstreetmap.org/?mlat=" + o.lat + "&mlon=" + o.lon + "#map=17/" + o.lat + "/" + o.lon;
+  }
+
+  function viewOrte(a) {
+    const zo = a.zahlen_orte;
+    const out = [h("h2", {}, "Orte")];
+    if (!zo.mit_gps) {
+      out.push(h("p", { class: "still" }, "Keines der Fotos hat GPS-Daten. Darum gibt es hier nichts zu prüfen."));
+      return out;
+    }
+    const max = h("input", { type: "number", id: "max-ort", min: 1, max: 500, step: 1, value: a.einstellungen.max_pro_ort || "", placeholder: "aus", "aria-label": "Höchstens so viele Fotos pro Ort" });
+    max.addEventListener("change", () =>
+      aktion(async () => {
+        await api("/api/einstellungen", { max_pro_ort: max.value || null });
+        await ladeUndZeige();
+      })
+    );
+    out.push(
+      h("p", { class: "still" }, "Fotos vom gleichen Ort sind hier zusammengefasst und nach Qualität gereiht (Q = Schärfe und Auflösung, 100 ist am besten). So siehst du, welche Fotos eines Ortes die besten sind."),
+      hilfe(
+        "Wozu Orte, und was bewirkt die Begrenzung?",
+        h("p", {}, "Ein Ort ist ein Umkreis von " + a.einstellungen.ort_radius_m + " Metern um die GPS-Position. Wer am Times Square 60 Fotos macht, soll im Buch nicht 60 Fotos davon haben. Mit «Höchstens N Fotos pro Ort» bleiben pro Ort nur die N besten, die übrigen sind vorsortiert entfernt."),
+        h("p", {}, "Du kannst jedes Foto trotzdem mit einem Klick zurückholen oder entfernen. Eigene Entscheidungen zählen immer mehr als die Begrenzung. Ortsnamen kennt die App nicht, weil sie offline arbeitet: Gib den Orten selbst einen Namen.")
+      ),
+      h("div", { class: "zeile" }, h("label", { for: "max-ort" }, "Höchstens"), max, h("span", {}, "Fotos pro Ort (leer = keine Begrenzung)")),
+      h("div", { class: "chips" },
+        chip(zo.orte, "Orte"),
+        chip(zo.mit_gps, "Fotos mit GPS"),
+        chip(zo.ohne_ort, "Fotos ohne Ort"),
+        chip(zo.ort_entfernt, "wegen der Begrenzung entfernt"))
+    );
+    const orte = a.orte.slice(0, S.zeigeOrte);
+    for (const o of orte) {
+      const name = h("input", { type: "text", "data-ortkey": o.key, value: o.name, placeholder: o.standardname, maxlength: 80, "aria-label": "Name von " + o.standardname });
+      name.addEventListener("change", () =>
+        aktion(async () => {
+          await api("/api/ort/name", { key: o.key, name: name.value });
+          await ladeUndZeige();
+        })
+      );
+      out.push(
+        h("div", { class: "ort", "data-ort": o.index },
+          h("div", { class: "ort-kopf" },
+            name,
+            h("span", { class: "still" }, o.im_buch + " von " + o.anzahl + " Fotos im Buch · " + zeitraum(o.von, o.bis)),
+            h("a", { href: karteUrl(o), target: "_blank", rel: "noopener noreferrer", title: "Öffnet openstreetmap.org im Browser. Die App selbst sendet nichts." }, "Karte ↗")),
+          h("div", { class: "raster ort-raster" }, o.beste.map((id) => ortFoto(id))),
+          o.anzahl > o.beste.length ? h("p", { class: "klein still" }, "Gezeigt sind die " + o.beste.length + " besten von " + o.anzahl + " Fotos.") : null)
+      );
+    }
+    if (a.orte.length > S.zeigeOrte) {
+      out.push(h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-mehr-orte", onclick: () => { S.zeigeOrte += 12; zeige(); } }, "Weitere Orte anzeigen (" + (a.orte.length - S.zeigeOrte) + ")")));
+    }
+    return out;
+  }
+
+  function ortFoto(id) {
+    const f = S.a.fotos[id];
+    return h(
+      "div",
+      {
+        class: "karte " + (f.b ? "behalten" : "weg"),
+        "data-id": id,
+        role: "button",
+        tabindex: 0,
+        "aria-pressed": f.b ? "true" : "false",
+        title: f.n + " · Rang " + f.r + " im Ort · " + (f.b ? "im Buch" : f.g || "entfernt"),
+        onclick: () => aktion(async () => { await api("/api/foto", { id, aktion: f.b ? "entfernen" : "behalten" }); await ladeUndZeige(); }),
+        onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.currentTarget.click(); } },
+      },
+      h("img", { src: vorschauUrl(id, 200), alt: f.n, loading: "lazy" }),
+      h("span", { class: "marke-b" }, "#" + f.r),
+      h("div", { class: "info" }, h("span", {}, "Q " + f.q), h("span", {}, f.b ? "im Buch" : "entfernt"))
+    );
+  }
+
   function chip(wert, text) {
     return h("div", { class: "chip" }, h("b", {}, wert), text);
   }
@@ -537,7 +639,7 @@
       h("span", { class: "marke-b" }, behalten ? "Im Buch" : "Entfernt"),
       id === g.vorschlag ? h("span", { class: "marke-v" }, "Vorschlag") : null,
       h("button", { type: "button", class: "lupe-knopf", "aria-label": "Gross ansehen", onclick: (ev) => { ev.stopPropagation(); lupe(id); } }, "🔍"),
-      h("div", { class: "info" }, h("span", {}, f.n), h("span", {}, f.z.slice(11) + " · " + f.mp + " MP"))
+      h("div", { class: "info" }, h("span", {}, f.n), h("span", {}, f.z.slice(11) + " · " + f.mp + " MP · Q " + f.q))
     );
   }
 

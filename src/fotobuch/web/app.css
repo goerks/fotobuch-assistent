@@ -93,3 +93,11 @@ aside .liste li{display:flex;justify-content:space-between;gap:8px;padding:3px 0
 #lupe img{max-width:96vw;max-height:90vh;border-radius:6px}
 #lupe p{color:#fff;text-align:center;margin:8px 0 0}
 .leer{padding:30px;text-align:center;color:var(--still)}
+.orte-zeile{grid-column:1/-1;font-size:13px;color:var(--still);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ortchip{background:var(--bg);border:1px solid var(--linie);border-radius:12px;padding:0 9px}
+.ort{border:1px solid var(--linie);border-radius:10px;padding:12px 14px;margin:12px 0}
+.ort-kopf{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.ort-kopf input{min-width:180px;flex:0 1 260px}
+.ort-raster{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.klein{font-size:13px;margin:8px 0 0}
+a{color:var(--akzent)}

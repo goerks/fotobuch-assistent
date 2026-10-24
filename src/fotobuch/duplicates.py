@@ -54,12 +54,18 @@ def finde_aehnliche(
     fenster_sekunden: float = 900.0,
     max_spanne_sekunden: float | None = None,
     schon_exakt: set[str] | None = None,
+    ort_von: dict[str, int] | None = None,
+    fenster_ort_sekunden: float = 3600.0,
 ) -> list[Gruppe]:
     """Serien: ähnlicher Differenzhash und kurzer zeitlicher Abstand.
 
     Eine Serie wächst nur, solange ihre gesamte Zeitspanne unter ``max_spanne_sekunden`` bleibt
     (Standard: doppeltes Fenster). So verketten sich ähnliche Motive eines langen Spaziergangs nicht
     zu einer Riesen-Serie.
+
+    Mit ``ort_von`` (Pfad -> Ort) gilt: Am selben Ort darf der zeitliche Abstand bis
+    ``fenster_ort_sekunden`` betragen (man fotografiert dasselbe Motiv später nochmals), an
+    verschiedenen Orten bilden Fotos nie eine Serie. Fehlt bei einem Foto der Ort, gilt das normale Fenster.
 
     Exakte Duplikate (gleicher Datei-Hash) werden nur mit einem Vertreter geführt,
     damit Serien nicht durch Kopien aufgebläht werden.
@@ -76,17 +82,38 @@ def finde_aehnliche(
             gesehen.add(f.sha256)
         vertreter.append(f)
 
+    ort_von = ort_von or {}
+    grosses_fenster = max(fenster_sekunden, fenster_ort_sekunden) if ort_von else fenster_sekunden
+
+    def grenzen(a: Foto, b: Foto) -> tuple[float, float] | None:
+        """(Zeitfenster, Spanne) für zwei Fotos oder None, wenn sie nie zusammengehören."""
+        oa, ob = ort_von.get(a.pfad), ort_von.get(b.pfad)
+        if oa is not None and ob is not None:
+            if oa != ob:
+                return None
+            return fenster_ort_sekunden, max(max_spanne_sekunden, 2 * fenster_ort_sekunden)
+        return fenster_sekunden, max_spanne_sekunden
+
     offene: list[list[Foto]] = []
     alle: list[list[Foto]] = []
     for f in vertreter:
         # Zu alte Serien schliessen
-        offene = [c for c in offene if (f.zeit - c[-1].zeit).total_seconds() <= fenster_sekunden]
+        offene = [c for c in offene if (f.zeit - c[-1].zeit).total_seconds() <= grosses_fenster]
         ziel = None
         for c in offene:
-            if (f.zeit - c[0].zeit).total_seconds() > max_spanne_sekunden:
-                continue
-            if any(hamming(f.dhash, m.dhash) <= max_abstand for m in c):
-                ziel = c
+            for m in c:
+                g = grenzen(f, m)
+                if g is None:
+                    continue
+                fenster, spanne = g
+                if (f.zeit - m.zeit).total_seconds() > fenster:
+                    continue
+                if (f.zeit - c[0].zeit).total_seconds() > spanne:
+                    continue
+                if hamming(f.dhash, m.dhash) <= max_abstand:
+                    ziel = c
+                    break
+            if ziel is not None:
                 break
         if ziel is None:
             ziel = [f]

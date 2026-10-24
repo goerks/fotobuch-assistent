@@ -14,6 +14,7 @@ from typing import Callable
 
 from . import __version__
 from .duplicates import Gruppe, finde_aehnliche, finde_exakte
+from .orte import bilde_orte
 from .events import Ereignis, bilde_ereignisse
 from .pages import Profil, seitenplan
 from .scanner import HEIC_OK, RAW_OK, Foto, finde_fotos, scanne
@@ -25,6 +26,7 @@ class Optionen:
     max_km: float = 50.0
     aehnlich_abstand: int = 6
     serie_minuten: float = 15.0
+    ort_radius_m: float = 200.0
     fotos_pro_seite: float = 3.0
     profil: Profil | None = None
     threads: int | None = None
@@ -43,6 +45,8 @@ class Ergebnis:
     zu_entfernen_exakt: set[str] = field(default_factory=set)
     zu_entfernen_serien: set[str] = field(default_factory=set)
     screenshots: set[str] = field(default_factory=set)
+    orte: list = field(default_factory=list)
+    ort_von: dict = field(default_factory=dict)
 
 
 def ram_gb() -> float | None:
@@ -97,7 +101,12 @@ def baue_ergebnis(ordner, fotos: list[Foto], opt: Optionen, zeiten: dict[str, fl
     zeiten["exakte_duplikate"] = time.perf_counter() - t
     t = time.perf_counter()
     # Screenshots bilden keine Serien mit echten Fotos
-    serien = finde_aehnliche([f for f in fotos if not f.screenshot_verdacht], opt.aehnlich_abstand, opt.serie_minuten * 60)
+    orte, ort_von = bilde_orte(fotos, opt.ort_radius_m)
+    zeiten["orte"] = time.perf_counter() - t
+    t = time.perf_counter()
+    serien = finde_aehnliche(
+        [f for f in fotos if not f.screenshot_verdacht], opt.aehnlich_abstand, opt.serie_minuten * 60, ort_von=ort_von
+    )
     zeiten["serien"] = time.perf_counter() - t
     zeiten.setdefault("gesamt", sum(zeiten.values()))
 
@@ -107,6 +116,7 @@ def baue_ergebnis(ordner, fotos: list[Foto], opt: Optionen, zeiten: dict[str, fl
     for g in serien:
         erg.zu_entfernen_serien.update(f.pfad for f in g.fotos if f is not g.vorschlag)
     erg.screenshots = {f.pfad for f in fotos if f.screenshot_verdacht}
+    erg.orte, erg.ort_von = orte, ort_von
     return erg
 
 

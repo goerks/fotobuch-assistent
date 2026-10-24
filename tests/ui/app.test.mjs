@@ -95,6 +95,8 @@ test("Ordner öffnen, analysieren, landet bei den Ereignissen", async () => {
   assert.ok(!q("#buch").hidden);
   assert.equal(q("#buch-fotos").textContent, "19");
   assert.equal(q("#buch-seiten").textContent, "24");
+  assert.match(q("#orte-info").textContent, /18 von 19|18 von 20|Orte/);
+  assert.ok(qa(".ortchip").length >= 2, "Orte je Ereignis sichtbar");
 });
 
 test("Ereignis umbenennen wird gespeichert und in der Buch-Leiste gezeigt", async () => {
@@ -128,6 +130,27 @@ test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswah
   klick(weg[0]);
   await warteBis(() => q("#buch-fotos").textContent === "20", "Duplikat zurückgeholt");
   assert.ok(q("#btn-reset"));
+  klick(q("#btn-reset"));
+  await warteBis(() => q("#buch-fotos").textContent === "19", "zurückgesetzt");
+});
+
+test("Orte: Rangliste, Benennen und Begrenzung pro Ort", async () => {
+  await warteBis(() => qa(".ort").length === 2, "zwei Orte");
+  const gross = qa(".ort").find((o) => o.querySelector(".ort-raster").children.length === 8);
+  assert.ok(gross, "der Ort mit 12 Fotos zeigt die 8 besten");
+  assert.equal(gross.querySelector(".marke-b").textContent, "#1");
+  setze(q("input[data-ortkey]"), "Times Square");
+  await warteBis(() => qa("input[data-ortkey]").some((i) => i.value === "Times Square"), "Ortsname gespeichert");
+  // Begrenzung auf 3 pro Ort: 12 -> 3 und 6 -> 3, das Foto ohne GPS (s1) bleibt: 7
+  assert.equal(q("#buch-fotos").textContent, "19");
+  setze(q("#max-ort"), "3");
+  await warteBis(() => q("#buch-fotos").textContent === "7", "Begrenzung wirkt");
+  assert.ok(qa(".ort .karte.weg").length > 0, "entfernte Fotos sind markiert");
+  // Ein entferntes Foto per Klick zurückholen
+  klick(qa(".ort .karte.weg")[0]);
+  await warteBis(() => q("#buch-fotos").textContent === "8", "Foto zurückgeholt");
+  setze(q("#max-ort"), "");
+  await warteBis(() => q("#buch-fotos").textContent === "19", "Begrenzung aus");
   klick(q("#btn-reset"));
   await warteBis(() => q("#buch-fotos").textContent === "19", "zurückgesetzt");
 });

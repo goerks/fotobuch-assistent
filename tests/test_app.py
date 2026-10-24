@@ -285,3 +285,103 @@ def test_ablauf_ueber_api(server):
     assert anfrage(httpd, "/api/foto", t, {"id": fid, "aktion": "entfernen"})[0] == 200
     code, body = anfrage(httpd, "/api/export", t, {"ziel": str(tmp / "exp")})
     assert code == 200 and json.loads(body)["fotos"] == 18
+
+
+# ---------------------------------------------------------------- Orte
+
+TIMES_SQUARE = (40.7580, -73.9855)
+CENTRAL_PARK = (40.7739, -73.9712)
+
+
+def _versatz(gps, meter_nord=0.0, meter_ost=0.0):
+    return (gps[0] + meter_nord / 111_000, gps[1] + meter_ost / 84_000)
+
+
+def baue_orte_ordner(d: Path) -> Path:
+    # Times Square: 6 Fotos (2 ohne GPS von einer zweiten Kamera), später Central Park: 4 Fotos
+    for i in range(4):
+        speichere(motiv(10 + i), d / f"ts{i}.jpg", T0 + timedelta(minutes=i * 6), gps=_versatz(TIMES_SQUARE, i * 15, i * 10))
+    for i in range(2):
+        speichere(motiv(20 + i), d / f"dslr{i}.jpg", T0 + timedelta(minutes=i * 6 + 3), marke="Canon", modell="R50")
+    for i in range(4):
+        speichere(motiv(30 + i), d / f"cp{i}.jpg", T0 + timedelta(hours=2, minutes=i * 5), gps=_versatz(CENTRAL_PARK, i * 20, 0))
+    return d
+
+
+def test_orte_gruppieren_nach_gps_und_ordnen_kamera_ohne_gps_zu(tmp_path):
+    p = Projekt(baue_orte_ordner(tmp_path))
+    p.analysieren()
+    a = p.ansicht()
+    assert a["zahlen_orte"]["orte"] == 2 and a["zahlen_orte"]["ohne_ort"] == 0
+    grosse = a["orte"][0]
+    assert grosse["anzahl"] == 6 and grosse["mit_gps"] == 4  # inklusive 2 Fotos ohne GPS
+    namen = {a["fotos"][i]["n"] for i in grosse["alle"]}
+    assert {"dslr0.jpg", "dslr1.jpg", "ts0.jpg"} <= namen
+    assert abs(grosse["lat"] - TIMES_SQUARE[0]) < 0.001
+    # Rang: jedes Foto hat einen Rang 1..n im Ort, bestes zuerst
+    raenge = sorted(a["fotos"][i]["r"] for i in grosse["alle"])
+    assert raenge == [1, 2, 3, 4, 5, 6]
+
+
+def test_ortsradius_bestimmt_die_gruppen(tmp_path):
+    p = Projekt(baue_orte_ordner(tmp_path))
+    p.analysieren()
+    p.setze_einstellungen({"ort_radius_m": 25})
+    assert p.ansicht()["zahlen_orte"]["orte"] > 2
+    p.setze_einstellungen({"ort_radius_m": 5000})
+    assert p.ansicht()["zahlen_orte"]["orte"] == 1
+
+
+def test_max_pro_ort_behaelt_die_besten_und_ist_umkehrbar(tmp_path):
+    p = Projekt(baue_orte_ordner(tmp_path))
+    p.analysieren()
+    a = p.ansicht()
+    assert a["zahlen"]["im_buch"] == 10
+    p.setze_einstellungen({"max_pro_ort": 2})
+    b = p.ansicht()
+    assert b["zahlen"]["im_buch"] == 4
+    assert b["zahlen_orte"]["ort_entfernt"] == 6
+    for o in b["orte"]:
+        behalten = [i for i in o["alle"] if b["fotos"][i]["b"]]
+        assert len(behalten) == 2
+        assert set(behalten) == set(o["alle"][:2])  # genau die zwei bestplatzierten
+    # Eigene Entscheidung gewinnt: ein entferntes Foto zurückholen
+    weg = next(i for i, f in b["fotos"].items() if not f["b"])
+    p.setze_foto(weg, "behalten")
+    assert p.ansicht()["fotos"][weg]["b"]
+    # Ausschalten
+    p.setze_einstellungen({"max_pro_ort": ""})
+    assert p.ansicht()["zahlen"]["im_buch"] == 10
+    with pytest.raises(ProjektFehler):
+        p.setze_einstellungen({"max_pro_ort": 0})
+
+
+def test_serie_am_selben_ort_darf_laenger_dauern_an_anderen_orten_nie(tmp_path):
+    basis = motiv(77)
+    # selbes Motiv, 40 Minuten Abstand: ohne Ort keine Serie (Fenster 15 min)
+    speichere(basis, tmp_path / "x1.jpg", T0, gps=TIMES_SQUARE)
+    speichere(basis, tmp_path / "x2.jpg", T0 + timedelta(minutes=40), gps=_versatz(TIMES_SQUARE, 20, 0))
+    # gleiches Motiv, aber 10 km entfernt aufgenommen: nie eine Serie
+    speichere(basis, tmp_path / "y1.jpg", T0 + timedelta(days=1), gps=TIMES_SQUARE)
+    speichere(basis, tmp_path / "y2.jpg", T0 + timedelta(days=1, minutes=2), gps=CENTRAL_PARK)
+    for n in ("x2.jpg", "y2.jpg"):  # keine exakten Duplikate
+        from PIL import ImageEnhance
+        from PIL import Image
+        bild = Image.open(tmp_path / n)
+        exif = bild.getexif()
+        ImageEnhance.Brightness(bild).enhance(1.02).save(tmp_path / n, exif=exif, quality=90)
+    p = Projekt(tmp_path)
+    p.analysieren()
+    a = p.ansicht()
+    namen = [sorted(a["fotos"][i]["n"] for i in s["ids"]) for s in a["serien"]]
+    assert ["x1.jpg", "x2.jpg"] in namen
+    assert ["y1.jpg", "y2.jpg"] not in namen
+
+
+def test_export_enthaelt_ortsspalte(tmp_path):
+    p = Projekt(baue_orte_ordner(tmp_path))
+    p.analysieren()
+    p.ort_umbenennen(p.ort_key(0), "Times Square")
+    erg = p.exportieren(tmp_path / "exp")
+    kopf, *zeilen = (Path(erg["ziel"]) / "seitenliste.csv").read_text(encoding="utf-8-sig").splitlines()
+    assert kopf.endswith(";Ort") and any("Times Square" in z for z in zeilen)

@@ -19,7 +19,7 @@ def motiv(seed: int, size=(640, 480)) -> Image.Image:
 
 
 def speichere(bild: Image.Image, pfad: Path, zeit: datetime | None = None, orientierung: int | None = None,
-              marke: str = "TestMarke", modell: str = "TestKamera", **kw) -> Path:
+              marke: str = "TestMarke", modell: str = "TestKamera", gps=None, **kw) -> Path:
     exif = Image.Exif()
     if zeit:
         sub = exif.get_ifd(0x8769)
@@ -30,6 +30,17 @@ def speichere(bild: Image.Image, pfad: Path, zeit: datetime | None = None, orien
         exif[272] = modell
     if orientierung:
         exif[274] = orientierung
+    if gps:
+        def dms(x):
+            x = abs(x)
+            g = int(x)
+            m = int((x - g) * 60)
+            return (float(g), float(m), round((x - g - m / 60) * 3600, 3))
+        ifd = exif.get_ifd(0x8825)
+        ifd[1] = "N" if gps[0] >= 0 else "S"
+        ifd[2] = dms(gps[0])
+        ifd[3] = "E" if gps[1] >= 0 else "W"
+        ifd[4] = dms(gps[1])
     bild.save(pfad, exif=exif, **kw)
     return pfad
 

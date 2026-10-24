@@ -44,6 +44,8 @@ STANDARD = {
     "max_km": 50.0,
     "aehnlich_abstand": 6,
     "serie_minuten": 15.0,
+    "ort_radius_m": 200,
+    "max_pro_ort": None,
     "fotos_pro_seite": 3,
     "profil": "allgemein",
     "seiten_min": None,
@@ -57,6 +59,7 @@ GRENZEN = {
     "max_km": (1.0, 5000.0),
     "aehnlich_abstand": (0, 16),
     "serie_minuten": (1.0, 120.0),
+    "ort_radius_m": (25, 5000),
     "fotos_pro_seite": (1, 8),
 }
 
@@ -108,6 +111,9 @@ class Projekt:
         self.einstellungen: dict = dict(STANDARD)
         self.entscheidungen: dict[str, str] = {}
         self.ereignis_namen: dict[str, str] = {}
+        self.ort_namen: dict[str, str] = {}
+        self._ver = 0
+        self._ort_weg_cache: tuple[int, set[str]] | None = None
         self.schritt: int = 1
         self.cache: dict[str, dict] = {}  # rel -> {"mtime_ns", "groesse", "foto"}
         self.fotos: dict[str, Foto] = {}
@@ -141,6 +147,7 @@ class Projekt:
         self.einstellungen.update({k: v for k, v in d.get("einstellungen", {}).items() if k in STANDARD})
         self.entscheidungen = d.get("entscheidungen", {})
         self.ereignis_namen = d.get("ereignis_namen", {})
+        self.ort_namen = d.get("ort_namen", {})
         self.schritt = int(d.get("schritt", 1))
         self.cache = d.get("cache", {})
         self.analysiert_am = d.get("analysiert_am")
@@ -148,6 +155,7 @@ class Projekt:
 
     def speichern(self) -> None:
         with self.lock:
+            self._ver += 1
             self.daten.mkdir(parents=True, exist_ok=True)
             d = {
                 "version": FORMAT_VERSION,
@@ -155,6 +163,7 @@ class Projekt:
                 "einstellungen": self.einstellungen,
                 "entscheidungen": self.entscheidungen,
                 "ereignis_namen": self.ereignis_namen,
+                "ort_namen": self.ort_namen,
                 "schritt": self.schritt,
                 "cache": self.cache,
                 "analysiert_am": self.analysiert_am,
@@ -232,19 +241,24 @@ class Projekt:
                 max_km=float(e["max_km"]),
                 aehnlich_abstand=int(e["aehnlich_abstand"]),
                 serie_minuten=float(e["serie_minuten"]),
+                ort_radius_m=float(e["ort_radius_m"]),
                 fotos_pro_seite=float(e["fotos_pro_seite"]),
                 profil=self.profil(),
             )
             fotos = sorted(self.fotos.values(), key=schluessel)
             self.ergebnis = baue_ergebnis(self.ordner, fotos, opt)
             self._id_von_pfad = {f.pfad: fid for fid, f in self.fotos.items()}
+            self._ver += 1
+            self._ort_von_id: dict[str, int] = {
+                self._id_von_pfad[p]: i for p, i in self.ergebnis.ort_von.items() if p in self._id_von_pfad
+            }
             # Stabile Reihenfolge der Serien
             self._ereignis_von_id: dict[str, int] = {}
             for i, ev in enumerate(self.ergebnis.ereignisse):
                 for f in ev.fotos:
                     self._ereignis_von_id[self._id_von_pfad[f.pfad]] = i
             vals = [f.schaerfe for f in fotos if not f.fehler and f.schaerfe > 0]
-            self._maxs = float(np.percentile(vals, 90)) if vals else 0.0
+            self._maxs = float(np.percentile(vals, 98)) if vals else 0.0
 
     def _fid(self, f: Foto) -> str:
         return self._id_von_pfad[f.pfad]
@@ -264,9 +278,33 @@ class Projekt:
             return False, "Serie, anderes Foto vorgeschlagen"
         return True, ""
 
+    def _ort_weg(self) -> set[str]:
+        """Fotos, die wegen «höchstens N Fotos pro Ort» automatisch entfallen (die schwächsten zuerst)."""
+        n = self.einstellungen.get("max_pro_ort")
+        if not n:
+            return set()
+        if self._ort_weg_cache and self._ort_weg_cache[0] == self._ver:
+            return self._ort_weg_cache[1]
+        weg: set[str] = set()
+        for ort in self.ergebnis.orte:
+            kandidaten = []
+            for f in ort.fotos:
+                fid = self._fid(f)
+                eig = self.entscheidungen.get(fid)
+                if eig == "entfernen" or not self._auto(f)[0]:
+                    continue
+                if eig != "behalten":  # eigene Auswahl liegt ausserhalb der Begrenzung
+                    kandidaten.append(fid)
+            kandidaten.sort(key=lambda i: (-_score(self.fotos[i], self._maxs), self.fotos[i].name.lower()))
+            weg.update(kandidaten[n:])
+        self._ort_weg_cache = (self._ver, weg)
+        return weg
+
     def einstufung(self, fid: str) -> dict:
         f = self.fotos[fid]
         auto_behalten, grund = self._auto(f)
+        if auto_behalten and fid in self._ort_weg():
+            auto_behalten, grund = False, "Ort: nur die besten %d" % self.einstellungen["max_pro_ort"]
         eig = self.entscheidungen.get(fid)
         if eig == "behalten":
             return {"behalten": True, "grund": "Von dir behalten", "eigene": True}
@@ -329,6 +367,22 @@ class Projekt:
                 self.ereignis_namen.pop(key, None)
             self.speichern()
 
+    def ort_umbenennen(self, key: str, name: str) -> None:
+        with self.lock:
+            name = (name or "").strip()[:80]
+            if name:
+                self.ort_namen[key] = name
+            else:
+                self.ort_namen.pop(key, None)
+            self.speichern()
+
+    def ort_key(self, ort_index: int) -> str:
+        return self._fid(self.ergebnis.orte[ort_index].fotos[0])
+
+    def ort_name(self, ort_index: int) -> str:
+        o = self.ergebnis.orte[ort_index]
+        return self.ort_namen.get(self.ort_key(ort_index)) or f"Ort {o.nummer}"
+
     def setze_einstellungen(self, neu: dict) -> None:
         with self.lock:
             for k, v in neu.items():
@@ -347,7 +401,7 @@ class Projekt:
                         raise ProjektFehler("Unbekanntes Profil")
                 elif k == "ereignisse_getrennt":
                     v = bool(v)
-                elif k in ("seiten_min", "seiten_schritt", "seiten_max"):
+                elif k in ("seiten_min", "seiten_schritt", "seiten_max", "max_pro_ort"):
                     if v in (None, ""):
                         v = None
                     else:
@@ -416,7 +470,7 @@ class Projekt:
                     einst = self.einstufung(i)
                     if einst["behalten"] or einst["eigene"]:
                         continue
-                    if not einst["grund"].startswith("Serie"):
+                    if not einst["grund"].startswith(("Serie", "Ort")):
                         continue
                     kandidaten.append((-_score(self.fotos[i], maxs), i, ei if getrennt else 0))
             kandidaten.sort()
@@ -497,9 +551,10 @@ class Projekt:
                     "bis": ev.ende.isoformat(timespec="minutes"),
                     "anzahl": len(ids),
                     "im_buch": len(behalten),
-                    "vorschau": (behalten or ids)[:8:max(1, len(behalten or ids) // 8)][:8],
+                    "vorschau": (behalten or ids)[:: max(1, len(behalten or ids) // 8)][:8],
                     "ohne_zeit": sum(1 for f in ev.fotos if f.zeit_quelle == "datei"),
                     "seiten": seitenplan["seiten_je_ereignis"][i],
+                    "orte": self._orte_im_ereignis(ids),
                 })
 
             serien = []
@@ -514,6 +569,7 @@ class Projekt:
                     "ereignis": self._ereignis_von_id[ids[0]],
                 })
 
+            orte_ansicht, rang = self._orte_ansicht(einst)
             fotos_kompakt = {}
             for fid, f in self.fotos.items():
                 e = einst[fid]
@@ -529,6 +585,9 @@ class Projekt:
                     "x": f.fehler,
                     "zq": f.zeit_quelle,
                     "raw": f.ist_raw,
+                    "o": self._ort_von_id.get(fid),
+                    "q": round(100 * _score(f, self._maxs)),
+                    "r": rang.get(fid),
                 }
 
             entfernt_gruende: dict[str, int] = {}
@@ -572,11 +631,57 @@ class Projekt:
                     "eigene_entscheidungen": len(self.entscheidungen),
                 },
                 "ereignisse": ereignisse,
+                "orte": orte_ansicht,
+                "zahlen_orte": {
+                    "orte": len(orte_ansicht),
+                    "mit_gps": sum(1 for f in lesbar if f.gps),
+                    "ohne_ort": sum(1 for fid in self.fotos if fid not in self._ort_von_id and not self.fotos[fid].fehler and not self.fotos[fid].screenshot_verdacht),
+                    "ort_entfernt": sum(1 for v in einst.values() if v["grund"].startswith("Ort:")),
+                },
                 "serien": serien,
                 "fotos": fotos_kompakt,
                 "seitenplan": seitenplan,
                 "vorschlaege": self.vorschlaege(seitenplan),
             }
+
+    def _orte_im_ereignis(self, ids: list[str]) -> list[list]:
+        zaehler: dict[int, int] = {}
+        for i in ids:
+            o = self._ort_von_id.get(i)
+            if o is not None:
+                zaehler[o] = zaehler.get(o, 0) + 1
+        return [[o, self.ort_name(o), n] for o, n in sorted(zaehler.items(), key=lambda x: -x[1])]
+
+    def _orte_ansicht(self, einst: dict) -> tuple[list[dict], dict[str, int]]:
+        """Orte mit Rangliste nach Qualität. Rang 1 = bestes Foto des Ortes."""
+        orte = []
+        rang: dict[str, int] = {}
+        for idx, o in enumerate(self.ergebnis.orte):
+            ids = [self._fid(f) for f in o.fotos]
+            geordnet = sorted(ids, key=lambda i: (-_score(self.fotos[i], self._maxs), self.fotos[i].name.lower()))
+            for r, i in enumerate(geordnet, 1):
+                rang[i] = r
+            behalten = [i for i in ids if einst[i]["behalten"]]
+            evs = sorted({self._ereignis_von_id[i] for i in ids})
+            orte.append({
+                "index": idx,
+                "key": self.ort_key(idx),
+                "nummer": o.nummer,
+                "name": self.ort_namen.get(self.ort_key(idx), ""),
+                "standardname": f"Ort {o.nummer}",
+                "lat": round(o.lat, 5),
+                "lon": round(o.lon, 5),
+                "anzahl": len(ids),
+                "mit_gps": o.mit_gps,
+                "im_buch": len(behalten),
+                "von": o.start.isoformat(timespec="minutes"),
+                "bis": o.ende.isoformat(timespec="minutes"),
+                "ereignisse": evs,
+                "beste": geordnet[:8],
+                "alle": geordnet,
+            })
+        orte.sort(key=lambda x: -x["anzahl"])
+        return orte, rang
 
     # ------------------------------------------------------------------ Vorschaubilder
 
@@ -665,13 +770,14 @@ class Projekt:
                     ei, fid, rel = reihenfolge[pos]
                     f = self.fotos[fid]
                     name = self.ereignis_namen.get(self.erg_key(ei)) or self.ergebnis.ereignisse[ei].titel
-                    zeilen.append([seitennr, name, rel, f.name, f.zeit.strftime("%Y-%m-%d %H:%M")])
+                    oi = self._ort_von_id.get(fid)
+                    zeilen.append([seitennr, name, rel, f.name, f.zeit.strftime("%Y-%m-%d %H:%M"), self.ort_name(oi) if oi is not None else ""])
                     pos += 1
             for leer in range(len(seiten) + 1, plan["buch_seiten"] + 1):
-                zeilen.append([leer, "(frei)", "", "", ""])
+                zeilen.append([leer, "(frei)", "", "", "", ""])
             with open(ziel / "seitenliste.csv", "w", newline="", encoding="utf-8-sig") as fh:
                 w = csv.writer(fh, delimiter=";")
-                w.writerow(["Seite", "Ereignis", "Datei im Export", "Originalname", "Aufnahmezeit"])
+                w.writerow(["Seite", "Ereignis", "Datei im Export", "Originalname", "Aufnahmezeit", "Ort"])
                 w.writerows(zeilen)
 
             (ziel / "LIESMICH.txt").write_text(

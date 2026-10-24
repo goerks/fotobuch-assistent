@@ -12,9 +12,9 @@ ziel = Path(sys.argv[1])
 ziel.mkdir(parents=True, exist_ok=True)
 t0 = datetime(2026, 7, 3, 9, 0)
 for i in range(12):
-    speichere(motiv(i), ziel / f"a{i:02d}.jpg", t0 + timedelta(minutes=i * 40))
+    speichere(motiv(i), ziel / f"a{i:02d}.jpg", t0 + timedelta(minutes=i * 40), gps=(40.7580 + i * 0.0001, -73.9855))
 for i in range(6):
-    speichere(motiv(100 + i), ziel / f"b{i}.jpg", t0 + timedelta(days=1, minutes=i * 40))
+    speichere(motiv(100 + i), ziel / f"b{i}.jpg", t0 + timedelta(days=1, minutes=i * 40), gps=(40.7739, -73.9712))
 basis = motiv(500)
 speichere(basis, ziel / "s1.jpg", t0 + timedelta(days=1, hours=5))
 speichere(basis.filter(ImageFilter.GaussianBlur(3)), ziel / "s2.jpg", t0 + timedelta(days=1, hours=5, minutes=1))
