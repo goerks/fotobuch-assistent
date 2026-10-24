@@ -117,6 +117,7 @@
     zeige();
   }
 
+  const pl = (n, ein, mehr) => n + " " + (n === 1 ? ein : mehr);
   const zahl = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "’");
 
   function zeitTeil(iso) {
@@ -641,20 +642,20 @@
     // Zähler
     const zaehler = h("div", { class: "zaehler", id: "zaehler" },
       h("div", { class: "gross" }, p.buch_seiten + " Seiten"),
-      h("p", {}, zahl(p.fotos) + " Fotos ergeben " + p.seiten_benoetigt + " Seiten" + (p.leere_seiten ? ", " + p.leere_seiten + " Seiten bleiben leer." : ".")));
+      h("p", {}, zahl(p.fotos) + " Fotos ergeben " + p.seiten_benoetigt + " Seiten" + (p.leere_seiten ? ", " + (p.leere_seiten === 1 ? "1 Seite bleibt" : p.leere_seiten + " Seiten bleiben") + " leer." : ".")));
     if (p.ueber_maximum) zaehler.append(h("div", { class: "warn" }, "Das sind mehr Seiten als erlaubt (" + prof.seiten_max + "). Entferne Fotos oder erhöhe Fotos pro Seite."));
     else if (p.fehlende_fotos === 0) zaehler.append(h("div", { class: "gut" }, "Alle " + p.buch_seiten + " Seiten sind gefüllt."));
     else zaehler.append(h("p", {}, "Um alle " + p.buch_seiten + " Seiten zu füllen, fehlen ", h("b", { id: "fehlend" }, p.fehlende_fotos), " Fotos."));
-    if (p.kleinere_stufe) zaehler.append(h("p", {}, "Mit ", h("b", { id: "weglassen" }, p.weglassen_fuer_kleinere_stufe), " Fotos weniger passt das Buch auf ", h("b", {}, p.kleinere_stufe), " Seiten."));
+    if (p.kleinere_stufe) zaehler.append(h("p", {}, "Mit ", h("b", { id: "weglassen" }, p.weglassen_fuer_kleinere_stufe), (p.weglassen_fuer_kleinere_stufe === 1 ? " Foto weniger passt das Buch auf " : " Fotos weniger passt das Buch auf "), h("b", {}, p.kleinere_stufe), " Seiten."));
     v.append(zaehler);
 
     // Vorschläge
     const vs = a.vorschlaege;
     if (vs.auffuellen.length) {
-      v.append(vorschlagBlock("auffuellen", "Auffüllen", "Diese " + vs.auffuellen.length + " Fotos aus aussortierten Serien füllen freie Plätze, ohne eine Seite zu verändern.", vs.auffuellen, "Alle ins Buch nehmen"));
+      v.append(vorschlagBlock("auffuellen", "Auffüllen", (vs.auffuellen.length === 1 ? "Dieses Foto aus einer aussortierten Serie füllt" : "Diese " + vs.auffuellen.length + " Fotos aus aussortierten Serien füllen") + " freie Plätze, ohne eine Seite zu verändern.", vs.auffuellen, "Alle ins Buch nehmen"));
     }
     if (vs.kuerzen.length) {
-      v.append(vorschlagBlock("kuerzen", "Kürzen auf " + p.kleinere_stufe + " Seiten", "Diese " + vs.kuerzen.length + " Fotos sind die schwächsten an den Stellen, wo dadurch eine Seite wegfällt.", vs.kuerzen, "Alle entfernen"));
+      v.append(vorschlagBlock("kuerzen", "Kürzen auf " + p.kleinere_stufe + " Seiten", (vs.kuerzen.length === 1 ? "Dieses Foto ist das schwächste" : "Diese " + vs.kuerzen.length + " Fotos sind die schwächsten") + " an den Stellen, wo dadurch eine Seite wegfällt.", vs.kuerzen, "Alle entfernen"));
     }
 
     // Tabelle
