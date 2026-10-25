@@ -4,7 +4,7 @@
 //! abgelegt (Zustand und Vorschaubilder). Die Originalfotos werden nie verändert.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -85,6 +85,8 @@ struct Zustand {
     ereignis_namen: BTreeMap<String, String>,
     ort_namen: BTreeMap<String, String>,
     layout_wahl: BTreeMap<String, usize>,
+    ereignis_teilen: BTreeSet<String>,
+    ereignis_verbinden: BTreeSet<String>,
     schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     analysiert_am: Option<String>,
@@ -139,6 +141,8 @@ pub struct Projekt {
     pub ereignis_namen: BTreeMap<String, String>,
     pub ort_namen: BTreeMap<String, String>,
     pub layout_wahl: BTreeMap<String, usize>,
+    pub ereignis_teilen: BTreeSet<String>,
+    pub ereignis_verbinden: BTreeSet<String>,
     pub schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     pub fotos: Vec<Foto>,
@@ -199,6 +203,8 @@ impl Projekt {
             ereignis_namen: BTreeMap::new(),
             ort_namen: BTreeMap::new(),
             layout_wahl: BTreeMap::new(),
+            ereignis_teilen: BTreeSet::new(),
+            ereignis_verbinden: BTreeSet::new(),
             schritt: 1,
             cache: BTreeMap::new(),
             fotos: vec![],
@@ -234,6 +240,8 @@ impl Projekt {
                 self.ereignis_namen = z.ereignis_namen;
                 self.ort_namen = z.ort_namen;
                 self.layout_wahl = z.layout_wahl;
+                self.ereignis_teilen = z.ereignis_teilen;
+                self.ereignis_verbinden = z.ereignis_verbinden;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
                 self.cache = z.cache;
                 self.analysiert_am = z.analysiert_am;
@@ -256,6 +264,8 @@ impl Projekt {
             ereignis_namen: self.ereignis_namen.clone(),
             ort_namen: self.ort_namen.clone(),
             layout_wahl: self.layout_wahl.clone(),
+            ereignis_teilen: self.ereignis_teilen.clone(),
+            ereignis_verbinden: self.ereignis_verbinden.clone(),
             schritt: self.schritt,
             cache: self.cache.clone(),
             analysiert_am: self.analysiert_am.clone(),
@@ -294,7 +304,7 @@ impl Projekt {
     pub fn neu_gruppieren(&mut self) {
         let e = &self.einstellungen;
         let fotos = &self.fotos;
-        let ereignisse = bilde_ereignisse(fotos, e.luecke_stunden, e.max_km);
+        let ereignisse = Self::ereignisse_anpassen(bilde_ereignisse(fotos, e.luecke_stunden, e.max_km), &self.ids, &self.ereignis_teilen, &self.ereignis_verbinden);
         let alle: Vec<usize> = (0..fotos.len()).collect();
         let exakt = finde_exakte(fotos);
         let (orte, ort_von) = bilde_orte(fotos, e.ort_radius_m as f64, 30.0);
@@ -353,6 +363,72 @@ impl Projekt {
             screenshots,
         });
         self.ver += 1;
+    }
+
+    /// Wendet die manuellen Änderungen an: erst Teilungen, dann Zusammenlegungen.
+    fn ereignisse_anpassen(auto: Vec<Ereignis>, ids: &[String], teilen: &BTreeSet<String>, verbinden: &BTreeSet<String>) -> Vec<Ereignis> {
+        let mut gruppen: Vec<Vec<usize>> = Vec::new();
+        for ev in auto {
+            let mut aktuell: Vec<usize> = Vec::new();
+            for i in ev.fotos {
+                if !aktuell.is_empty() && teilen.contains(&ids[i]) {
+                    gruppen.push(std::mem::take(&mut aktuell));
+                }
+                aktuell.push(i);
+            }
+            if !aktuell.is_empty() {
+                gruppen.push(aktuell);
+            }
+        }
+        let mut aus: Vec<Vec<usize>> = Vec::new();
+        for g in gruppen {
+            if !aus.is_empty() && verbinden.contains(&ids[g[0]]) {
+                aus.last_mut().unwrap().extend(g);
+            } else {
+                aus.push(g);
+            }
+        }
+        aus.into_iter().enumerate().map(|(k, fotos)| Ereignis { nummer: k + 1, fotos }).collect()
+    }
+
+    /// Ereignis ab diesem Foto neu beginnen lassen (oder eine frühere Zusammenlegung an dieser Stelle aufheben).
+    pub fn ereignis_teilen_bei(&mut self, id: &str) -> Res<()> {
+        let i = *self.id_index.get(id).ok_or("Unbekanntes Foto")?;
+        let ev = &self.erg().ereignisse[self.erg().ereignis_von[i]];
+        if ev.fotos[0] == i {
+            return Err("Dieses Foto beginnt schon ein Ereignis.".into());
+        }
+        if !self.ereignis_verbinden.remove(id) {
+            self.ereignis_teilen.insert(id.to_string());
+        }
+        self.neu_gruppieren();
+        self.speichern();
+        Ok(())
+    }
+
+    /// Ereignis mit dem davor liegenden zusammenlegen (oder eine frühere Teilung aufheben).
+    pub fn ereignis_mit_vorherigem(&mut self, key: &str) -> Res<()> {
+        let i = *self.id_index.get(key).ok_or("Unbekanntes Ereignis")?;
+        let ev = &self.erg().ereignisse[self.erg().ereignis_von[i]];
+        if ev.fotos[0] != i {
+            return Err("Unbekanntes Ereignis".into());
+        }
+        if ev.nummer == 1 {
+            return Err("Das erste Ereignis hat kein vorheriges.".into());
+        }
+        if !self.ereignis_teilen.remove(key) {
+            self.ereignis_verbinden.insert(key.to_string());
+        }
+        self.neu_gruppieren();
+        self.speichern();
+        Ok(())
+    }
+
+    pub fn ereignisse_zuruecksetzen(&mut self) {
+        self.ereignis_teilen.clear();
+        self.ereignis_verbinden.clear();
+        self.neu_gruppieren();
+        self.speichern();
     }
 
     fn erg(&self) -> &Ergebnis {
@@ -1017,6 +1093,7 @@ impl Projekt {
                 "anzahl": ev.fotos.len(),
                 "im_buch": behalten.len(),
                 "vorschau": idl(&vorschau),
+                "ids": idl(&ev.fotos),
                 "ohne_zeit": ev.fotos.iter().filter(|&&x| self.fotos[x].zeit_quelle == "datei").count(),
                 "seiten": seitenplan["seiten_je_ereignis"][i],
                 "orte": self.orte_im_ereignis(&ev.fotos),
@@ -1112,6 +1189,7 @@ impl Projekt {
                 "entfernt": self.fotos.len() - im_buch,
                 "entfernt_gruende": entfernt_gruende,
                 "eigene_entscheidungen": self.entscheidungen.len(),
+                "ereignis_aenderungen": self.ereignis_teilen.len() + self.ereignis_verbinden.len(),
             },
             "ereignisse": ereignisse,
             "orte": orte_ansicht,

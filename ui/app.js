@@ -21,6 +21,7 @@
     fokus: 0, // Fokus innerhalb der Serie
     zeigeEntfernt: 60,
     zeigeOrte: 12,
+    teilenOffen: null, // Schlüssel des Ereignisses, das gerade geteilt wird
     kg: 280, // Bildgrösse in Schritt 3 (Pixel)
     wegFilter: "alle",
     buchPos: 0, // Doppelseite (0-basiert)
@@ -441,8 +442,39 @@
           h("div", {}, name, h("div", { class: "zeit" }, zeitraum(e.von, e.bis) + (e.ohne_zeit ? " · " + e.ohne_zeit + " ohne Aufnahmezeit" : ""))),
           h("div", { class: "zahl" }, h("b", {}, e.im_buch), " von " + e.anzahl + " Fotos", h("br"), e.seiten + (e.seiten === 1 ? " Seite" : " Seiten")),
           e.orte.length ? h("div", { class: "orte-zeile" }, "Orte: ", e.orte.slice(0, 6).map((o) => h("span", { class: "ortchip" }, o[1] + " · " + o[2])), e.orte.length > 6 ? " und " + (e.orte.length - 6) + " weitere" : null) : null,
-          h("div", { class: "streifen" }, e.vorschau.map((id) => h("img", { src: vorschauUrl(id, 160), alt: "", loading: "lazy" })))
+          h("div", { class: "streifen" }, e.vorschau.map((id) => h("img", { src: vorschauUrl(id, 160), alt: "", loading: "lazy" }))),
+          h(
+            "div",
+            { class: "ev-werkzeuge" },
+            e.nummer > 1
+              ? h("button", { class: "klein", "data-aktion": "zusammenlegen", onclick: () => aktion(async () => { await api("/api/ereignis/zusammenlegen", { key: e.key }); S.teilenOffen = null; await ladeUndZeige(); }) }, "Mit vorherigem zusammenlegen")
+              : null,
+            e.anzahl > 1
+              ? h("button", { class: "klein", "data-aktion": "teilen", onclick: () => { S.teilenOffen = S.teilenOffen === e.key ? null : e.key; zeige(); } }, S.teilenOffen === e.key ? "Teilen abbrechen" : "Teilen …")
+              : null
+          ),
+          S.teilenOffen === e.key
+            ? h(
+                "div",
+                { class: "teilen-panel" },
+                h("p", { class: "still" }, "Klicke das Foto, mit dem das neue Ereignis beginnen soll."),
+                h(
+                  "div",
+                  { class: "teilen-raster" },
+                  e.ids.map((id, k) =>
+                    k === 0
+                      ? h("div", { class: "teilen-start", title: "Erstes Foto des Ereignisses" }, h("img", { src: vorschauUrl(id, 160), alt: "" }))
+                      : h("button", { class: "teilen-foto", "data-id": id, title: "Hier neu beginnen", onclick: () => aktion(async () => { await api("/api/ereignis/teilen", { id }); S.teilenOffen = null; await ladeUndZeige(); }) }, h("img", { src: vorschauUrl(id, 160), alt: "Neues Ereignis ab hier" }))
+                  )
+                )
+              )
+            : null
         )
+      );
+    }
+    if (z.ereignis_aenderungen) {
+      v.append(
+        h("div", { class: "zeile" }, h("span", {}, z.ereignis_aenderungen + " manuelle Änderung(en) an der Einteilung. "), h("button", { class: "klein", id: "ereignisse-zurueck", onclick: () => aktion(async () => { await api("/api/ereignisse/zuruecksetzen", {}); S.teilenOffen = null; await ladeUndZeige(); }) }, "Automatische Einteilung wiederherstellen"))
       );
     }
     v.append(fuss(1, 3));

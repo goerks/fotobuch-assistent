@@ -63,3 +63,6 @@ Beim ersten Zugriff auf Ordner wie «Bilder» fragt macOS nach der Erlaubnis. Er
 
 ## Hinweis zu HEIC (iPhone)
 HEIC-Fotos liest die App mit einem eigenen, in Rust geschriebenen Decoder. HEIC nutzt das Videoformat HEVC, für das Patente bestehen. Die App gibt die Fotos nirgends weiter und verändert sie nicht, sie zeigt sie nur lokal an.
+
+## Ereignisse anpassen
+Im Schritt «Ereignisse» hat jedes Ereignis zwei Knöpfe: «Mit vorherigem zusammenlegen» und «Teilen …». Beim Teilen klickst du das Foto, ab dem ein neues Ereignis beginnen soll. «Automatische Einteilung wiederherstellen» macht alle Änderungen rückgängig.

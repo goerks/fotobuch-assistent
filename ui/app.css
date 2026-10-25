@@ -167,3 +167,11 @@ a{color:var(--akzent)}
 .minifoto img{display:block;width:100%;height:100%;object-fit:cover}
 .minibez{font-size:11px;color:var(--still)}
 .fuss button{flex:none}
+
+.ev-werkzeuge{grid-column:1/-1;display:flex;gap:8px}
+.teilen-panel{grid-column:1/-1;background:#f4f6f9;border-radius:8px;padding:10px}
+.teilen-raster{display:flex;flex-wrap:wrap;gap:6px;max-height:320px;overflow:auto}
+.teilen-raster img{width:84px;height:64px;object-fit:cover;display:block;border-radius:4px}
+.teilen-foto{border:2px solid transparent;padding:0;background:none;border-radius:6px;cursor:pointer}
+.teilen-foto:hover,.teilen-foto:focus{border-color:var(--akzent,#1f6f9a)}
+.teilen-start{opacity:.5}

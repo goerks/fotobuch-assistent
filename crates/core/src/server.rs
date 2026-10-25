@@ -369,6 +369,20 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             let n = p.vorschlag_anwenden(&text(d, "art")?, ids)?;
             Ok(json!({"ok": true, "anzahl": n}))
         }
+        "/api/ereignis/teilen" => {
+            p.ereignis_teilen_bei(&text(d, "id")?)?;
+            Ok(ok())
+        }
+        "/api/ereignis/zusammenlegen" => {
+            p.ereignis_mit_vorherigem(&text(d, "key")?)?;
+            Ok(ok())
+        }
+        "/api/ereignisse/zuruecksetzen" => {
+            if p.ergebnis.is_some() {
+                p.ereignisse_zuruecksetzen();
+            }
+            Ok(ok())
+        }
         "/api/seite/layout" => {
             let w = d.get("wahl").and_then(|v| v.as_u64()).ok_or("Ungültige Anfrage")? as usize;
             p.setze_layout(&text(d, "key")?, w)?;

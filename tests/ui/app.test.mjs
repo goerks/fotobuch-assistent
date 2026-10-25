@@ -104,6 +104,21 @@ test("Ereignis umbenennen wird gespeichert und in der Buch-Leiste gezeigt", asyn
   assert.equal(q('input[data-key]').value, "Toskana Tag 1");
 });
 
+test("Ereignisse: zusammenlegen, wieder teilen, zurücksetzen", async () => {
+  assert.equal(qa(".ereignis").length, 2);
+  klick(q('button[data-aktion="zusammenlegen"]'));
+  await warteBis(() => qa(".ereignis").length === 1, "zusammengelegt");
+  assert.ok(q("#ereignisse-zurueck"), "Zurücksetzen sichtbar");
+  klick(q('button[data-aktion="teilen"]'));
+  await warteBis(() => q(".teilen-foto"), "Teilen-Panel");
+  const fotos = qa(".teilen-foto");
+  klick(fotos[Math.min(fotos.length - 1, 8)]);
+  await warteBis(() => qa(".ereignis").length === 2, "geteilt");
+  klick(q("#ereignisse-zurueck"));
+  await warteBis(() => !q("#ereignisse-zurueck"), "zurückgesetzt");
+  assert.equal(qa(".ereignis").length, 2);
+});
+
 test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswahl", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#serie"), "Serienansicht");

@@ -125,3 +125,6 @@ Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 - Export-Recherche: kein einheitliches Fotobuch-Format, PDF nur bei einem Teil der Dienste
 - Technologie-Vorschlag mit drei Leistungsstufen für schwache Rechner
 - Entscheidungen des Auftraggebers: Windows zuerst, Schnittstellen nur als Export zu Druckdiensten, Fotos bleiben lokal
+
+## MVP 1 abgeschlossen (2026-10-25)
+Ereignisse lassen sich von Hand anpassen: mit dem vorherigen zusammenlegen, an einem gewählten Foto teilen, Änderungen gesammelt zurücksetzen. Die Änderungen werden im Projekt gespeichert und überleben eine neue Analyse. Offen aus MVP 1: nur die Abnahme am echten Buchprojekt (Aufgabe der Anwenderin/des Anwenders).
