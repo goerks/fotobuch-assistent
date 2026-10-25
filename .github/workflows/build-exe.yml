@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Testbilder-Generator (nur für die Tests)
-        run: python -m pip install pillow numpy pytest
+        run: python -m pip install pillow numpy pytest playwright
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -32,6 +32,18 @@ jobs:
         run: |
           npm ci
           node --test app.test.mjs
+      - name: Echter Ende-zu-Ende-Test (Demo-Reise im Chromium, Album entsteht)
+        env:
+          FOTOBUCH_E2E_OUT: ${{ runner.temp }}/album
+        run: |
+          python -m playwright install --with-deps chromium
+          python -m pytest tests/e2e -s
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: album-ende-zu-ende
+          path: ${{ runner.temp }}/album
+          if-no-files-found: ignore
 
   windows:
     needs: tests

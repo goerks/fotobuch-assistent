@@ -10,6 +10,7 @@ Ziel: Jede Änderung wird automatisch geprüft, ohne echte Fotos. Was automatisc
 | App-Logik | `tests/test_app.py` | Entscheidungen und Neustart, Zwischenspeicher, defekter Zustand, Einstellungsprüfung, Auffüllen/Kürzen auf die Seitenstufe genau, Export ohne Überschreiben, defekte Bilder, leerer Ordner |
 | Sicherheit | `tests/test_app.py` | Token-Pflicht, Host-Prüfung (nur 127.0.0.1/localhost), JSON-Pflicht, kein Ausbruch aus dem Web-Ordner, Pfadeingaben |
 | Oberfläche | `tests/ui/app.test.mjs` (Node, jsdom) | Die echte App wird gestartet und wie ein Nutzer bedient: Ordner öffnen, Analyse, Ereignisse benennen, Serien per Klick und Tastatur, Zähler, Seitenregeln, Export |
+| Ende-zu-Ende | `tests/e2e/test_album.py` (pytest + Chromium) | Demo-Reise (~300 Fotos mit EXIF/GPS, Serien, Duplikate, Screenshots) durch die ganze App: Analyse, Ereignisse benennen/zusammenlegen/teilen, Foto entfernen, jede Buch-Doppelseite blättern (alle Bilder geladen, jedes Buchfoto genau einmal), Export, Originale unverändert (Prüfsummen), Neustart behält Änderungen. Ergebnis: Bild je Doppelseite und `album-kontaktbogen.png` (CI-Artefakt `album-ende-zu-ende`) |
 | Paket | CI-Schritt «Selbsttest der exe» | Die gebaute Windows-exe startet und liefert die Oberfläche aus |
 
 Testbilder sind synthetisch (`tests/conftest.py`) und enthalten bekannte Eigenschaften (Zeit, Unschärfe, Duplikate), damit Erwartungen exakt sind.
