@@ -8,7 +8,8 @@
     { nr: 2, name: "Ereignisse" },
     { nr: 3, name: "Aussortieren" },
     { nr: 4, name: "Seiten" },
-    { nr: 5, name: "Export" },
+    { nr: 5, name: "Buch" },
+    { nr: 6, name: "Export" },
   ];
   const WOCHENTAG = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -20,6 +21,11 @@
     fokus: 0, // Fokus innerhalb der Serie
     zeigeEntfernt: 60,
     zeigeOrte: 12,
+    kg: 280, // Bildgrösse in Schritt 3 (Pixel)
+    wegFilter: "alle",
+    buchPos: 0, // Doppelseite (0-basiert)
+    buchAnsicht: "doppel",
+    zoom: 200,
     exportErgebnis: null,
     beendet: false,
     poll: null,
@@ -211,7 +217,7 @@
 
   function zeigeBuch() {
     const side = $("#buch");
-    if (!S.a || !S.a.analysiert) {
+    if (!S.a || !S.a.analysiert || S.schritt === 5) {
       side.hidden = true;
       return;
     }
@@ -488,6 +494,13 @@
         chip(z.im_buch, "Fotos im Buch")
       )
     );
+    const kg = h("input", { type: "range", id: "kg", min: 160, max: 520, step: 20, value: S.kg, "aria-label": "Bildgrösse" });
+    kg.addEventListener("input", () => {
+      S.kg = Number(kg.value);
+      document.querySelectorAll(".serie").forEach((e) => e.style.setProperty("--kg", S.kg + "px"));
+      document.querySelectorAll(".raster.gross").forEach((e) => e.style.setProperty("--kg", Math.round(S.kg * 0.85) + "px"));
+    });
+    v.append(h("div", { class: "zeile" }, h("label", { for: "kg" }, "Bildgrösse"), kg));
 
     // Serien
     v.append(h("h2", {}, "Fast gleiche Serien"));
@@ -510,7 +523,7 @@
         )
       );
       v.append(
-        h("div", { class: "serie", id: "serie" },
+        h("div", { class: "serie", id: "serie", style: "--kg:" + S.kg + "px" },
           g.ids.map((id, i) => serienKarte(id, i, g)))
       );
       v.append(
@@ -525,23 +538,32 @@
 
     v.append(...viewOrte(a));
 
-    // Automatisch entfernte
-    const entfernt = Object.entries(a.fotos).filter(([id, f]) => !f.b && !f.g.startsWith("Serie") && !f.x);
-    const serieWeg = Object.entries(a.fotos).filter(([id, f]) => !f.b && f.g.startsWith("Serie"));
-    const nichtLesbar = Object.values(a.fotos).filter((f) => f.x).length;
-    v.append(h("h2", {}, "Aussortiert (" + entfernt.length + ")"));
-    if (!entfernt.length) {
-      v.append(h("p", { class: "still" }, "Nichts ausser den Serien aussortiert."));
+    // Aussortierte mit Begründung
+    const KAT = [
+      ["alle", "Alle"], ["Exaktes Duplikat", "Exakte Duplikate"], ["Screenshot", "Screenshots"], ["Serie", "Aus Serien"],
+      ["Ort", "Wegen Ortsbegrenzung"], ["Von dir", "Von dir entfernt"],
+    ];
+    const alleWeg = Object.entries(a.fotos).filter(([id, f]) => !f.b && !f.x);
+    const zaehleKat = (k) => (k === "alle" ? alleWeg.length : alleWeg.filter(([, f]) => f.g.startsWith(k)).length);
+    const weg = alleWeg.filter(([, f]) => S.wegFilter === "alle" || f.g.startsWith(S.wegFilter));
+    v.append(h("h2", {}, "Aussortiert (" + alleWeg.length + ")"));
+    if (!alleWeg.length) {
+      v.append(h("p", { class: "still" }, "Es wurde nichts aussortiert."));
     } else {
+      const sel = h("select", { id: "weg-filter", "aria-label": "Grund filtern" },
+        KAT.filter(([k]) => k === "alle" || zaehleKat(k) > 0).map(([k, t]) => h("option", { value: k, selected: S.wegFilter === k }, t + " (" + zaehleKat(k) + ")")));
+      sel.addEventListener("change", () => { S.wegFilter = sel.value; S.zeigeEntfernt = 60; zeige(); });
       v.append(
-        h("p", { class: "still" }, "Klicke ein Foto an, um es doch ins Buch zu nehmen."),
-        h("div", { class: "raster", id: "aussortiert" },
-          entfernt.slice(0, S.zeigeEntfernt).map(([id, f]) => rasterKarte(id, f)))
+        h("p", { class: "still" }, "Zu jedem Foto steht, warum es nicht im Buch ist. Klicke ein Foto an für die grosse Ansicht und um es doch ins Buch zu holen."),
+        h("div", { class: "zeile" }, h("label", { for: "weg-filter" }, "Grund"), sel),
+        h("div", { class: "raster gross", id: "aussortiert", style: "--kg:" + Math.round(S.kg * 0.85) + "px" },
+          weg.slice(0, S.zeigeEntfernt).map(([id, f]) => rasterKarte(id, f)))
       );
-      if (entfernt.length > S.zeigeEntfernt) {
+      if (weg.length > S.zeigeEntfernt) {
         v.append(h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", onclick: () => { S.zeigeEntfernt += 120; zeige(); } }, "Mehr anzeigen")));
       }
     }
+    const nichtLesbar = Object.values(a.fotos).filter((f) => f.x).length;
     if (nichtLesbar) v.append(h("div", { class: "warn" }, nichtLesbar + " Dateien konnten nicht gelesen werden und sind nicht im Buch."));
     if (a.zahlen.eigene_entscheidungen) {
       v.append(h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-reset", onclick: () => aktion(async () => { await api("/api/entscheidungen/zuruecksetzen", {}); await ladeUndZeige(); }) }, "Alle meine Entscheidungen zurücksetzen (" + a.zahlen.eigene_entscheidungen + ")")));
@@ -661,12 +683,12 @@
         "data-id": id,
         role: "button",
         tabindex: 0,
-        title: f.n + " · " + f.g + ". Klicken zum Zurückholen",
-        onclick: () => aktion(async () => { await api("/api/foto", { id, aktion: "behalten" }); await ladeUndZeige(); }),
+        title: f.n + " · " + f.gd,
+        onclick: () => lupe(id),
         onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.currentTarget.click(); } },
       },
-      h("img", { src: vorschauUrl(id, 200), alt: f.n, loading: "lazy" }),
-      h("div", { class: "info" }, h("span", {}, f.g))
+      h("img", { src: vorschauUrl(id, 400), alt: f.n, loading: "lazy" }),
+      h("div", { class: "grund" }, h("b", {}, f.g || "Entfernt"), h("span", {}, f.gd))
     );
   }
 
@@ -777,7 +799,7 @@
         h("thead", {}, h("tr", {}, h("th", {}, "Ereignis"), h("th", { class: "z" }, "Fotos"), h("th", { class: "z" }, "Seiten"))),
         h("tbody", {}, a.ereignisse.map((ev) => h("tr", {}, h("td", {}, ereignisName(ev)), h("td", { class: "z" }, ev.im_buch), h("td", { class: "z" }, ev.seiten)))))
     );
-    v.append(fuss(3, 5, "Weiter zum Export →"));
+    v.append(fuss(3, 5, "Weiter zur Buchansicht →"));
     return v;
   }
 
@@ -819,7 +841,7 @@
         r.fehler.length ? h("div", { class: "warn" }, "Nicht kopiert: " + r.fehler.join("; ")) : null
       );
     }
-    v.append(fuss(4, null), h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-beenden", onclick: () => aktion(async () => { await api("/api/beenden", {}); S.beendet = true; zeige(); }) }, "App beenden")));
+    v.append(fuss(5, null), h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-beenden", onclick: () => aktion(async () => { await api("/api/beenden", {}); S.beendet = true; zeige(); }) }, "App beenden")));
     return v;
   }
 
@@ -828,9 +850,107 @@
   function lupe(id) {
     const f = S.a.fotos[id];
     const l = $("#lupe");
-    l.replaceChildren(h("div", {}, h("img", { src: vorschauUrl(id, 1400), alt: f.n }), h("p", {}, f.n + " · " + f.z + " · " + f.mp + " MP · Esc zum Schliessen")));
+    const zu = () => { l.hidden = true; };
+    l.replaceChildren(
+      h("div", { class: "lupe-inhalt" },
+        h("img", { src: vorschauUrl(id, 1400), alt: f.n }),
+        h("div", { class: "lupe-info" },
+          h("b", {}, f.n),
+          h("p", { class: "klein-zeile" }, f.z + " · " + f.mp + " MP · Qualität " + f.q + (f.ort ? " · " + f.ort : "")),
+          h("p", { id: "lupe-grund", class: f.b ? "gut" : "warn" }, (f.b ? "Im Buch. " : "Nicht im Buch. ") + f.gd),
+          h("div", { class: "zeile" },
+            h("button", { type: "button", class: "knopf haupt", id: "lupe-umschalten", onclick: (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await api("/api/foto", { id, aktion: f.b ? "entfernen" : "behalten" }); await ladeUndZeige(); }); } }, f.b ? "Aus dem Buch entfernen" : "Ins Buch holen"),
+            h("button", { type: "button", class: "knopf", id: "lupe-zu", onclick: (ev) => { ev.stopPropagation(); zu(); } }, "Schliessen (Esc)")))
+      )
+    );
     l.hidden = false;
-    l.onclick = () => { l.hidden = true; };
+    l.onclick = (ev) => { if (ev.target === l) zu(); };
+  }
+
+  // ------------------------------------------------------------------ Schritt 5: Buch (Seitenansicht)
+
+  function seiteElement(sp, gross) {
+    const el = h("div", { class: "seite" + (sp.frei ? " frei" : ""), "data-nr": sp.nr, style: "aspect-ratio:" + S.a.buch.ar });
+    for (const p of sp.fotos) {
+      const f = S.a.fotos[p.id];
+      el.append(
+        h("button", { type: "button", class: "sfoto", "data-id": p.id, title: f.n + " · " + f.z, "aria-label": f.n + ", Details", style: "left:" + p.x + "%;top:" + p.y + "%;width:" + p.w + "%;height:" + p.h + "%", onclick: (ev) => { if (S.buchAnsicht === "doppel") { ev.stopPropagation(); lupe(p.id); } } },
+          h("img", { src: vorschauUrl(p.id, gross ? 900 : 360), alt: f.n, loading: "lazy" }))
+      );
+    }
+    if (sp.frei) el.append(h("span", { class: "frei-text" }, "Freie Seite"));
+    return el;
+  }
+
+  function viewBuch() {
+    const a = S.a;
+    const b = a.buch;
+    const alle = b.seiten.concat(b.freie_seiten.map((nr) => ({ nr, frei: true, fotos: [], titel: "Freie Seite" })));
+    const n = alle.length;
+    const maxPos = Math.max(0, Math.ceil(n / 2) - 1);
+    S.buchPos = Math.max(0, Math.min(S.buchPos, maxPos));
+    const speichere = (daten) => aktion(async () => { await api("/api/einstellungen", daten); await ladeUndZeige(); });
+    const v = h("div", {});
+    v.append(
+      h("h1", {}, "Buch"),
+      h("p", { class: "still" }, "So würde dein Buch aussehen. Die Reihenfolge folgt der Aufnahmezeit. Pro Seite wählt der Assistent die Anordnung, bei der die Fotos möglichst gross sind, nichts beschnitten wird und Hoch- und Querformate zusammenpassen. Klicke ein Foto an für Details oder zum Entfernen."),
+      hilfe("Wie wird angeordnet?",
+        h("ul", {},
+          h("li", {}, "Jedes Ereignis beginnt auf einer neuen Seite (einstellbar im Schritt «Seiten»)."),
+          h("li", {}, "Fotos einer Seite bleiben in zeitlicher Reihenfolge. Das Layout (nebeneinander, untereinander, verschachtelt) wird je nach Hoch- oder Querformat gewählt."),
+          h("li", {}, "Es wird nicht beschnitten, die Fotos behalten ihr Seitenverhältnis."),
+          h("li", {}, "Freie Seiten am Ende gibt es, weil Druckdienste nur bestimmte Seitenzahlen erlauben.")))
+    );
+    const fmt = h("select", { id: "seitenformat", "aria-label": "Seitenformat" },
+      [["quer", "Quer (4:3)"], ["quadrat", "Quadratisch"], ["hoch", "Hoch (3:4)"]].map(([w, t]) => h("option", { value: w, selected: a.einstellungen.seitenformat === w }, t)));
+    fmt.addEventListener("change", () => speichere({ seitenformat: fmt.value }));
+    const fps = h("input", { type: "number", id: "bf-fps", min: 1, max: 8, step: 1, value: a.einstellungen.fotos_pro_seite });
+    fps.addEventListener("change", () => speichere({ fotos_pro_seite: Number(fps.value) }));
+    v.append(
+      h("div", { class: "zeile buchleiste" },
+        h("label", { for: "seitenformat" }, "Seitenformat"), fmt,
+        h("label", { for: "bf-fps" }, "Fotos pro Seite (Durchschnitt)"), fps,
+        h("span", { class: "still" }, a.zahlen.im_buch + " Fotos auf " + b.seiten.length + " Seiten" + (b.freie_seiten.length ? " + " + b.freie_seiten.length + " freie" : "")),
+        h("span", { class: "abstand" }),
+        h("button", { type: "button", class: "knopf" + (S.buchAnsicht === "doppel" ? " haupt" : ""), id: "btn-ansicht-doppel", onclick: () => { S.buchAnsicht = "doppel"; zeige(); } }, "Blättern"),
+        h("button", { type: "button", class: "knopf" + (S.buchAnsicht === "uebersicht" ? " haupt" : ""), id: "btn-ansicht-uebersicht", onclick: () => { S.buchAnsicht = "uebersicht"; zeige(); } }, "Übersicht"))
+    );
+    if (!n) {
+      v.append(h("div", { class: "leer" }, "Noch keine Fotos im Buch."));
+    } else if (S.buchAnsicht === "uebersicht") {
+      const zoom = h("input", { type: "range", id: "zoom", min: 100, max: 420, step: 10, value: S.zoom, "aria-label": "Grösse der Seiten" });
+      zoom.addEventListener("input", () => {
+        S.zoom = Number(zoom.value);
+        const g = $("#uebersicht");
+        if (g) g.style.setProperty("--zoom", S.zoom + "px");
+      });
+      v.append(
+        h("div", { class: "zeile" }, h("label", { for: "zoom" }, "Grösse"), zoom, h("span", { class: "still" }, "Klicke eine Seite, um sie gross zu sehen.")),
+        h("div", { class: "uebersicht", id: "uebersicht", style: "--zoom:" + S.zoom + "px" },
+          alle.map((sp, i) => h("div", { class: "seitenkarte", "data-nr": sp.nr, role: "button", tabindex: 0, onclick: () => { S.buchPos = Math.floor(i / 2); S.buchAnsicht = "doppel"; zeige(); window.scrollTo(0, 0); }, onkeydown: (ev) => { if (ev.key === "Enter") ev.currentTarget.click(); } },
+            seiteElement(sp, false),
+            h("div", { class: "klein" }, "Seite " + sp.nr + " · " + sp.titel))))
+      );
+    } else {
+      const links = alle[S.buchPos * 2];
+      const rechts = alle[S.buchPos * 2 + 1];
+      const goto = h("input", { type: "number", id: "buch-goto", min: 1, max: n, value: links.nr, "aria-label": "Zu Seite springen" });
+      goto.addEventListener("change", () => { S.buchPos = Math.floor((Math.max(1, Math.min(n, Number(goto.value) || 1)) - 1) / 2); zeige(); });
+      v.append(
+        h("div", { class: "zeile" },
+          h("button", { type: "button", class: "knopf", id: "btn-buch-zurueck", disabled: S.buchPos === 0, onclick: () => { S.buchPos--; zeige(); } }, "← Zurück"),
+          h("b", { id: "buch-pos" }, "Seiten " + links.nr + (rechts ? "–" + rechts.nr : "") + " von " + n),
+          h("button", { type: "button", class: "knopf", id: "btn-buch-weiter", disabled: S.buchPos >= maxPos, onclick: () => { S.buchPos++; zeige(); } }, "Weiter →"),
+          h("label", { for: "buch-goto" }, "Gehe zu Seite"), goto),
+        h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
+          [links, rechts].map((sp) => sp
+            ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true), h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")))
+            : h("figure", { class: "seitenspalte leer-seite" }))),
+        h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
+      );
+    }
+    v.append(fuss(4, 6, "Weiter zum Export →"));
+    return v;
   }
 
   // ------------------------------------------------------------------ Anzeige
@@ -850,10 +970,13 @@
       case 2: v = viewEreignisse(); break;
       case 3: v = viewAussortieren(); break;
       case 4: v = viewSeiten(); break;
-      case 5: v = viewExport(); break;
+      case 5: v = viewBuch(); break;
+      case 6: v = viewExport(); break;
       default: v = viewStart();
     }
     inhalt.replaceChildren(v);
+    const rahmen = document.querySelector(".rahmen");
+    if (rahmen) rahmen.classList.toggle("breit", S.schritt === 5);
     zeigeNavigation();
     zeigeBuch();
   }
@@ -868,6 +991,12 @@
     const t = ev.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (S.schritt === 5 && S.a && S.a.buch && S.buchAnsicht === "doppel") {
+      const maxPos = Math.max(0, Math.ceil((S.a.buch.seiten.length + S.a.buch.freie_seiten.length) / 2) - 1);
+      if (ev.key === "ArrowRight" && S.buchPos < maxPos) { S.buchPos++; zeige(); ev.preventDefault(); }
+      else if (ev.key === "ArrowLeft" && S.buchPos > 0) { S.buchPos--; zeige(); ev.preventDefault(); }
+      return;
+    }
     if (S.schritt !== 3 || !S.a || !S.a.serien || !S.a.serien.length) return;
     if (t && t.tagName === "BUTTON" && (ev.key === " " || ev.key === "Enter")) return;
     const g = S.a.serien[S.serie];
@@ -886,7 +1015,7 @@
   async function start() {
     try {
       await lade();
-      if (S.a && S.a.analysiert) S.schritt = Math.max(1, Math.min(5, S.a.schritt || 2));
+      if (S.a && S.a.analysiert) S.schritt = Math.max(1, Math.min(6, S.a.schritt || 2));
       else S.schritt = 1;
       zeige();
       if (S.status.job.laeuft) pollStart();

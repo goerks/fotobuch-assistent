@@ -68,8 +68,8 @@ test("Start: Schritt 1 zeigt Hilfe, Datenschutz und gesperrte Folgeschritte", as
   assert.ok(q(".privat").textContent.includes("lokal"));
   assert.ok(q("details.hilfe"), "Hilfetext vorhanden");
   const nav = qa("#schritte button");
-  assert.equal(nav.length, 5);
-  assert.ok(nav[1].disabled && nav[4].disabled, "Folgeschritte gesperrt");
+  assert.equal(nav.length, 6);
+  assert.ok(nav[1].disabled && nav[5].disabled, "Folgeschritte gesperrt");
   assert.equal(nav[0].getAttribute("aria-current"), "step");
   assert.ok(q("#buch").hidden, "Buch-Leiste erst nach Analyse");
 });
@@ -122,10 +122,16 @@ test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswah
   taste("v");
   await warteBis(() => qa("#serie .karte").filter((k) => k.classList.contains("behalten")).length === 1, "Vorschlag");
   assert.equal(q("#buch-fotos").textContent, "19");
-  // Aussortierte Duplikate sichtbar und zurückholbar
+  // Aussortierte mit Begründung sichtbar, Detailansicht holt zurück
   const weg = qa("#aussortiert .karte");
-  assert.equal(weg.length, 1);
-  klick(weg[0]);
+  assert.ok(weg.length >= 2, "Duplikat und Serienrest sind aufgelistet");
+  const dup = weg.find((k) => /Exaktes Duplikat/.test(k.textContent));
+  assert.ok(dup, "Duplikat mit Begründung");
+  assert.match(dup.textContent, /byte-genau gleich/);
+  klick(dup);
+  await warteBis(() => !q("#lupe").hidden && q("#lupe-grund"), "Detailansicht");
+  assert.match(q("#lupe-grund").textContent, /Nicht im Buch/);
+  klick(q("#lupe-umschalten"));
   await warteBis(() => q("#buch-fotos").textContent === "20", "Duplikat zurückgeholt");
   assert.ok(q("#btn-reset"));
   klick(q("#btn-reset"));
@@ -164,6 +170,35 @@ test("Seiten: Zähler, Profilwarnung, Kürzen-Vorschlag", async () => {
   assert.equal(q("#seiten-min").value, "4");
   assert.equal(qa("#tabelle tbody tr").length, 2);
   assert.equal(q("#buch-seiten").textContent, "8");
+});
+
+test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () => {
+  klick(q("#btn-naechster"));
+  await warteBis(() => q("#doppelseite"), "Doppelseite");
+  assert.ok(q("#btn-ansicht-doppel"));
+  assert.match(q("#buch-pos").textContent, /Seiten 1–2 von \d+/);
+  const fotos = qa("#doppelseite .sfoto");
+  assert.ok(fotos.length >= 3, "Fotos auf den Seiten");
+  assert.ok(fotos.every((f) => /left:[\d.]+%/.test(f.getAttribute("style"))), "Positionen gesetzt");
+  const vor = q("#buch-pos").textContent;
+  klick(q("#btn-buch-weiter"));
+  await warteBis(() => q("#buch-pos").textContent !== vor, "geblättert");
+  taste("ArrowLeft");
+  await warteBis(() => q("#buch-pos").textContent === vor, "mit Pfeiltaste zurück");
+  // Detailansicht mit Begründung
+  klick(q("#doppelseite .sfoto"));
+  await warteBis(() => !q("#lupe").hidden && q("#lupe-grund"), "Detail");
+  assert.match(q("#lupe-grund").textContent, /Im Buch/);
+  klick(q("#lupe-zu"));
+  // Seitenformat ändern
+  setze(q("#seitenformat"), "quadrat");
+  await warteBis(() => q(".seite")?.getAttribute("style").includes("aspect-ratio:1"), "Quadratformat");
+  // Übersicht
+  klick(q("#btn-ansicht-uebersicht"));
+  await warteBis(() => q("#uebersicht"), "Übersicht");
+  assert.ok(qa("#uebersicht .seitenkarte").length >= 6);
+  klick(qa("#uebersicht .seitenkarte")[2]);
+  await warteBis(() => q("#doppelseite") && /Seiten 3–4/.test(q("#buch-pos").textContent), "Sprung zur Doppelseite");
 });
 
 test("Export: schreibt Dateien, zeigt Ergebnis, App lässt sich beenden", async () => {

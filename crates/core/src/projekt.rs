@@ -20,6 +20,7 @@ use sha1::{Digest, Sha1};
 use crate::duplicates::{finde_aehnliche, finde_exakte, Gruppe, SerienOptionen};
 use crate::events::{bilde_ereignisse, Ereignis};
 use crate::foto::Foto;
+use crate::layout::seitenlayout;
 use crate::orte::{bilde_orte, Ort};
 use crate::pages::{lade_profil, seitenplan_ereignisse, seitenzuordnung, Profil, PROFILE};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
@@ -44,6 +45,7 @@ pub struct Einstellungen {
     pub seiten_schritt: Option<i64>,
     pub seiten_max: Option<i64>,
     pub ereignisse_getrennt: bool,
+    pub seitenformat: String,
 }
 
 impl Default for Einstellungen {
@@ -61,6 +63,7 @@ impl Default for Einstellungen {
             seiten_schritt: None,
             seiten_max: None,
             ereignisse_getrennt: true,
+            seitenformat: "quer".into(),
         }
     }
 }
@@ -113,6 +116,8 @@ pub struct Ergebnis {
     pub orte: Vec<Ort>,
     pub ort_von: Vec<Option<usize>>,
     pub ereignis_von: Vec<usize>,
+    pub exakt_von: HashMap<usize, usize>,
+    pub serie_von: HashMap<usize, usize>,
     pub zu_entfernen_exakt: HashSet<usize>,
     pub zu_entfernen_serien: HashSet<usize>,
     pub screenshots: HashSet<usize>,
@@ -308,6 +313,18 @@ impl Projekt {
         for g in &serien {
             zu_serien.extend(g.fotos.iter().copied().filter(|&i| i != g.vorschlag));
         }
+        let mut exakt_von = HashMap::new();
+        for (k, g) in exakt.iter().enumerate() {
+            for &i in &g.fotos {
+                exakt_von.insert(i, k);
+            }
+        }
+        let mut serie_von = HashMap::new();
+        for (k, g) in serien.iter().enumerate() {
+            for &i in &g.fotos {
+                serie_von.insert(i, k);
+            }
+        }
         let mut ereignis_von = vec![0usize; fotos.len()];
         for (k, ev) in ereignisse.iter().enumerate() {
             for &i in &ev.fotos {
@@ -324,6 +341,8 @@ impl Projekt {
             orte,
             ort_von,
             ereignis_von,
+            exakt_von,
+            serie_von,
             zu_entfernen_exakt: zu_exakt,
             zu_entfernen_serien: zu_serien,
             screenshots,
@@ -549,6 +568,13 @@ impl Projekt {
                     }
                     e.profil = n.to_string();
                 }
+                "seitenformat" => {
+                    let n = v.as_str().unwrap_or("");
+                    if !["quer", "quadrat", "hoch"].contains(&n) {
+                        return Err("Unbekanntes Seitenformat".into());
+                    }
+                    e.seitenformat = n.to_string();
+                }
                 "ereignisse_getrennt" => {
                     e.ereignisse_getrennt = match v {
                         Value::Bool(b) => *b,
@@ -601,7 +627,7 @@ impl Projekt {
     }
 
     pub fn setze_schritt(&mut self, schritt: i64) {
-        self.schritt = schritt.clamp(1, 5);
+        self.schritt = schritt.clamp(1, 6);
         self.speichern();
     }
 
@@ -780,6 +806,110 @@ impl Projekt {
         (orte.into_iter().map(|(_, v)| v).collect(), rang)
     }
 
+    fn seiten_verhaeltnis(&self) -> f64 {
+        match self.einstellungen.seitenformat.as_str() {
+            "quadrat" => 1.0,
+            "hoch" => 3.0 / 4.0,
+            _ => 4.0 / 3.0,
+        }
+    }
+
+    fn ereignis_anzeigename(&self, ei: usize) -> String {
+        let ev = &self.erg().ereignisse[ei];
+        let key = self.ids[ev.fotos[0]].clone();
+        self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| ev.titel(&self.fotos))
+    }
+
+    /// Verständliche Begründung, warum ein Foto im Buch ist oder nicht.
+    fn begruendung(&self, i: usize, e: &Einstufung, rang: Option<usize>) -> String {
+        let (f, erg) = (&self.fotos[i], self.erg());
+        let q = |x: usize| (100.0 * score(&self.fotos[x], self.maxs)).round() as i64;
+        if e.eigene {
+            return if e.behalten {
+                "Von dir behalten. Deine Entscheidung gilt vor allen Vorschlägen.".into()
+            } else {
+                "Von dir entfernt. Mit «Ins Buch» holst du es zurück.".into()
+            };
+        }
+        if !f.fehler.is_empty() {
+            return format!("Datei nicht lesbar ({}). Sie kann nicht ins Buch.", f.fehler);
+        }
+        if erg.zu_entfernen_exakt.contains(&i) {
+            let g = &erg.exakt[erg.exakt_von[&i]];
+            return format!("Exaktes Duplikat: Die Datei ist byte-genau gleich wie «{}». Diese Kopie bleibt draussen.", self.fotos[g.vorschlag].name);
+        }
+        if f.screenshot_verdacht {
+            return "Sieht wie ein Bildschirmfoto aus (keine Kameradaten, Bildschirmformat). Du kannst es zurückholen.".into();
+        }
+        if erg.zu_entfernen_serien.contains(&i) {
+            let g = &erg.serien[erg.serie_von[&i]];
+            let b = &self.fotos[g.vorschlag];
+            let mut gruende = vec![];
+            if b.schaerfe > f.schaerfe * 1.05 {
+                gruende.push("schärfer");
+            }
+            if b.megapixel() > f.megapixel() * 1.05 {
+                gruende.push("höher aufgelöst");
+            }
+            let warum = if gruende.is_empty() { "insgesamt besser bewertet".to_string() } else { gruende.join(" und ") };
+            return format!(
+                "Fast gleiche Aufnahme in einer Serie von {} Fotos. «{}» ist {} (Qualität {} statt {}) und kommt ins Buch.",
+                g.fotos.len(), b.name, warum, q(g.vorschlag), q(i)
+            );
+        }
+        if e.grund.starts_with("Ort:") {
+            let ort = erg.ort_von[i].map(|o| self.ort_name(o)).unwrap_or_default();
+            return format!(
+                "Am Ort «{}» sind höchstens {} Fotos erlaubt. Dieses liegt auf Rang {} (Qualität {}) und ist schwächer als die besten.",
+                ort, self.einstellungen.max_pro_ort.unwrap_or(0), rang.unwrap_or(0), q(i)
+            );
+        }
+        if let Some(&k) = erg.serie_von.get(&i) {
+            if erg.serien[k].vorschlag == i {
+                return format!("Bestes Foto einer Serie von {} ähnlichen (Qualität {}: Schärfe und Auflösung).", erg.serien[k].fotos.len(), q(i));
+            }
+            return "Aus einer Serie, du hast dieses Foto behalten.".into();
+        }
+        format!("Im Buch. Einzelfoto, keine Duplikate (Qualität {}).", q(i))
+    }
+
+    /// Seiten mit automatischem Layout. Die Fotos jedes Ereignisses folgen der Aufnahmezeit.
+    fn buch_seiten(&self, zahlen: &[(Vec<usize>, Vec<usize>)], plan: &Value) -> Value {
+        let fps = self.einstellungen.fotos_pro_seite.max(1);
+        let getrennt = self.einstellungen.ereignisse_getrennt;
+        let counts: Vec<i64> = zahlen.iter().map(|(_, b)| b.len() as i64).collect();
+        let zuordnung = seitenzuordnung(&counts, fps, getrennt);
+        let ar_seite = self.seiten_verhaeltnis();
+        let mut warteschlangen: Vec<std::collections::VecDeque<usize>> = if getrennt {
+            zahlen.iter().map(|(_, b)| b.iter().copied().collect()).collect()
+        } else {
+            vec![zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect()]
+        };
+        let erg = self.erg();
+        let mut seiten = Vec::new();
+        for (nr, (ei, n)) in zuordnung.iter().enumerate() {
+            let q = if getrennt { &mut warteschlangen[*ei as usize] } else { &mut warteschlangen[0] };
+            let fotos: Vec<usize> = (0..*n).filter_map(|_| q.pop_front()).collect();
+            let ereignis = if getrennt { *ei as usize } else { erg.ereignis_von[fotos[0]] };
+            let ars: Vec<f64> = fotos.iter().map(|&i| self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64).collect();
+            let felder = seitenlayout(&ars, ar_seite);
+            let r = |x: f64| (x * 100.0).round() / 100.0;
+            seiten.push(json!({
+                "nr": nr + 1,
+                "ereignis": ereignis,
+                "titel": self.ereignis_anzeigename(ereignis),
+                "fotos": fotos.iter().zip(felder.iter()).map(|(&i, f)| json!({"id": self.ids[i], "x": r(f[0]), "y": r(f[1]), "w": r(f[2]), "h": r(f[3])})).collect::<Vec<_>>(),
+            }));
+        }
+        let gesamt = plan["buch_seiten"].as_i64().unwrap_or(0) as usize;
+        json!({
+            "format": self.einstellungen.seitenformat,
+            "ar": ar_seite,
+            "seiten": seiten,
+            "freie_seiten": (zuordnung.len() + 1..=gesamt).collect::<Vec<_>>(),
+        })
+    }
+
     pub fn ansicht(&self) -> Value {
         if self.ergebnis.is_none() || self.fotos.is_empty() {
             return json!({
@@ -869,6 +999,9 @@ impl Projekt {
                     "o": erg.ort_von[i],
                     "q": (100.0 * score(f, self.maxs)).round() as i64,
                     "r": rang.get(&i),
+                    "gd": self.begruendung(i, e, rang.get(&i).copied()),
+                    "ort": erg.ort_von[i].map(|o| self.ort_name(o)),
+                    "ar": (f.breite.max(1) as f64 / f.hoehe.max(1) as f64 * 1000.0).round() / 1000.0,
                 }),
             );
         }
@@ -929,6 +1062,7 @@ impl Projekt {
             "fotos": fotos_kompakt,
             "seitenplan": seitenplan,
             "vorschlaege": {"auffuellen": idl(&auf), "kuerzen": idl(&kuerzen)},
+            "buch": self.buch_seiten(&zahlen, &seitenplan),
         })
     }
 

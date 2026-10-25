@@ -63,7 +63,7 @@ input.breit{width:100%}
 .ereignis .zahl b{font-size:18px;color:var(--text)}
 .streifen{grid-column:1/-1;display:flex;gap:4px;overflow:hidden}
 .streifen img{height:64px;width:auto;border-radius:4px;object-fit:cover;background:var(--bg)}
-.serie{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:12px 0}
+.serie{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--kg,280px),1fr));gap:12px;margin:12px 0}
 .karte{position:relative;border:3px solid var(--linie);border-radius:10px;overflow:hidden;background:var(--bg);cursor:pointer}
 .karte img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:#0001}
 .karte .info{padding:6px 10px;font-size:13px;display:flex;justify-content:space-between;gap:8px}
@@ -88,7 +88,7 @@ aside h2{margin:0 0 8px;font-size:16px}
 aside .wert{font-size:28px;font-weight:700;line-height:1.1}
 aside .liste{list-style:none;padding:0;margin:10px 0 0;font-size:13px;max-height:34vh;overflow:auto}
 aside .liste li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--linie)}
-#lupe{position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:10;padding:20px}
+#lupe{overflow:auto;position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:10;padding:20px}
 #lupe[hidden]{display:none}
 #lupe img{max-width:96vw;max-height:90vh;border-radius:6px}
 #lupe p{color:#fff;text-align:center;margin:8px 0 0}
@@ -101,3 +101,34 @@ aside .liste li{display:flex;justify-content:space-between;gap:8px;padding:3px 0
 .ort-raster{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
 .klein{font-size:13px;margin:8px 0 0}
 a{color:var(--akzent)}
+
+.raster.gross{grid-template-columns:repeat(auto-fill,minmax(var(--kg,220px),1fr))}
+.raster.gross .karte img{aspect-ratio:4/3;object-fit:cover}
+.grund{padding:6px 10px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.grund span{color:var(--still)}
+.rahmen.breit{grid-template-columns:minmax(0,1fr);max-width:none}
+.buchleiste{padding:8px 0;border-bottom:1px solid var(--linie)}
+.buchleiste .abstand{flex:1}
+.doppelseite{max-width:calc(140vh * var(--ar,1.33));width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px auto;padding:10px;background:#0001;border-radius:10px}
+.seitenspalte{margin:0}
+.seitenspalte figcaption{font-size:13px;color:var(--still);margin-top:6px;text-align:center}
+.seite{position:relative;width:100%;background:#fff;box-shadow:0 1px 6px #0004;overflow:hidden}
+.seite.frei{background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f1efe9 10px,#f1efe9 20px)}
+.frei-text{position:absolute;inset:0;display:grid;place-items:center;color:#8a867c;font-size:14px}
+.sfoto{position:absolute;margin:0;padding:0;border:0;background:#ddd;cursor:zoom-in;overflow:hidden}
+.sfoto img{display:block;width:100%;height:100%;object-fit:cover}
+.sfoto:hover,.sfoto:focus-visible{outline:3px solid var(--fokus);outline-offset:-3px;z-index:1}
+.uebersicht{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--zoom,200px),1fr));gap:14px;margin-top:12px}
+.seitenkarte{cursor:pointer;border-radius:6px;padding:4px}
+.seitenkarte:hover{background:#0001}
+.seitenkarte .sfoto{pointer-events:none}
+.seitenkarte .klein{margin:4px 0 0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lupe-inhalt{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:96vw}
+#lupe .lupe-inhalt img{max-width:96vw;max-height:58vh;border-radius:6px}
+.lupe-info{background:var(--karte);color:var(--text);border-radius:10px;padding:12px 16px;max-width:760px;width:100%}
+.lupe-info p{margin:6px 0}
+.klein-zeile{font-size:13px;color:var(--still)}
+#lupe .lupe-info p{color:var(--text);text-align:left}
+#lupe .lupe-info p.klein-zeile{color:var(--still)}
+#lupe .lupe-info p.gut{color:var(--gut)}
+#lupe .lupe-info p.warn{color:var(--warn)}

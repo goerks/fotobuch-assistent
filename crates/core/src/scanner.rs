@@ -1,6 +1,5 @@
 //! Einlesen von Fotos: Aufnahmezeit, GPS, Grösse, Hashes, Schärfe. Rein lokal, ohne KI.
 
-use std::collections::HashSet;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;

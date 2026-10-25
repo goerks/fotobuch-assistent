@@ -2,6 +2,19 @@
 
 Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
+## 2026-10-25 (später): Buchansicht, Layouts und Begründungen (Version 0.2, Testlauf 2)
+
+**Fertig**
+- Neuer Schritt «Buch»: Doppelseiten mit automatischem Layout, Blättern (Knöpfe, Pfeiltasten, Sprung zu Seite), Übersicht mit Grössenregler, Detailansicht mit Entfernen/Zurückholen
+- Layout: Schnittbaum-Suche (nebeneinander/untereinander, verschachtelt) maximiert die belegte Fläche, ohne Beschnitt. Seitenformat quer, quadratisch, hoch einstellbar. Reihenfolge nach Aufnahmezeit, Ereignisse beginnen auf neuer Seite
+- Begründung zu jedem Foto (Duplikat von …, Serie mit Qualitätsvergleich, Screenshot, Ortsbegrenzung mit Rang, eigene Entscheidung), Filter nach Grund in «Aussortiert»
+- Grössenregler für Bilder beim Aussortieren, grössere Standardansicht
+- Tests: 9 Oberflächentests (neu: Buchansicht), Layout-Tests in Rust
+
+**Nicht drin / offen**
+- Keine echten Anbieter-Layouts, kein Umschlag, kein Panorama oder Vollseitenfoto nach Wunsch, keine Handarbeit (Fotos zwischen Seiten verschieben)
+- Gleiche Fotos-pro-Seite-Zahl auf (fast) allen Seiten, daher wirken Seiten ähnlich. Abwechslung (zum Beispiel eine Seite mit nur einem Highlight-Foto) ist ein sinnvoller nächster Schritt
+
 ## 2026-10-25: Umbau auf Rust und Tauri (Version 0.2)
 
 **Fertig**

@@ -3,6 +3,7 @@
 pub mod duplicates;
 pub mod events;
 pub mod foto;
+pub mod layout;
 pub mod orte;
 pub mod pages;
 pub mod projekt;
