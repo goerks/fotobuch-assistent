@@ -128,3 +128,20 @@ Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
 ## MVP 1 abgeschlossen (2026-10-25)
 Ereignisse lassen sich von Hand anpassen: mit dem vorherigen zusammenlegen, an einem gewählten Foto teilen, Änderungen gesammelt zurücksetzen. Die Änderungen werden im Projekt gespeichert und überleben eine neue Analyse. Offen aus MVP 1: nur die Abnahme am echten Buchprojekt (Aufgabe der Anwenderin/des Anwenders).
+
+## MVP 2, erste Runde (2026-10-25)
+**Fertig**
+- **Fertige Seiten:** Jede Buchseite wird als JPEG (300 dpi, 3508 × 2631 bei Quer 4:3) gerendert, dazu eine PDF mit allen Seiten (`seiten/fotobuch.pdf`). Läuft im Hintergrund mit Fortschrittsanzeige, freie Seiten gehen als weisse Seiten mit. Die Originale werden nur gelesen.
+- **Panorama und ganze Seite:** Fotos ab Seitenverhältnis 2.2:1 bekommen automatisch eine eigene Seite, jedes andere Foto lässt sich in der Detailansicht als «ganze Seite» setzen. Einzelseiten bieten zusätzlich das Layout «Randlos» (füllt die Seite, beschneidet). Der Seitenzähler rechnet die Ganzseiten mit.
+- **Hoch/Quer-Paarung:** An den Seitengrenzen werden Fotos getauscht, wenn beide Seiten dadurch deutlich besser gefüllt sind (z. B. ein Hochformat neben zwei Querformaten). Die Reihenfolge weicht höchstens um eine Seitengrenze von der Aufnahmezeit ab.
+- Fotos ohne Aufnahmezeit bilden das Schluss-Ereignis «Ohne Aufnahmezeit».
+- Test: Ende-zu-Ende-Lauf mit Bildern pro Schritt als Galerie (CI-Artefakt `album-ende-zu-ende`).
+
+**Offen in MVP 2**
+- Fotos von Hand zwischen Seiten verschieben
+- Panorama über eine ganze Doppelseite
+- Echte Anbieter-Profile (Seitenregeln heute Annahmen)
+- Abnahme an einem echten Buchprojekt
+
+**Später (MMP): Gestaltung/Theming**
+Kombination aus Farbtönen, Hintergründen, Deckblättern und weiteren Gestaltungsvorlagen, die sich pro Buch wählen lässt.

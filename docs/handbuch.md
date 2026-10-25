@@ -66,3 +66,9 @@ HEIC-Fotos liest die App mit einem eigenen, in Rust geschriebenen Decoder. HEIC 
 
 ## Ereignisse anpassen
 Im Schritt «Ereignisse» hat jedes Ereignis zwei Knöpfe: «Mit vorherigem zusammenlegen» und «Teilen …». Beim Teilen klickst du das Foto, ab dem ein neues Ereignis beginnen soll. «Automatische Einteilung wiederherstellen» macht alle Änderungen rückgängig.
+
+## Ganze Seiten, Panoramen und Paarung
+Sehr breite Fotos (Panoramen) bekommen automatisch eine eigene Seite. Bei jedem anderen Foto öffnest du die Detailansicht (Klick im Buch) und wählst «Als ganze Seite». «Layout wählen» bietet für Einzelseiten zusätzlich «Randlos»: Das Foto füllt die ganze Seite und wird dabei am Rand beschnitten. Hochformate und Querformate werden an den Seitengrenzen so gemischt, dass die Seiten gut gefüllt sind.
+
+## Fertige Seiten
+Im Schritt «Export» erzeugt «Fertige Seiten erzeugen» für jede Seite ein Bild (JPEG, 300 dpi) und eine PDF mit allen Seiten, im Unterordner «seiten» des Zielordners. Das dauert bei einem grossen Buch einige Minuten, ein Balken zeigt den Fortschritt.

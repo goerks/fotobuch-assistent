@@ -127,7 +127,16 @@ pub fn layout_varianten(ars: &[f64], seite_ar: f64, k: usize) -> Vec<Vec<[f64; 4
             break;
         }
     }
+    if n == 1 {
+        // Ein einzelnes Foto kann auch randlos über die ganze Seite laufen (wird dabei zugeschnitten).
+        aus.push(vec![[0.0, 0.0, 100.0, 100.0]]);
+    }
     aus
+}
+
+/// Wie gut die Fotos die Seite füllen (Summe der Fotoflächen in Prozent der Seite) beim besten Layout.
+pub fn layout_guete(ars: &[f64], seite_ar: f64) -> f64 {
+    seitenlayout(ars, seite_ar).iter().map(|r| r[2] * r[3] / 100.0).sum()
 }
 
 /// Bestes Layout.
@@ -162,6 +171,17 @@ mod tests {
         assert!(r[0][0] < r[1][0], "Hochformat links");
         assert!(r[1][1] < r[2][1], "Querformate untereinander");
         assert!(flaeche(&r) > 3500.0, "gute Ausnutzung: {}", flaeche(&r));
+    }
+
+    #[test]
+    fn einzelfoto_hat_randlose_variante_und_gemischte_seiten_fuellen_besser() {
+        let v = layout_varianten(&[2.5], 4.0 / 3.0, 8);
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[1], vec![[0.0, 0.0, 100.0, 100.0]]);
+        let (hoch, quer) = (0.75, 1.5);
+        let gemischt = layout_guete(&[hoch, quer, quer], 4.0 / 3.0) + layout_guete(&[hoch, hoch, quer], 4.0 / 3.0);
+        let sortiert = layout_guete(&[hoch, hoch, hoch], 4.0 / 3.0) + layout_guete(&[quer, quer, quer], 4.0 / 3.0);
+        assert!(gemischt > sortiert, "gemischte Seiten füllen besser: {gemischt} > {sortiert}");
     }
 
     #[test]

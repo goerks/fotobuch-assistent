@@ -1,7 +1,7 @@
 """Erzeugt einen realistischen Demo-Fotoordner (synthetische Bilder, keine echten Fotos).
 
 Nachgebildet ist eine Städtereise nach New York über vier Tage mit GPS-Orten (Handy mit GPS, Spiegelreflex ohne): Serienbilder, Duplikate aus Messenger-Kopien,
-Screenshots, Hoch- und Querformat, zwei Kameras, einige Fotos ohne Aufnahmezeit.
+Screenshots, Hoch- und Querformat, zwei Kameras, zwei Panoramen, einige Fotos ohne Aufnahmezeit.
 Aufruf: python tools/demo_fotos.py <zielordner>
 """
 import random
@@ -127,6 +127,11 @@ def main(ziel: Path) -> None:
             zeit += timedelta(minutes=zufall.randint(20, 45))  # Weg zum nächsten Ort
         if ti in (1, 2):
             screenshot(ti).save(ziel / f"Screenshot_2026-05-{14 + ti}.png")
+    for k, ti in enumerate((1, 3)):  # Panoramen (Seitenverhältnis 3:1), eigene Seite im Buch
+        _t, start, orte = TAGE[ti]
+        breit = szene(700 + k, 15 + k).crop((0, 330, 1600, 863))
+        speichere(breit, ziel / f"PANO_{3000 + k}.jpg", start + timedelta(hours=3, minutes=7 + k), marke="Apple", modell="iPhone 15",
+                  gps=(orte[0][1], orte[0][2]), quality=92)
     for j in range(5):  # Fotos ohne Aufnahmezeit (z. B. aus einem Chat gespeichert)
         szene(900 + j, 12).save(ziel / f"gespeichert_{j}.jpg", quality=85)
     print(f"{len(list(ziel.iterdir()))} Dateien in {ziel}")

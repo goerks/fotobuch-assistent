@@ -8,6 +8,7 @@ pub mod orte;
 pub mod pages;
 pub mod projekt;
 pub mod scanner;
+pub mod seitenexport;
 pub mod server;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

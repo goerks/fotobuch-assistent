@@ -357,6 +357,16 @@
     });
   }
 
+  // Wartet auf das Ende des Seitenexports und zeigt dabei den Fortschritt.
+  async function seitenPoll() {
+    for (;;) {
+      S.status = await api("/api/status");
+      zeige();
+      if (!S.status.job.laeuft) return;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+
   function pollStart() {
     if (S.poll) return;
     S.poll = setInterval(async () => {
@@ -874,16 +884,29 @@
     );
     if (p.ueber_maximum) v.append(h("div", { class: "warn" }, "Das Buch hat mehr Seiten als das Profil erlaubt. Du kannst trotzdem exportieren."));
     if (p.fehlende_fotos) v.append(h("div", { class: "warn" }, "Es fehlen noch " + p.fehlende_fotos + " Fotos bis zur vollen Seitenzahl. Du kannst trotzdem exportieren."));
-    const ziel = h("input", { type: "text", id: "ziel", class: "breit", placeholder: a.ordner + "\\fotobuch-export", "aria-label": "Zielordner" });
+    const ziel = h("input", { type: "text", id: "ziel", class: "breit", placeholder: a.ordner + "\\fotobuch-export", "aria-label": "Zielordner", value: S.zielPfad || "" });
+    ziel.addEventListener("input", () => { S.zielPfad = ziel.value; });
     v.append(
       h("div", { class: "feld" }, h("label", { for: "ziel" }, "Zielordner"), ziel, h("span", { class: "hinweis" }, "Leer lassen für den Standard. Ein bestehender, gefüllter Ordner wird nie überschrieben: es entsteht ein Unterordner mit Zeitstempel.")),
       h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf haupt", id: "btn-export", onclick: () => aktion(async () => { S.exportErgebnis = await api("/api/export", { ziel: ziel.value || null }); zeige(); }) }, "Jetzt exportieren"))
     );
+    const j = S.status && S.status.job;
+    const seitenJob = j && j.art === "seiten" ? j : null;
+    v.append(
+      h("h2", {}, "Fertige Seiten"),
+      h("p", { class: "still" }, "Der Assistent kann jede Seite mit dem gewählten Layout als Bild (JPEG, 300 dpi) und als eine PDF-Datei mit allen Seiten erzeugen. Das ist die Vorschau deines Buchs und eine Grundlage für den Druck."),
+      h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-seiten", disabled: !!(seitenJob && seitenJob.laeuft), onclick: () => aktion(async () => { await api("/api/export/seiten", { ziel: ziel.value || null }); S.seitenExport = true; await seitenPoll(); }) }, "Fertige Seiten erzeugen"))
+    );
+    if (seitenJob && seitenJob.laeuft) v.append(h("div", { id: "seiten-fortschritt", class: "still" }, "Seite " + seitenJob.fertig + " von " + seitenJob.gesamt + " wird erzeugt …"));
+    if (seitenJob && seitenJob.fehler) v.append(h("div", { class: "warn" }, seitenJob.fehler));
+    if (seitenJob && !seitenJob.laeuft && seitenJob.ergebnis) {
+      v.append(h("div", { class: "gut", id: "seiten-ergebnis" }, "Fertig: " + seitenJob.ergebnis.seiten + " Seiten (" + seitenJob.ergebnis.breite + " × " + seitenJob.ergebnis.hoehe + " Pixel) und die PDF «fotobuch.pdf» in " + seitenJob.ergebnis.ordner));
+    }
     const r = S.exportErgebnis;
     if (r) {
       v.append(
         h("div", { class: "gut", id: "export-ergebnis" }, "Fertig: " + r.kopiert + " Fotos kopiert nach " + r.ziel + ". Die Seitenliste liegt als «seitenliste.csv» dabei."),
-        r.fehler.length ? h("div", { class: "warn" }, "Nicht kopiert: " + r.fehler.join("; ")) : null
+        ...(r.fehler.length ? [h("div", { class: "warn" }, "Nicht kopiert: " + r.fehler.join("; "))] : [])
       );
     }
     v.append(fuss(5, null), h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-beenden", onclick: () => aktion(async () => { await api("/api/beenden", {}); S.beendet = true; zeige(); }) }, "App beenden")));
@@ -905,6 +928,7 @@
           h("p", { id: "lupe-grund", class: f.b ? "gut" : "warn" }, (f.b ? "Im Buch. " : "Nicht im Buch. ") + f.gd),
           h("div", { class: "zeile" },
             h("button", { type: "button", class: "knopf haupt", id: "lupe-umschalten", onclick: (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await api("/api/foto", { id, aktion: f.b ? "entfernen" : "behalten" }); await ladeUndZeige(); }); } }, f.b ? "Aus dem Buch entfernen" : "Ins Buch holen"),
+            f.b ? h("button", { type: "button", class: "knopf", id: "lupe-ganz", title: f.pano ? "Dieses Foto ist ein Panorama und bekommt automatisch eine eigene Seite." : "Das Foto bekommt eine eigene Seite", onclick: (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await api("/api/foto/ganzseite", { id, ganz: !f.gz }); await ladeUndZeige(); }); } }, f.gz ? "Nicht mehr als ganze Seite" : "Als ganze Seite") : null,
             h("button", { type: "button", class: "knopf", id: "lupe-zu", onclick: (ev) => { ev.stopPropagation(); zu(); } }, "Schliessen (Esc)")))
       )
     );
@@ -942,7 +966,7 @@
               h("span", { class: "minilayout", style: "aspect-ratio:" + d.ar },
                 felder.map((f, k) => h("span", { class: "minifoto", style: "left:" + f[0] + "%;top:" + f[1] + "%;width:" + f[2] + "%;height:" + f[3] + "%" },
                   h("img", { src: vorschauUrl(d.fotos[k], 160), alt: "" })))),
-              h("span", { class: "minibez" }, i === 0 ? "Vorschlag" : "Layout " + (i + 1))))));
+              h("span", { class: "minibez" }, i === 0 ? "Vorschlag" : felder.length === 1 && felder[0][2] === 100 ? "Randlos" : "Layout " + (i + 1))))));
     }).catch((e) => meldung(e.message));
     return panel;
   }
@@ -1015,7 +1039,7 @@
         h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
           [links, rechts].map((sp) => sp
             ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true),
-                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.ganz ? " · ganze Seite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
                 S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
         h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")

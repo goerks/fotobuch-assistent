@@ -22,7 +22,7 @@ use crate::events::{bilde_ereignisse, Ereignis};
 use crate::foto::Foto;
 use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
-use crate::pages::{lade_profil, seitenplan_ereignisse, seitenzuordnung, Profil, PROFILE};
+use crate::pages::{lade_profil, seitenplan_ereignisse, Profil, PROFILE};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
 
 pub const ZUSTANDSDATEI: &str = "projekt.json";
@@ -85,6 +85,7 @@ struct Zustand {
     ereignis_namen: BTreeMap<String, String>,
     ort_namen: BTreeMap<String, String>,
     layout_wahl: BTreeMap<String, usize>,
+    ganzseite: BTreeMap<String, bool>,
     ereignis_teilen: BTreeSet<String>,
     ereignis_verbinden: BTreeSet<String>,
     schritt: i64,
@@ -133,6 +134,8 @@ pub struct Einstufung {
     pub eigene: bool,
 }
 
+pub const PANORAMA_AB: f64 = 2.2;
+
 pub struct Projekt {
     pub ordner: PathBuf,
     pub daten: PathBuf,
@@ -141,6 +144,7 @@ pub struct Projekt {
     pub ereignis_namen: BTreeMap<String, String>,
     pub ort_namen: BTreeMap<String, String>,
     pub layout_wahl: BTreeMap<String, usize>,
+    pub ganzseite: BTreeMap<String, bool>,
     pub ereignis_teilen: BTreeSet<String>,
     pub ereignis_verbinden: BTreeSet<String>,
     pub schritt: i64,
@@ -203,6 +207,7 @@ impl Projekt {
             ereignis_namen: BTreeMap::new(),
             ort_namen: BTreeMap::new(),
             layout_wahl: BTreeMap::new(),
+            ganzseite: BTreeMap::new(),
             ereignis_teilen: BTreeSet::new(),
             ereignis_verbinden: BTreeSet::new(),
             schritt: 1,
@@ -240,6 +245,7 @@ impl Projekt {
                 self.ereignis_namen = z.ereignis_namen;
                 self.ort_namen = z.ort_namen;
                 self.layout_wahl = z.layout_wahl;
+                self.ganzseite = z.ganzseite;
                 self.ereignis_teilen = z.ereignis_teilen;
                 self.ereignis_verbinden = z.ereignis_verbinden;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
@@ -264,6 +270,7 @@ impl Projekt {
             ereignis_namen: self.ereignis_namen.clone(),
             ort_namen: self.ort_namen.clone(),
             layout_wahl: self.layout_wahl.clone(),
+            ganzseite: self.ganzseite.clone(),
             ereignis_teilen: self.ereignis_teilen.clone(),
             ereignis_verbinden: self.ereignis_verbinden.clone(),
             schritt: self.schritt,
@@ -740,8 +747,45 @@ impl Projekt {
             .collect()
     }
 
+    /// Fotos je Ereignis für die Seitenmathematik: Ein Foto, das eine ganze Seite bekommt, zählt wie eine volle Seite.
+    fn seiten_counts(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<i64> {
+        let fps = self.einstellungen.fotos_pro_seite.max(1);
+        zahlen
+            .iter()
+            .map(|(_, b)| {
+                let ganz = b.iter().filter(|&&i| self.ist_ganzseite(i)).count() as i64;
+                b.len() as i64 - ganz + ganz * fps
+            })
+            .collect()
+    }
+
+    pub fn seitenverhaeltnis_foto(&self, i: usize) -> f64 {
+        self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64
+    }
+
+    /// Bekommt dieses Foto eine eigene, ganze Seite? Panoramen automatisch, sonst nach Wahl.
+    pub fn ist_ganzseite(&self, i: usize) -> bool {
+        match self.ganzseite.get(&self.ids[i]) {
+            Some(&w) => w,
+            None => self.seitenverhaeltnis_foto(i) >= PANORAMA_AB,
+        }
+    }
+
+    /// `ganz`: Some(true/false) erzwingt, None stellt die automatische Wahl wieder her.
+    pub fn setze_ganzseite(&mut self, id: &str, ganz: Option<bool>) -> Res<()> {
+        if !self.id_index.contains_key(id) {
+            return Err("Unbekanntes Foto".into());
+        }
+        match ganz {
+            Some(w) => self.ganzseite.insert(id.to_string(), w),
+            None => self.ganzseite.remove(id),
+        };
+        self.speichern();
+        Ok(())
+    }
+
     pub fn seitenplan_aus(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Value {
-        let counts: Vec<i64> = zahlen.iter().map(|(_, b)| b.len() as i64).collect();
+        let counts = self.seiten_counts(zahlen);
         seitenplan_ereignisse(&counts, self.einstellungen.fotos_pro_seite, &self.profil(), self.einstellungen.ereignisse_getrennt)
     }
 
@@ -760,12 +804,9 @@ impl Projekt {
         let fehlt = plan["fehlende_fotos"].as_i64().unwrap_or(0);
         if fehlt > 0 {
             let mut frei: Vec<i64> = if getrennt {
-                zahlen
-                    .iter()
-                    .map(|(_, b)| {
-                        let n = b.len() as i64;
-                        if n == 0 { 0 } else { ((n + fps - 1) / fps * fps - n).max(0) }
-                    })
+                self.seiten_counts(zahlen)
+                    .into_iter()
+                    .map(|n| if n == 0 { 0 } else { ((n + fps - 1) / fps * fps - n).max(0) })
                     .collect()
             } else {
                 vec![fehlt]
@@ -968,30 +1009,91 @@ impl Projekt {
         format!("Im Buch. Einzelfoto, keine Duplikate (Qualität {}).", q(i))
     }
 
-    /// Seiten mit automatischem Layout. Die Fotos jedes Ereignisses folgen der Aufnahmezeit.
-    /// Verteilt die Fotos im Buch auf Seiten: (Ereignis, Fotos der Seite).
+    /// Verteilt die Fotos im Buch auf Seiten: (Ereignis, Fotos der Seite). Fotos mit eigener Ganzseite bekommen
+    /// je eine Seite (nach der gerade gefüllten Seite), alle anderen werden gleichmässig verteilt und danach
+    /// an den Seitengrenzen so getauscht, dass die Seiten möglichst gut gefüllt sind (Hoch- und Querformate passen zusammen).
     fn seiten_gruppen(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>)> {
+        self.seiten_gruppen_ex(zahlen).into_iter().map(|(e, f, _)| (e, f)).collect()
+    }
+
+    /// Wie `seiten_gruppen`, dazu die Angabe, ob die Seite eine Ganzseite ist.
+    fn seiten_gruppen_ex(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>, bool)> {
         let fps = self.einstellungen.fotos_pro_seite.max(1);
         let getrennt = self.einstellungen.ereignisse_getrennt;
-        let counts: Vec<i64> = zahlen.iter().map(|(_, b)| b.len() as i64).collect();
-        let zuordnung = seitenzuordnung(&counts, fps, getrennt);
-        let mut warteschlangen: Vec<std::collections::VecDeque<usize>> = if getrennt {
-            zahlen.iter().map(|(_, b)| b.iter().copied().collect()).collect()
-        } else {
-            vec![zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect()]
-        };
         let erg = self.erg();
-        let mut aus = Vec::new();
-        for (ei, n) in zuordnung.iter() {
-            let q = if getrennt { &mut warteschlangen[*ei as usize] } else { &mut warteschlangen[0] };
-            let fotos: Vec<usize> = (0..*n).filter_map(|_| q.pop_front()).collect();
-            if fotos.is_empty() {
-                continue;
+        let schlangen: Vec<(usize, Vec<usize>)> = if getrennt {
+            zahlen.iter().enumerate().map(|(ei, (_, b))| (ei, b.clone())).collect()
+        } else {
+            vec![(usize::MAX, zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect())]
+        };
+        let mut aus: Vec<(usize, Vec<usize>, bool)> = Vec::new();
+        for (ei, q) in schlangen {
+            let normal = q.iter().filter(|&&i| !self.ist_ganzseite(i)).count() as i64;
+            let groessen = crate::pages::verteile(normal, fps);
+            let (mut gi, mut puffer, mut wartend): (usize, Vec<usize>, Vec<usize>) = (0, Vec::new(), Vec::new());
+            let ev_von = |i: usize| if ei == usize::MAX { erg.ereignis_von[i] } else { ei };
+            for &i in &q {
+                if self.ist_ganzseite(i) {
+                    if puffer.is_empty() {
+                        aus.push((ev_von(i), vec![i], true));
+                    } else {
+                        wartend.push(i);
+                    }
+                    continue;
+                }
+                puffer.push(i);
+                if puffer.len() as i64 == groessen[gi] {
+                    aus.push((ev_von(puffer[0]), std::mem::take(&mut puffer), false));
+                    gi += 1;
+                    for w in wartend.drain(..) {
+                        aus.push((ev_von(w), vec![w], true));
+                    }
+                }
             }
-            let ereignis = if getrennt { *ei as usize } else { erg.ereignis_von[fotos[0]] };
-            aus.push((ereignis, fotos));
         }
+        self.paarung_verbessern(&mut aus);
         aus
+    }
+
+    /// Tauscht Fotos an Seitengrenzen (jeweils eines der letzten zwei gegen eines der ersten zwei), wenn beide Seiten
+    /// dadurch deutlich besser gefüllt werden. Die Reihenfolge weicht höchstens um eine Seitengrenze von der Zeit ab.
+    fn paarung_verbessern(&self, seiten: &mut [(usize, Vec<usize>, bool)]) {
+        let seite_ar = self.seiten_verhaeltnis();
+        let ars = |l: &[usize]| -> Vec<f64> { l.iter().map(|&i| self.seitenverhaeltnis_foto(i)).collect() };
+        let guete = |l: &[usize]| crate::layout::layout_guete(&ars(l), seite_ar);
+        for _runde in 0..2 {
+            let mut geaendert = false;
+            for k in 0..seiten.len().saturating_sub(1) {
+                let (links, rechts) = seiten.split_at_mut(k + 1);
+                let (a, b) = (&mut links[k], &mut rechts[0]);
+                let klein = |l: &Vec<usize>| l.len() >= 2 && l.len() <= 5;
+                if a.2 || b.2 || a.0 != b.0 || !klein(&a.1) || !klein(&b.1) {
+                    continue;
+                }
+                let basis = guete(&a.1) + guete(&b.1);
+                let mut beste: Option<(f64, usize, usize)> = None;
+                for x in a.1.len().saturating_sub(2)..a.1.len() {
+                    for y in 0..2.min(b.1.len()) {
+                        let (mut na, mut nb) = (a.1.clone(), b.1.clone());
+                        std::mem::swap(&mut na[x], &mut nb[y]);
+                        let gewinn = guete(&na) + guete(&nb) - basis;
+                        if gewinn > 3.0 && beste.map_or(true, |(g, _, _)| gewinn > g) {
+                            beste = Some((gewinn, x, y));
+                        }
+                    }
+                }
+                if let Some((_, x, y)) = beste {
+                    std::mem::swap(&mut a.1[x], &mut b.1[y]);
+                    let nach_zeit = |l: &mut Vec<usize>| l.sort_by(|&p, &q| self.fotos[p].schluessel().cmp(&self.fotos[q].schluessel()));
+                    nach_zeit(&mut a.1);
+                    nach_zeit(&mut b.1);
+                    geaendert = true;
+                }
+            }
+            if !geaendert {
+                break;
+            }
+        }
     }
 
     fn seiten_varianten(&self, fotos: &[usize]) -> Vec<Vec<[f64; 4]>> {
@@ -1023,7 +1125,7 @@ impl Projekt {
     fn buch_seiten(&self, zahlen: &[(Vec<usize>, Vec<usize>)], plan: &Value) -> Value {
         let ar_seite = self.seiten_verhaeltnis();
         let mut seiten = Vec::new();
-        for (nr, (ereignis, fotos)) in self.seiten_gruppen(zahlen).into_iter().enumerate() {
+        for (nr, (ereignis, fotos, ganz)) in self.seiten_gruppen_ex(zahlen).into_iter().enumerate() {
             let varianten = self.seiten_varianten(&fotos);
             let key = self.ids[fotos[0]].clone();
             let wahl = self.layout_wahl.get(&key).copied().unwrap_or(0) % varianten.len();
@@ -1036,6 +1138,7 @@ impl Projekt {
                 "key": key,
                 "layout": wahl,
                 "layouts": varianten.len(),
+                "ganz": ganz,
                 "fotos": fotos.iter().zip(felder.iter()).map(|(&i, f)| json!({"id": self.ids[i], "x": r(f[0]), "y": r(f[1]), "w": r(f[2]), "h": r(f[3])})).collect::<Vec<_>>(),
             }));
         }
@@ -1047,6 +1150,46 @@ impl Projekt {
             "seiten": seiten,
             "freie_seiten": (zuordnung_len + 1..=gesamt).collect::<Vec<_>>(),
         })
+    }
+
+    /// Alles, was zum Rendern der fertigen Seiten nötig ist (damit das Projekt dabei nicht gesperrt bleibt).
+    pub fn seitenauftraege(&self) -> Res<(Vec<crate::seitenexport::Auftrag>, usize, String)> {
+        if self.ergebnis.is_none() {
+            return Err("Noch nicht analysiert".into());
+        }
+        let einst = self.einstufungen();
+        let zahlen = self.ereignis_zahlen(&einst);
+        let plan = self.seitenplan_aus(&zahlen);
+        let mut auftraege = Vec::new();
+        for (nr, (_e, fotos, _g)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
+            let varianten = self.seiten_varianten(&fotos);
+            let wahl = self.layout_wahl.get(&self.ids[fotos[0]]).copied().unwrap_or(0) % varianten.len();
+            let felder = &varianten[wahl];
+            auftraege.push(crate::seitenexport::Auftrag {
+                nr: nr + 1,
+                fotos: fotos
+                    .iter()
+                    .zip(felder.iter())
+                    .map(|(&i, f)| crate::seitenexport::SeitenFoto { pfad: self.ordner.join(&self.fotos[i].pfad), endung: self.fotos[i].endung.clone(), feld: *f })
+                    .collect(),
+            });
+        }
+        let gesamt = plan["buch_seiten"].as_i64().unwrap_or(0) as usize;
+        let leere = gesamt.saturating_sub(auftraege.len());
+        Ok((auftraege, leere, self.einstellungen.seitenformat.clone()))
+    }
+
+    /// Zielordner für die fertigen Seiten: `<Ziel>/seiten`, bei vorhandenem gefülltem Ordner mit Zeitstempel.
+    pub fn seiten_zielordner(&self, ziel: Option<&str>) -> PathBuf {
+        let basis = match ziel.filter(|z| !z.trim().is_empty()) {
+            Some(z) => PathBuf::from(z.trim()),
+            None => self.ordner.join("fotobuch-export"),
+        };
+        let mut d = basis.join("seiten");
+        if d.exists() && std::fs::read_dir(&d).map(|mut x| x.next().is_some()).unwrap_or(false) {
+            d = basis.join(format!("seiten-{}", Local::now().format("%Y%m%d-%H%M%S")));
+        }
+        d
     }
 
     pub fn ansicht(&self) -> Value {
@@ -1136,6 +1279,8 @@ impl Projekt {
                     "ev": erg.ereignis_von[i],
                     "x": f.fehler,
                     "zq": f.zeit_quelle,
+                    "gz": self.ist_ganzseite(i),
+                    "pano": self.seitenverhaeltnis_foto(i) >= PANORAMA_AB,
                     "raw": f.ist_raw,
                     "o": erg.ort_von[i],
                     "q": (100.0 * score(f, self.maxs)).round() as i64,
@@ -1265,19 +1410,17 @@ impl Projekt {
             }
         }
 
-        let counts: Vec<i64> = zahlen.iter().map(|(_, b)| b.len() as i64).collect();
-        let seiten = seitenzuordnung(&counts, fps, getrennt);
+        let seiten = self.seiten_gruppen(&zahlen);
+        let rel_von: HashMap<usize, (usize, String)> = reihenfolge.iter().map(|(ei, i, rel)| (*i, (*ei, rel.clone()))).collect();
         let mut zeilen: Vec<Vec<String>> = Vec::new();
-        let mut pos = 0usize;
-        for (seitennr, (_ei, n)) in seiten.iter().enumerate() {
-            for _ in 0..*n {
-                let (ei, i, rel) = &reihenfolge[pos];
-                let f = &self.fotos[*i];
+        for (seitennr, (_ereignis, fotos)) in seiten.iter().enumerate() {
+            for &i in fotos {
+                let (ei, rel) = &rel_von[&i];
+                let f = &self.fotos[i];
                 let key = self.ids[erg.ereignisse[*ei].fotos[0]].clone();
                 let name = self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| erg.ereignisse[*ei].titel(&self.fotos));
-                let ort = erg.ort_von[*i].map(|o| self.ort_name(o)).unwrap_or_default();
+                let ort = erg.ort_von[i].map(|o| self.ort_name(o)).unwrap_or_default();
                 zeilen.push(vec![(seitennr + 1).to_string(), name, rel.clone(), f.name.clone(), f.zeit.format("%Y-%m-%d %H:%M").to_string(), ort]);
-                pos += 1;
             }
         }
         let buch_seiten = plan["buch_seiten"].as_i64().unwrap_or(0);

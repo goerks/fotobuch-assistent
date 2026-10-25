@@ -25,14 +25,16 @@ pub struct Job {
     pub fertig: usize,
     pub gesamt: usize,
     pub fehler: Option<String>,
+    pub art: String,
+    pub ergebnis: Option<Value>,
 }
 
 impl Job {
     fn leer() -> Job {
-        Job { laeuft: false, phase: String::new(), fertig: 0, gesamt: 0, fehler: None }
+        Job { laeuft: false, phase: String::new(), fertig: 0, gesamt: 0, fehler: None, art: String::new(), ergebnis: None }
     }
     fn json(&self) -> Value {
-        json!({"laeuft": self.laeuft, "phase": self.phase, "fertig": self.fertig, "gesamt": self.gesamt, "fehler": self.fehler})
+        json!({"laeuft": self.laeuft, "phase": self.phase, "fertig": self.fertig, "gesamt": self.gesamt, "fehler": self.fehler, "art": self.art, "ergebnis": self.ergebnis})
     }
 }
 
@@ -80,6 +82,51 @@ impl App {
         self.projekt.lock().unwrap().clone().ok_or_else(|| "Noch kein Ordner gewählt.".to_string())
     }
 
+    /// Rendert die fertigen Seiten (JPEG + PDF) im Hintergrund. Fortschritt und Ergebnis stehen im Job.
+    pub fn starte_seitenexport(&self, ziel: Option<String>) -> Res<()> {
+        let projekt = self.aktuelles()?;
+        let (auftraege, leere, format, ordner) = {
+            let p = projekt.lock().map_err(|_| "Interner Fehler")?;
+            let (a, l, f) = p.seitenauftraege()?;
+            (a, l, f, p.seiten_zielordner(ziel.as_deref()))
+        };
+        {
+            let mut j = self.job.lock().unwrap();
+            if j.laeuft {
+                return Err("Es läuft gerade eine andere Aufgabe.".into());
+            }
+            *j = Job { laeuft: true, phase: "seiten".into(), fertig: 0, gesamt: auftraege.len() + leere, fehler: None, art: "seiten".into(), ergebnis: None };
+        }
+        let job = self.job.clone();
+        std::thread::spawn(move || {
+            let job2 = job.clone();
+            let fortschritt = move |fertig: usize, gesamt: usize| {
+                if let Ok(mut j) = job2.lock() {
+                    j.fertig = fertig;
+                    j.gesamt = gesamt;
+                }
+            };
+            let erg = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| crate::seitenexport::exportiere(&auftraege, leere, &format, &ordner, &fortschritt)));
+            let mut j = job.lock().unwrap();
+            j.laeuft = false;
+            match erg {
+                Ok(Ok(v)) => {
+                    j.phase = "fertig".into();
+                    j.ergebnis = Some(v);
+                }
+                Ok(Err(e)) => {
+                    j.phase = "fehler".into();
+                    j.fehler = Some(e);
+                }
+                Err(_) => {
+                    j.phase = "fehler".into();
+                    j.fehler = Some("Interner Fehler beim Erzeugen der Seiten".into());
+                }
+            }
+        });
+        Ok(())
+    }
+
     pub fn starte_analyse(&self) -> Res<()> {
         let projekt = self.projekt.lock().unwrap().clone().ok_or("Zuerst einen Ordner wählen.")?;
         {
@@ -87,7 +134,7 @@ impl App {
             if j.laeuft {
                 return Ok(());
             }
-            *j = Job { laeuft: true, phase: "suchen".into(), fertig: 0, gesamt: 0, fehler: None };
+            *j = Job { laeuft: true, phase: "suchen".into(), fertig: 0, gesamt: 0, fehler: None, art: "analyse".into(), ergebnis: None };
         }
         let job = self.job.clone();
         std::thread::spawn(move || {
@@ -368,6 +415,20 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             let ids = d.get("ids").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect());
             let n = p.vorschlag_anwenden(&text(d, "art")?, ids)?;
             Ok(json!({"ok": true, "anzahl": n}))
+        }
+        "/api/export/seiten" => {
+            let ziel = d.get("ziel").and_then(|v| v.as_str()).map(|s| s.to_string());
+            drop(p);
+            app.starte_seitenexport(ziel)?;
+            Ok(ok())
+        }
+        "/api/foto/ganzseite" => {
+            let ganz = match d.get("ganz") {
+                Some(Value::Bool(b)) => Some(*b),
+                _ => None,
+            };
+            p.setze_ganzseite(&text(d, "id")?, ganz)?;
+            Ok(ok())
         }
         "/api/ereignis/teilen" => {
             p.ereignis_teilen_bei(&text(d, "id")?)?;

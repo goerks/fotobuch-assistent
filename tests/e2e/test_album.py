@@ -56,7 +56,18 @@ def test_reise_wird_zum_album(umgebung):
             seite.on("console", lambda m: m.type == "error" and fehler.append(m.text))
             seite.goto(url)
             seite.wait_for_function("window.__fotobuch && window.__fotobuch.S.a")
+            galerie = ausgabe / "galerie"
+            galerie.mkdir(exist_ok=True)
+            nummer = [0]
 
+            def bild(name, voll=False, ziel=None):
+                """Screenshot der App für die Galerie (nummeriert in der Reihenfolge des Durchlaufs)."""
+                nummer[0] += 1
+                seite.wait_for_timeout(250)
+                pfad = galerie / f"{nummer[0]:02d}-{name}.png"
+                (seite.locator(ziel) if ziel else seite).screenshot(path=str(pfad), full_page=voll) if not ziel else seite.locator(ziel).screenshot(path=str(pfad))
+
+            bild("start")
             # 1. Analyse (Ordner wurde beim Start geöffnet)
             seite.click("#btn-analyse")
             seite.wait_for_function("/Ereignisse/.test(document.querySelector('h1')?.textContent)", timeout=120000)
@@ -74,6 +85,7 @@ def test_reise_wird_zum_album(umgebung):
             assert not any(e["ohne_datum"] for e in a["ereignisse"][:-1])
             ereignisse_auto = z["ereignisse"]
 
+            bild("ereignisse", voll=False)
             # 2. Ereignisse benennen, zusammenlegen, teilen, zurücksetzen
             seite.fill('input[data-key] >> nth=0', "Ankunft")
             seite.press('input[data-key] >> nth=0', "Tab")
@@ -81,6 +93,7 @@ def test_reise_wird_zum_album(umgebung):
             seite.click('button[data-aktion="zusammenlegen"] >> nth=0')
             seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.ereignisse === {ereignisse_auto - 1}")
             seite.click('button[data-aktion="teilen"] >> nth=0')
+            bild("ereignis-teilen")
             seite.click(".teilen-foto >> nth=10")
             seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.ereignisse === {ereignisse_auto}")
             seite.click("#ereignisse-zurueck")
@@ -88,14 +101,62 @@ def test_reise_wird_zum_album(umgebung):
             assert seite.evaluate("window.__fotobuch.S.a.zahlen.ereignisse") == ereignisse_auto
             assert seite.evaluate("window.__fotobuch.S.a.ereignisse[0].name") == "Ankunft", "Name bleibt bestehen"
 
+            # Aussortieren, Orte und Seiten für die Galerie
+            seite.evaluate("window.__fotobuch.geheZu(3)")
+            seite.wait_for_selector("h1")
+            bild("aussortieren")
+            seite.evaluate("document.querySelector('#orte, .ort')?.scrollIntoView()")
+            bild("orte")
+            seite.evaluate("window.__fotobuch.geheZu(4)")
+            seite.wait_for_selector("h1")
+            bild("seiten")
+
             # 3. Eine Entscheidung treffen: im Buch ein Foto gross ansehen und entfernen
             seite.evaluate("window.__fotobuch.geheZu(5)")
             seite.wait_for_selector("#doppelseite .sfoto")
             vor = seite.evaluate("window.__fotobuch.S.a.zahlen.im_buch")
             seite.click("#doppelseite .sfoto")
+            seite.wait_for_selector("#lupe-grund")
+            bild("foto-detail")
             seite.click("#lupe-umschalten")
             seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.im_buch === {vor - 1}")
             seite.keyboard.press("Escape")
+
+            # Panoramen haben eine eigene Seite, die Seitenzahl stimmt mit dem Zähler überein
+            def buch_info():
+                return seite.evaluate("({n: window.__fotobuch.S.a.buch.seiten.length, plan: window.__fotobuch.S.a.seitenplan.seiten_benoetigt, ganz: window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).map(s => [s.nr, s.fotos.length])})")
+            info = buch_info()
+            assert info["n"] == info["plan"], info
+            assert len(info["ganz"]) >= 2 and all(f == 1 for _, f in info["ganz"]), info
+            pano_nr = info["ganz"][0][0]
+            seite.evaluate(f"window.__fotobuch.S.buchPos = Math.ceil(({pano_nr} - 1) / 2); window.__fotobuch.zeige()")
+            seite.wait_for_selector("#doppelseite .sfoto")
+            bild("panorama-ganze-seite", ziel="#doppelseite")
+            seite.click(f'#doppelseite .seite[data-nr="{pano_nr}"] .sfoto')
+            seite.wait_for_selector("#lupe-ganz")
+            assert "Nicht mehr" in seite.inner_text("#lupe-ganz")
+            seite.click("#lupe-ganz")
+            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).length === {len(info['ganz']) - 1}")
+            nach = buch_info()
+            assert nach["n"] == nach["plan"], nach
+            assert nach["n"] < info["n"] or nach["n"] == info["n"]  # die Seitenzahl bleibt konsistent
+            seite.evaluate(f"window.__fotobuch.S.buchPos = Math.ceil(({pano_nr} - 1) / 2); window.__fotobuch.zeige()")
+            seite.click(f'#doppelseite .sfoto[data-id="{seite.evaluate("window.__fotobuch.S.a.buch.seiten.find(s => s.nr === " + str(pano_nr) + ").fotos[0].id")}"]')
+            seite.click("#lupe-ganz")
+            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).length === {len(info['ganz'])}")
+            assert buch_info() == info
+
+            # Layout-Vorlagen und Übersicht für die Galerie
+            seite.evaluate("window.__fotobuch.S.buchPos = 3; window.__fotobuch.zeige()")
+            seite.click(".layout-knopf >> nth=0")
+            seite.wait_for_selector(".layoutoption")
+            bild("layout-vorlagen")
+            seite.click("#layout-zu")
+            seite.click("#btn-ansicht-uebersicht")
+            seite.wait_for_selector("#uebersicht .seitenkarte")
+            seite.wait_for_timeout(1500)
+            bild("buch-uebersicht", voll=False)
+            seite.evaluate("window.__fotobuch.S.buchAnsicht = 'doppel'; window.__fotobuch.zeige()")
 
             # 4. Buch durchblättern, jede Doppelseite prüfen und festhalten
             seite.evaluate("window.__fotobuch.geheZu(5)")
@@ -112,6 +173,8 @@ def test_reise_wird_zum_album(umgebung):
                 pfad = ausgabe / f"doppelseite-{len(bilder) + 1:02d}.png"
                 seite.locator("#doppelseite").screenshot(path=str(pfad))
                 bilder.append(pfad)
+                if len(bilder) == 2:
+                    bild("buch-doppelseite", ziel="#doppelseite")
                 if seite.locator("#btn-buch-weiter").is_disabled():
                     break
                 seite.click("#btn-buch-weiter")
@@ -127,6 +190,12 @@ def test_reise_wird_zum_album(umgebung):
             seite.wait_for_selector("#export-ergebnis", timeout=60000)
             im_buch_final = seite.evaluate("window.__fotobuch.S.a.zahlen.im_buch")
             assert f"{im_buch_final} Fotos kopiert" in seite.inner_text("#export-ergebnis")
+
+            # Fertige Seiten (JPEG + PDF)
+            plan_seiten = seite.evaluate("window.__fotobuch.S.a.seitenplan.buch_seiten")
+            seite.click("#btn-seiten")
+            seite.wait_for_selector("#seiten-ergebnis", timeout=300000)
+            bild("export-fertige-seiten", voll=True)
             seite.click("#btn-beenden")
             browser.close()
     finally:
@@ -134,10 +203,22 @@ def test_reise_wird_zum_album(umgebung):
 
     assert not fehler, fehler
     # Export vollständig und Originale unverändert
-    kopiert = [p for p in ziel.rglob("*") if p.is_file() and p.suffix.lower() in (".jpg", ".png")]
+    kopiert = [p for p in ziel.rglob("*") if p.is_file() and p.suffix.lower() in (".jpg", ".png") and "seiten" not in p.relative_to(ziel).parts[0]]
     assert len(kopiert) == im_buch_final
     assert (ziel / "seitenliste.csv").exists()
     assert pruefsummen(fotos) == vorher, "Originale unverändert"
+
+    # Fertige Seiten: ein JPEG je Buchseite in voller Auflösung, PDF mit gleich vielen Seiten
+    seiten_dir = ziel / "seiten"
+    jpgs = sorted(seiten_dir.glob("seite-*.jpg"))
+    assert len(jpgs) == plan_seiten, (len(jpgs), plan_seiten)
+    with Image.open(jpgs[1]) as s2:
+        assert s2.size == (3508, 2631)
+        assert s2.convert("L").resize((64, 48)).getextrema()[0] < 200, "Seite enthält Fotos"
+    pdf = (seiten_dir / "fotobuch.pdf").read_bytes()
+    assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF")
+    assert pdf.count(b"/Type /Page ") == plan_seiten
+    assert f"/Count {plan_seiten}".encode() in pdf
 
     # Neustart: Entscheidung und Ereignisname bleiben erhalten
     proc, url = starte(fotos)
@@ -164,4 +245,6 @@ def test_reise_wird_zum_album(umgebung):
     for i, k in enumerate(kacheln):
         bogen.paste(k, (12 + (i % spalten) * (breite + 12), 12 + (i // spalten) * (hoehe + 12)))
     bogen.save(ausgabe / "album-kontaktbogen.png")
+    for k, j in enumerate(jpgs[:1] + jpgs[1:2]):
+        Image.open(j).convert("RGB").resize((1200, 900)).save(ausgabe / "galerie" / f"99-fertige-seite-{k + 1}.jpg")
     print(f"Album: {ausgabe / 'album-kontaktbogen.png'}")
