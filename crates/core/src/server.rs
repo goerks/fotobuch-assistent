@@ -266,6 +266,12 @@ fn get(app: &Arc<App>, pfad: &str, query: &str) -> Res<Antwort> {
         let v = p.lock().map_err(|_| "Interner Fehler")?.ansicht();
         return Ok(json_antwort(v, 200));
     }
+    if pfad == "/api/seite/layouts" {
+        let key = query_param(query, "key").ok_or("Ungültige Anfrage")?;
+        let p = app.aktuelles()?;
+        let v = p.lock().map_err(|_| "Interner Fehler")?.layouts_fuer_seite(&key)?;
+        return Ok(json_antwort(v, 200));
+    }
     if let Some(id) = pfad.strip_prefix("/api/vorschau/") {
         let kante: u32 = query_param(query, "k").map(|s| s.parse().map_err(|_| "Ungültiger Wert".to_string())).transpose()?.unwrap_or(320);
         let p = app.aktuelles()?;

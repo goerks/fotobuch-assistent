@@ -186,13 +186,16 @@ test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () =
   await warteBis(() => q("#buch-pos").textContent !== vor, "geblättert");
   assert.match(q("#buch-pos").textContent, /Seiten 2–3 von/);
   assert.equal(qa("#doppelseite .seite").length, 2, "danach Doppelseiten");
-  // Anderes Layout für eine Seite wählen
+  // Layout aus Vorlagen-Vorschau wählen
   const vorher = q("#doppelseite .seite").innerHTML;
   klick(q(".layout-knopf"));
+  await warteBis(() => qa(".layoutwahl .layoutoption").length >= 2, "Vorlagen sichtbar");
+  assert.ok(q(".layoutoption.aktiv"), "aktuelles Layout markiert");
+  klick(qa(".layoutwahl .layoutoption")[1]);
   await warteBis(() => q("#doppelseite .seite").innerHTML !== vorher, "anderes Layout");
-  assert.match(q(".layout-knopf").textContent, /2\//);
-  taste("ArrowLeft");
-  await warteBis(() => q("#buch-pos").textContent === vor, "mit Pfeiltaste zurück");
+  await warteBis(() => qa(".layoutwahl .layoutoption")[1]?.classList.contains("aktiv"), "Auswahl markiert");
+  klick(q("#layout-zu"));
+  await warteBis(() => !q(".layoutwahl"), "Auswahl geschlossen");
   // Detailansicht mit Begründung
   klick(q("#doppelseite .sfoto"));
   await warteBis(() => !q("#lupe").hidden && q("#lupe-grund"), "Detail");

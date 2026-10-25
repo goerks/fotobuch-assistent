@@ -6,7 +6,7 @@ Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
 **Fertig**
 - Seite 1 steht allein, danach Doppelseiten (2–3, 4–5, …), in Blättern, Übersicht und Sprung
-- Pro Seite bietet die App bis zu 8 Layouts an (beste zuerst), «Anderes Layout» schaltet weiter. Die Wahl wird im Projekt gespeichert
+- Pro Seite bietet die App bis zu 8 Layouts an (beste zuerst). «Layout wählen» zeigt sie als kleine Vorlagen-Vorschauen mit den echten Fotos, ein Klick wählt. Die Wahl wird im Projekt gespeichert
 - Tests: Layout-Varianten in Rust, Oberflächentest für Einzelseite, Doppelseiten und Layoutwechsel
 
 **Offen**

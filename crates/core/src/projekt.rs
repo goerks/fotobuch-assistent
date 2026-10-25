@@ -893,25 +893,62 @@ impl Projekt {
     }
 
     /// Seiten mit automatischem Layout. Die Fotos jedes Ereignisses folgen der Aufnahmezeit.
-    fn buch_seiten(&self, zahlen: &[(Vec<usize>, Vec<usize>)], plan: &Value) -> Value {
+    /// Verteilt die Fotos im Buch auf Seiten: (Ereignis, Fotos der Seite).
+    fn seiten_gruppen(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>)> {
         let fps = self.einstellungen.fotos_pro_seite.max(1);
         let getrennt = self.einstellungen.ereignisse_getrennt;
         let counts: Vec<i64> = zahlen.iter().map(|(_, b)| b.len() as i64).collect();
         let zuordnung = seitenzuordnung(&counts, fps, getrennt);
-        let ar_seite = self.seiten_verhaeltnis();
         let mut warteschlangen: Vec<std::collections::VecDeque<usize>> = if getrennt {
             zahlen.iter().map(|(_, b)| b.iter().copied().collect()).collect()
         } else {
             vec![zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect()]
         };
         let erg = self.erg();
-        let mut seiten = Vec::new();
-        for (nr, (ei, n)) in zuordnung.iter().enumerate() {
+        let mut aus = Vec::new();
+        for (ei, n) in zuordnung.iter() {
             let q = if getrennt { &mut warteschlangen[*ei as usize] } else { &mut warteschlangen[0] };
             let fotos: Vec<usize> = (0..*n).filter_map(|_| q.pop_front()).collect();
+            if fotos.is_empty() {
+                continue;
+            }
             let ereignis = if getrennt { *ei as usize } else { erg.ereignis_von[fotos[0]] };
-            let ars: Vec<f64> = fotos.iter().map(|&i| self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64).collect();
-            let varianten = layout_varianten(&ars, ar_seite, 8);
+            aus.push((ereignis, fotos));
+        }
+        aus
+    }
+
+    fn seiten_varianten(&self, fotos: &[usize]) -> Vec<Vec<[f64; 4]>> {
+        let ars: Vec<f64> = fotos.iter().map(|&i| self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64).collect();
+        layout_varianten(&ars, self.seiten_verhaeltnis(), 8)
+    }
+
+    /// Alle angebotenen Layouts einer Seite (für die Vorlagenauswahl). Schlüssel = erstes Foto der Seite.
+    pub fn layouts_fuer_seite(&self, key: &str) -> Res<Value> {
+        let einst = self.einstufungen();
+        let zahlen = self.ereignis_zahlen(&einst);
+        let (_, fotos) = self
+            .seiten_gruppen(&zahlen)
+            .into_iter()
+            .find(|(_, f)| self.ids[f[0]] == key)
+            .ok_or("Unbekannte Seite")?;
+        let varianten = self.seiten_varianten(&fotos);
+        let wahl = self.layout_wahl.get(key).copied().unwrap_or(0) % varianten.len();
+        let r = |x: f64| (x * 100.0).round() / 100.0;
+        Ok(json!({
+            "aktuell": wahl,
+            "ar": self.seiten_verhaeltnis(),
+            "fotos": fotos.iter().map(|&i| self.ids[i].clone()).collect::<Vec<_>>(),
+            "layouts": varianten.iter().map(|v| v.iter().map(|f| json!([r(f[0]), r(f[1]), r(f[2]), r(f[3])])).collect::<Vec<_>>()).collect::<Vec<_>>(),
+        }))
+    }
+
+    /// Seiten mit automatischem Layout. Die Fotos jedes Ereignisses folgen der Aufnahmezeit.
+    fn buch_seiten(&self, zahlen: &[(Vec<usize>, Vec<usize>)], plan: &Value) -> Value {
+        let ar_seite = self.seiten_verhaeltnis();
+        let mut seiten = Vec::new();
+        for (nr, (ereignis, fotos)) in self.seiten_gruppen(zahlen).into_iter().enumerate() {
+            let varianten = self.seiten_varianten(&fotos);
             let key = self.ids[fotos[0]].clone();
             let wahl = self.layout_wahl.get(&key).copied().unwrap_or(0) % varianten.len();
             let felder = &varianten[wahl];
@@ -926,12 +963,13 @@ impl Projekt {
                 "fotos": fotos.iter().zip(felder.iter()).map(|(&i, f)| json!({"id": self.ids[i], "x": r(f[0]), "y": r(f[1]), "w": r(f[2]), "h": r(f[3])})).collect::<Vec<_>>(),
             }));
         }
+        let zuordnung_len = seiten.len();
         let gesamt = plan["buch_seiten"].as_i64().unwrap_or(0) as usize;
         json!({
             "format": self.einstellungen.seitenformat,
             "ar": ar_seite,
             "seiten": seiten,
-            "freie_seiten": (zuordnung.len() + 1..=gesamt).collect::<Vec<_>>(),
+            "freie_seiten": (zuordnung_len + 1..=gesamt).collect::<Vec<_>>(),
         })
     }
 

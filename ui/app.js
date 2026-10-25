@@ -25,6 +25,7 @@
     wegFilter: "alle",
     buchPos: 0, // Doppelseite (0-basiert)
     buchAnsicht: "doppel",
+    layoutOffen: null,
     zoom: 200,
     exportErgebnis: null,
     beendet: false,
@@ -882,6 +883,26 @@
     return el;
   }
 
+  // Vorlagenauswahl wie in PowerPoint: kleine Vorschauen aller Layouts, ein Klick wählt.
+  function layoutPanel(sp) {
+    const panel = h("div", { class: "layoutwahl", "data-key": sp.key }, h("span", { class: "still" }, "Layouts werden berechnet …"));
+    api("/api/seite/layouts?key=" + encodeURIComponent(sp.key)).then((d) => {
+      panel.replaceChildren(
+        h("div", { class: "layoutkopf" },
+          h("b", {}, "Layout für Seite " + sp.nr),
+          h("button", { type: "button", class: "knopf klein-knopf", id: "layout-zu", onclick: () => { S.layoutOffen = null; zeige(); } }, "Schliessen")),
+        h("div", { class: "layoutliste" },
+          d.layouts.map((felder, i) =>
+            h("button", { type: "button", class: "layoutoption" + (i === d.aktuell ? " aktiv" : ""), "data-i": i, title: "Layout " + (i + 1) + (i === 0 ? " (Vorschlag)" : ""), "aria-pressed": i === d.aktuell ? "true" : "false",
+              onclick: () => aktion(async () => { await api("/api/seite/layout", { key: sp.key, wahl: i }); await ladeUndZeige(); }) },
+              h("span", { class: "minilayout", style: "aspect-ratio:" + d.ar },
+                felder.map((f, k) => h("span", { class: "minifoto", style: "left:" + f[0] + "%;top:" + f[1] + "%;width:" + f[2] + "%;height:" + f[3] + "%" },
+                  h("img", { src: vorschauUrl(d.fotos[k], 160), alt: "" })))),
+              h("span", { class: "minibez" }, i === 0 ? "Vorschlag" : "Layout " + (i + 1))))));
+    }).catch((e) => meldung(e.message));
+    return panel;
+  }
+
   function viewBuch() {
     const a = S.a;
     const b = a.buch;
@@ -939,7 +960,7 @@
       const goto = h("input", { type: "number", id: "buch-goto", min: 1, max: n, value: sichtbar[0].nr, "aria-label": "Zu Seite springen" });
       goto.addEventListener("change", () => { S.buchPos = Math.ceil((Math.max(1, Math.min(n, Number(goto.value) || 1)) - 1) / 2); zeige(); });
       const layoutKnopf = (sp) => sp.layouts > 1
-        ? h("button", { type: "button", class: "knopf klein-knopf layout-knopf", "data-nr": sp.nr, title: "Andere Anordnung der Fotos auf dieser Seite", onclick: () => aktion(async () => { await api("/api/seite/layout", { key: sp.key, wahl: (sp.layout + 1) % sp.layouts }); await ladeUndZeige(); }) }, "Anderes Layout (" + (sp.layout + 1) + "/" + sp.layouts + ")")
+        ? h("button", { type: "button", class: "knopf klein-knopf layout-knopf", "data-nr": sp.nr, "aria-expanded": S.layoutOffen === sp.key ? "true" : "false", title: "Vorlage für die Anordnung der Fotos auf dieser Seite wählen", onclick: () => { S.layoutOffen = S.layoutOffen === sp.key ? null : sp.key; zeige(); } }, "Layout wählen ▾")
         : null;
       v.append(
         h("div", { class: "zeile" },
@@ -950,9 +971,10 @@
         h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
           [links, rechts].map((sp) => sp
             ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true),
-                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)))
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
+                S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
-        h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Anderes Layout» wechselt die Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
+        h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
       );
     }
     v.append(fuss(4, 6, "Weiter zum Export →"));
