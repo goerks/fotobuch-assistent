@@ -8,15 +8,19 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="kopf">
-  <div class="marke"><strong>Fotobuch-Assistent</strong><span class="klein" id="version"></span></div>
-  <nav id="schritte" aria-label="Schritte"></nav>
-  <div class="privat" title="Es werden keine Fotos hochgeladen. Alles läuft auf diesem Rechner.">🔒 lokal, offline</div>
-</header>
-<div id="meldung" role="alert" hidden></div>
-<div class="rahmen">
-  <main id="inhalt" tabindex="-1" aria-live="polite"></main>
-  <aside id="buch" aria-label="Dein Buch"></aside>
+<div class="app">
+  <aside class="schiene" aria-label="Ablauf">
+    <div class="marke"><span class="logo" aria-hidden="true">F</span><span><strong>Fotobuch</strong><span class="klein" id="version"></span></span></div>
+    <nav id="schritte" aria-label="Schritte"></nav>
+    <div class="privat" title="Es werden keine Fotos hochgeladen. Alles läuft auf diesem Rechner.">🔒 Alles lokal und offline.<br>Nichts verlässt diesen Rechner.</div>
+  </aside>
+  <div class="haupt">
+    <div id="meldung" role="alert" hidden></div>
+    <div class="rahmen">
+      <main id="inhalt" tabindex="-1" aria-live="polite"></main>
+      <aside id="buch" aria-label="Dein Buch"></aside>
+    </div>
+  </div>
 </div>
 <div id="lupe" hidden role="dialog" aria-label="Grosse Ansicht"></div>
 <script src="app.js"></script>

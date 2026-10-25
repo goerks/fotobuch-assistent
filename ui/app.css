@@ -1,27 +1,49 @@
 :root{
-  --bg:#f6f5f2; --karte:#fff; --text:#1f2328; --still:#5d6570; --linie:#dcd9d2;
-  --akzent:#1f6f5c; --akzent-text:#fff; --warn:#a85d00; --warn-bg:#fff4e0;
+  --bg:#eef0f3; --karte:#fff; --text:#1b2430; --still:#5a6574; --linie:#dde1e7;
+  --akzent:#1f6f9a; --akzent-text:#fff; --warn:#7a4a00; --warn-bg:#fff4dc;
   --gut:#1f7a3d; --gut-bg:#e6f4ea; --weg:#9a2f2f; --weg-bg:#fbeaea; --fokus:#1a56db;
+  --schiene:#1b2430; --schiene-text:#c9d1dc; --schiene-aktiv:#2c3a4d;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#16181a; --karte:#1f2326; --text:#e8e6e1; --still:#a2a9b0; --linie:#363b40;
-    --akzent:#4fb89c; --akzent-text:#08201a; --warn:#f0b35a; --warn-bg:#3a2d15;
-    --gut:#6fd08c; --gut-bg:#16301f; --weg:#f08a8a; --weg-bg:#3a1c1c; --fokus:#7aa2ff;}
+  :root{--bg:#12161b; --karte:#1b2128; --text:#e6e9ee; --still:#9aa5b3; --linie:#2e3641;
+    --akzent:#5fb0e0; --akzent-text:#0b1a24; --warn:#f0b35a; --warn-bg:#3a2d15;
+    --gut:#6fd08c; --gut-bg:#16301f; --weg:#f08a8a; --weg-bg:#3a1c1c; --fokus:#7aa2ff;
+    --schiene:#0e1217; --schiene-text:#b4bfcc; --schiene-aktiv:#1d2733;}
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
-.kopf{display:flex;align-items:center;gap:24px;padding:10px 20px;background:var(--karte);border-bottom:1px solid var(--linie);flex-wrap:wrap}
-.marke{display:flex;flex-direction:column;line-height:1.2}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "IBM Plex Sans",system-ui,"Segoe UI",Roboto,sans-serif}
+.app{display:flex;min-height:100vh}
+.haupt{flex:1;min-width:0;display:flex;flex-direction:column}
 .klein{font-size:12px;color:var(--still)}
-.privat{margin-left:auto;font-size:13px;color:var(--still)}
-nav#schritte{display:flex;gap:6px;flex-wrap:wrap}
-nav#schritte button{display:flex;gap:8px;align-items:center;background:none;border:1px solid transparent;border-radius:20px;padding:6px 12px;color:var(--still);cursor:pointer;font:inherit}
-nav#schritte button .nr{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:2px solid var(--linie);font-size:13px;font-weight:600}
-nav#schritte button[aria-current="step"]{color:var(--text);border-color:var(--akzent);font-weight:600}
+/* Linke Schiene: Ablauf von oben nach unten */
+.schiene{width:248px;flex:none;background:var(--schiene);color:var(--schiene-text);display:flex;flex-direction:column;padding:20px 14px;gap:18px;position:sticky;top:0;height:100vh;overflow:auto}
+.marke{display:flex;align-items:center;gap:10px;color:#fff;padding:0 8px}
+.marke>span:last-child{display:flex;flex-direction:column;line-height:1.2}
+.marke .klein{color:var(--schiene-text);opacity:.7;margin:0}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--akzent);color:var(--akzent-text);display:grid;place-items:center;font-weight:700}
+.privat{margin-top:auto;font-size:12px;color:var(--schiene-text);opacity:.75;padding:0 8px;line-height:1.5}
+nav#schritte{display:flex;flex-direction:column;gap:0;position:relative}
+nav#schritte button{position:relative;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:0;border-radius:10px;padding:11px 10px;color:var(--schiene-text);cursor:pointer;font:inherit;font-size:14.5px}
+nav#schritte button:hover:not(:disabled){background:var(--schiene-aktiv)}
+nav#schritte button .nr{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;border:2px solid #4a586b;font-size:12px;font-weight:600;background:var(--schiene);position:relative;z-index:1}
+nav#schritte button:not(:last-child)::after{content:"";position:absolute;left:23px;top:calc(50% + 15px);height:calc(100% - 4px);width:2px;background:#3a4759}
+nav#schritte button.fertig:not(:last-child)::after{background:var(--akzent)}
+nav#schritte button .name{flex:1}
+nav#schritte button .zahl{font-size:12px;opacity:.7;font-variant-numeric:tabular-nums}
+nav#schritte button[aria-current="step"]{background:var(--schiene-aktiv);color:#fff;font-weight:600}
 nav#schritte button[aria-current="step"] .nr{background:var(--akzent);border-color:var(--akzent);color:var(--akzent-text)}
-nav#schritte button.fertig .nr{border-color:var(--gut);color:var(--gut)}
+nav#schritte button.fertig .nr{border-color:var(--akzent);color:var(--akzent)}
 nav#schritte button:disabled{opacity:.45;cursor:not-allowed}
-.rahmen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;padding:20px;max-width:1500px;margin:0 auto}
+@media (max-width:980px){
+  .app{flex-direction:column}
+  .schiene{width:auto;height:auto;position:static;padding:12px;gap:8px}
+  nav#schritte{flex-direction:row;flex-wrap:wrap}
+  nav#schritte button:not(:last-child)::after{display:none}
+  nav#schritte button .zahl{display:none}
+  .privat{margin-top:0}
+}
+.rahmen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;padding:20px;width:100%;max-width:1500px;margin:0 auto}
 @media (max-width:980px){.rahmen{grid-template-columns:1fr}}
 main{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:24px;min-height:60vh}
 main:focus{outline:none}
@@ -144,3 +166,4 @@ a{color:var(--akzent)}
 .minifoto{position:absolute;display:block;overflow:hidden;background:#ccc}
 .minifoto img{display:block;width:100%;height:100%;object-fit:cover}
 .minibez{font-size:11px;color:var(--still)}
+.fuss button{flex:none}

@@ -10,9 +10,9 @@ Der Assistent erledigt die Vorarbeit für dein Fotobuch: Er sortiert nach Aufnah
 2. Windows meldet beim ersten Start eventuell «Der Computer wurde durch Windows geschützt», weil die Datei noch nicht signiert ist. Klicke auf «Weitere Informationen» und «Trotzdem ausführen».
 3. Beenden: im letzten Schritt «App beenden» oder das Fenster schliessen. Deine Auswahl ist gespeichert.
 
-## Die fünf Schritte
+## Die sechs Schritte
 
-Oben siehst du die Schritte. Rechts zeigt «Dein Buch» immer, wie viele Fotos und Seiten das Buch gerade hat.
+Links siehst du den Ablauf von oben nach unten: Fotos laden, Ereignisse, Aussortieren, Seiten, Buch, Export. Erledigte Schritte sind mit einem Haken markiert, daneben steht je eine Zahl (zum Beispiel Fotos oder Seiten). Rechts zeigt «Dein Buch» immer, wie viele Fotos und Seiten das Buch gerade hat.
 
 ### 1. Fotos laden
 Wähle den Ordner mit den Fotos (Unterordner werden mitgelesen) und klicke «Fotos analysieren». Unterstützt sind JPG, HEIC (iPhone), PNG und RAW (über die eingebettete Vorschau). Bei grossen Ordnern dauert das einige Minuten. Beim zweiten Mal geht es schnell, weil nur neue oder geänderte Fotos gelesen werden.

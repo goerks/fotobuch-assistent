@@ -193,6 +193,17 @@
     window.scrollTo(0, 0);
   }
 
+  function schrittZahl(nr) {
+    const a = S.a;
+    if (!a || !a.analysiert) return "";
+    const z = a.zahlen;
+    if (nr === 1) return zahl(z.dateien);
+    if (nr === 2) return String(z.ereignisse);
+    if (nr === 3) return zahl(z.im_buch);
+    if (nr === 4 || nr === 5) return a.seitenplan.buch_seiten + " S.";
+    return "";
+  }
+
   function zeigeNavigation() {
     const nav = $("#schritte");
     nav.replaceChildren(
@@ -207,8 +218,9 @@
             disabled: !kannSchritt(s.nr),
             onclick: () => geheZu(s.nr),
           },
-          h("span", { class: "nr" }, s.nr === 1 || S.schritt <= s.nr || !(S.a && S.a.analysiert) ? s.nr : "✓"),
-          s.name
+          h("span", { class: "nr" }, S.a && S.a.analysiert && s.nr < S.schritt ? "✓" : s.nr),
+          h("span", { class: "name" }, s.name),
+          h("span", { class: "zahl" }, schrittZahl(s.nr))
         )
       )
     );

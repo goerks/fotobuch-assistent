@@ -2,6 +2,12 @@
 
 Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
+## 2026-10-25 (nachts): Neues Erscheinungsbild (Variante C «Werkbank»)
+
+**Fertig**
+- Dunkle Schiene links mit dem Ablauf von oben nach unten (Schritte 1 bis 6 mit Verbindungslinie, Haken bei erledigten, Zahlen je Schritt), hellgraue Arbeitsfläche, blaue Akzentfarbe, Hell- und Dunkelmodus
+- Schmale Bildschirme: Schiene wird zur Leiste oben
+
 ## 2026-10-25 (abends): Buchstruktur wie gedruckt, Layout pro Seite wählbar
 
 **Fertig**
