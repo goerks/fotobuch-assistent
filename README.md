@@ -2,19 +2,21 @@
 
 Arbeitstitel. Ein **lokales, offline arbeitendes Werkzeug**, das die Vorarbeit für ein Fotobuch übernimmt: Fotos ordnen, zu Ereignissen gruppieren, Doppelte und fast Gleiche reduzieren, das beste Bild je Serie vorschlagen und alles auf Seiten planen. Danach exportiert es für den Druckdienst deiner Wahl.
 
-**Stand:** Erste lauffähige App (MVP 1 in Arbeit): geführte Oberfläche in fünf Schritten (Laden, Ereignisse, Aussortieren, Seiten, Export), lokal im Browser. Siehe [docs/fortschritt.md](docs/fortschritt.md).
+**Stand:** Native Desktop-App (Version 0.2): Rust-Kern, Tauri-Fenster, Oberfläche in HTML/CSS/JS. Geführte Oberfläche in fünf Schritten (Laden, Ereignisse, Aussortieren, Seiten, Export). Siehe [docs/fortschritt.md](docs/fortschritt.md).
 
 ## Ausprobieren
 
-Aus dem Quellcode (Python 3.10 oder neuer):
+Fertige, portable Programme (kein Installer) entstehen in der GitHub-Aktion «App bauen» (`.github/workflows/build-exe.yml`): `fotobuch-assistent.exe` für Windows und `Fotobuch-Assistent-mac.zip` (Apple Silicon) für den Mac. Anleitung für Nutzer: [docs/handbuch.md](docs/handbuch.md).
+
+Aus dem Quellcode (Rust, aktuelle stabile Version; unter Linux zusätzlich `libwebkit2gtk-4.1-dev`):
 
 ```
-pip install -e ".[raw,dev]"
-python -m pytest -q
-fotobuch app            # öffnet die App im Browser
+cargo test -p fotobuch-core              # Kerntests
+cargo run --release -p fotobuch-assistent # App mit Fenster
+cargo run --release -p fotobuch-core --bin fotobuch-dev -- serve ordner   # nur Server, für Tests im Browser
 ```
 
-Die fertige Windows-`.exe` braucht keine Installation: Doppelklick, der Browser öffnet die App. Sie entsteht in der GitHub-Aktion «Windows-exe bauen» (`.github/workflows/build-exe.yml`). Anleitung für Nutzer: [docs/handbuch.md](docs/handbuch.md). Zum Teilen mit dem Entwickler dient nur `bericht-teilbar.json` (`fotobuch-assistent.exe bericht`): keine Bilder, Namen, Pfade oder GPS-Daten.
+Aufbau: `crates/core` (Logik, Server), `crates/app` (Tauri-Fenster), `ui/` (Oberfläche, wird ins Programm eingebettet), `tests/ui` (Oberflächentests mit jsdom).
 
 ## Das Problem
 

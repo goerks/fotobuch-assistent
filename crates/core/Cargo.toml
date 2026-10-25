@@ -1,0 +1,26 @@
+[package]
+name = "fotobuch-core"
+version = "0.2.0"
+edition = "2021"
+description = "Kern des Fotobuch-Assistenten: Einlesen, Ereignisse, Orte, Serien, Seitenplanung, lokaler Server"
+license = "LicenseRef-offen"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+rayon = "1"
+sha2 = "0.10"
+sha1 = "0.10"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tiff", "webp", "bmp"] }
+jpeg-decoder = "0.3"
+kamadak-exif = "0.6"
+heic = "0.1"
+tiny_http = "0.12"
+rust-embed = "8"
+mime_guess = "2"
+open = "5"
+getrandom = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

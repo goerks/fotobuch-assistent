@@ -2,6 +2,22 @@
 
 Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
+## 2026-10-25: Umbau auf Rust und Tauri (Version 0.2)
+
+**Fertig**
+- Kern komplett in Rust neu geschrieben (`crates/core`): Einlesen (JPEG, HEIC, PNG, TIFF/WebP/BMP, RAW über eingebettete Vorschau), Ereignisse, Orte, Serien, Seitenzähler, Export, Zwischenspeicher. Projektdatei `.fotobuch/projekt.json` ist kompatibel mit der Python-Version
+- HEIC rein in Rust (Crate `heic`), an vier echten Dateien gegen pillow-heif geprüft (PSNR über 71 dB) und mit EXIF-Zeit und GPS getestet
+- Eigenes App-Fenster mit Tauri 2 (`crates/app`): keine Konsole, kein Browser, nativer Ordner-Dialog, externe Links öffnen im Standardbrowser. Oberfläche unverändert (`ui/`, in das Programm eingebettet)
+- Vergleich mit der Python-Version auf den 300 New-York-Demofotos: Ereignisse, Orte, exakte Duplikate und Seitenplan gleich; kleine Abweichungen bei der Schärfewertung (um 1 bis 3 Punkte), dadurch bei einzelnen Serien ein anderes Vorschlagsfoto
+- Tests: Rust-Kerntests plus Ende-zu-Ende-Test, 8 Oberflächentests laufen gegen den Rust-Server. Fenster unter Xvfb gestartet und per Screenshot geprüft (Linux)
+- Pipeline baut portable Programme: Windows `.exe`, Mac `.app` (Apple Silicon, ad-hoc signiert) als ZIP. Kein Installer
+- Analyse von 300 Fotos (86 MB) auf 2 Kernen: etwa 2 Sekunden (Python-Version: 3,2 Sekunden)
+
+**Nicht geprüft**
+- Start unter echtem Windows und echtem macOS (Gatekeeper, WebView2, Ordner-Dialog)
+- Echtes RAW (CR3 hat evtl. keine lesbare Aufnahmezeit), iPhone-HEIC mit GPS aus dem Gerät
+- Der Python-Kern ist entfernt (Git-Verlauf enthält ihn)
+
 ## 2026-10-24: Erste lauffähige App (zweiter Wurf Richtung MVP 1)
 
 **Fertig**

@@ -1,4 +1,4 @@
-// Oberflächentest: startet die echte App (Python) und bedient sie in jsdom wie ein Nutzer.
+// Oberflächentest: startet die echte App (Rust-Server) und bedient sie in jsdom wie ein Nutzer.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -37,10 +37,8 @@ before(async () => {
   fotoOrdner = join(basis, "Fotos");
   const r = spawnSync(python, [join(hier, "make_fixture.py"), fotoOrdner], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
-  proc = spawn(python, ["-u", "-m", "fotobuch", "app", "--kein-browser"], {
-    cwd: wurzel,
-    env: { ...process.env, PYTHONPATH: join(wurzel, "src") },
-  });
+  const bin = process.env.FOTOBUCH_BIN || join(wurzel, "target", "release", "fotobuch-dev");
+  proc = spawn(bin, ["serve"], { cwd: wurzel });
   adresse = await new Promise((res, rej) => {
     let puffer = "";
     proc.stdout.on("data", (d) => {

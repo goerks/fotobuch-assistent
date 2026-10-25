@@ -4,6 +4,7 @@
 *.jpeg
 *.jpe
 *.png
+!crates/app/icons/*.png
 *.gif
 *.bmp
 *.tif
@@ -70,3 +71,7 @@ node_modules/
 .fotobuch/
 fotobuch-bericht/
 fotobuch-export/
+
+# Rust
+/target/
+crates/app/gen/

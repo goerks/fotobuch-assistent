@@ -17,7 +17,7 @@ Testbilder sind synthetisch (`tests/conftest.py`) und enthalten bekannte Eigensc
 ## Ausführen
 ```
 pip install -e ".[raw,dev]"
-python -m pytest -q
+cargo test -p fotobuch-core   # Kern; Oberfläche: cd tests/ui && npm ci && node --test app.test.mjs
 cd tests/ui && npm ci && node --test app.test.mjs
 ```
 

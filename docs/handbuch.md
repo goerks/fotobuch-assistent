@@ -6,10 +6,9 @@ Der Assistent erledigt die Vorarbeit für dein Fotobuch: Er sortiert nach Aufnah
 
 ## Starten
 
-1. Doppelklick auf `fotobuch-assistent.exe`. Es öffnet sich ein schwarzes Fenster (nicht schliessen, solange du arbeitest) und dein Browser mit der App.
+1. Doppelklick auf `fotobuch-assistent.exe`. Es öffnet sich ein eigenes Fenster, kein Browser und keine Konsole. Die App braucht keine Installation. Voraussetzung ist Microsoft Edge WebView2, das auf Windows 10 und 11 normalerweise schon vorhanden ist.
 2. Windows meldet beim ersten Start eventuell «Der Computer wurde durch Windows geschützt», weil die Datei noch nicht signiert ist. Klicke auf «Weitere Informationen» und «Trotzdem ausführen».
-3. Öffnet sich der Browser nicht, kopiere die Adresse (beginnt mit `http://127.0.0.1:`) aus dem schwarzen Fenster in die Adresszeile.
-4. Beenden: im letzten Schritt «App beenden» oder das schwarze Fenster schliessen. Deine Auswahl ist gespeichert.
+3. Beenden: im letzten Schritt «App beenden» oder das Fenster schliessen. Deine Auswahl ist gespeichert.
 
 ## Die fünf Schritte
 
@@ -49,21 +48,18 @@ Im Fotoordner entsteht der Unterordner `.fotobuch` (Zwischenspeicher, deine Ents
 ## Wenn etwas nicht klappt
 | Problem | Lösung |
 |---|---|
-| Browser zeigt «Die App antwortet nicht» | Das schwarze Fenster wurde geschlossen. Die .exe neu starten. |
 | «In diesem Ordner wurden keine Fotos gefunden» | Anderen Ordner wählen. Dateien in `.fotobuch`, `fotobuch-export` und `fotobuch-bericht` werden bewusst übersprungen. |
 | Datei «nicht lesbar» | Die Datei ist beschädigt oder ein unbekanntes Format. Sie kommt nicht ins Buch. |
 | Reihenfolge stimmt nicht | Das Foto hat keine Aufnahmezeit und wurde nach Änderungsdatum eingeordnet. |
 | Der Ordner-Dialog fehlt | Pfad von Hand in das Feld eingeben. |
 
-## Fehler melden
-Zum Teilen mit dem Entwickler dient der Bericht ohne Bilder: `fotobuch-assistent.exe bericht` erzeugt `bericht-teilbar.json` (keine Bilder, Namen, Pfade oder GPS-Daten).
-
 ## Mac (Apple Silicon)
-Die Mac-Version ist ein Programm für M1 und neuer (`fotobuch-assistent-mac.tar.gz`). Doppelklick auf die Datei entpackt sie. Die Datei ist nicht signiert, deshalb blockiert macOS den ersten Start. Öffne das Terminal im Ordner der Datei und gib einmal ein:
+Die Mac-Version ist ein Programm für M1 und neuer (`Fotobuch-Assistent-mac.zip`). Doppelklick entpackt die Datei zu `Fotobuch-Assistent.app`. Du kannst die App an einen beliebigen Ort legen, zum Beispiel ins Programme-Verzeichnis. Eine Installation ist nicht nötig. Sie ist noch nicht von Apple signiert, deshalb blockiert macOS den ersten Start:
 
-```
-xattr -d com.apple.quarantine fotobuch-assistent
-./fotobuch-assistent
-```
+1. Rechtsklick auf die App, «Öffnen», und die Rückfrage mit «Öffnen» bestätigen. Wenn macOS sie trotzdem blockiert: Systemeinstellungen, «Datenschutz & Sicherheit», ganz unten «Trotzdem öffnen».
+2. Alternativ im Terminal einmal `xattr -dr com.apple.quarantine Fotobuch-Assistent.app` eingeben.
 
-Danach öffnet sich die App im Browser. Alternativ: Rechtsklick auf die Datei, «Öffnen», und in den Systemeinstellungen unter «Datenschutz & Sicherheit» «Trotzdem öffnen» wählen. Beim ersten Zugriff auf Ordner wie «Bilder» fragt macOS nach der Erlaubnis. Erlaube sie.
+Beim ersten Zugriff auf Ordner wie «Bilder» fragt macOS nach der Erlaubnis. Erlaube sie.
+
+## Hinweis zu HEIC (iPhone)
+HEIC-Fotos liest die App mit einem eigenen, in Rust geschriebenen Decoder. HEIC nutzt das Videoformat HEVC, für das Patente bestehen. Die App gibt die Fotos nirgends weiter und verändert sie nicht, sie zeigt sie nur lokal an.

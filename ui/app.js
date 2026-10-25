@@ -109,6 +109,16 @@
     return lauf;
   }
 
+  // Im App-Fenster öffnen externe Links im Standardbrowser (über den lokalen Server).
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || !S.status || !S.status.nativ) return;
+    if (/^https?:\/\//.test(a.getAttribute("href"))) {
+      e.preventDefault();
+      api("/api/extern", { url: a.href }).catch(() => {});
+    }
+  });
+
   async function lade() {
     S.status = await api("/api/status");
     if (S.status.hat_projekt) {

@@ -1,91 +1,118 @@
-name: Windows-exe bauen
+name: App bauen (Windows und Mac, portabel)
 
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
 
+env:
+  CARGO_TERM_COLOR: never
+
 jobs:
-  windows:
-    runs-on: windows-latest
+  tests:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests (Rust-Kern)
+        run: cargo test -p fotobuch-core
+      - name: Kern für die Oberflächentests bauen
+        run: cargo build --release -p fotobuch-core
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Abhängigkeiten
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install ".[raw,dev]"
-      - name: Tests (Python)
-        run: python -m pytest -q
+      - name: Testbilder-Generator (nur für die Tests)
+        run: python -m pip install pillow numpy pytest
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Tests (Oberfläche)
+      - name: Tests (Oberfläche gegen den Rust-Server)
         working-directory: tests/ui
         run: |
           npm ci
           node --test app.test.mjs
-      - name: exe bauen
-        run: |
-          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles;fotobuch/profiles" --add-data "src/fotobuch/web;fotobuch/web" packaging/start.py
-      - name: Selbsttest der exe
-        run: ./dist/fotobuch-assistent.exe --version
-      - name: Selbsttest der exe (App startet und liefert die Oberfläche)
+
+  windows:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: App bauen
+        run: cargo build --release -p fotobuch-assistent -p fotobuch-core
+      - name: Selbsttest (App startet und bleibt offen)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath ./dist/fotobuch-assistent.exe -ArgumentList "app","--kein-browser","--port","8765" -PassThru -RedirectStandardOutput app.log
+          $p = Start-Process -FilePath ./target/release/fotobuch-assistent.exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { throw "App ist beim Start beendet worden (Exit-Code $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+      - name: Selbsttest (Server liefert die Oberfläche)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath ./target/release/fotobuch-dev.exe -ArgumentList "serve","","8766" -PassThru -RedirectStandardOutput dev.log
           $ok = $false
           for ($i = 0; $i -lt 40; $i++) {
             Start-Sleep -Milliseconds 500
             try {
-              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8766/
               if ($r.StatusCode -eq 200 -and $r.Content -match "Fotobuch-Assistent") { $ok = $true; break }
             } catch {}
           }
-          $css = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/app.css
           Stop-Process -Id $p.Id -Force
-          if (-not $ok -or $css.StatusCode -ne 200) { Get-Content app.log; throw "App startet nicht oder Oberfläche fehlt in der exe" }
+          if (-not $ok) { Get-Content dev.log; throw "Oberfläche fehlt" }
       - uses: actions/upload-artifact@v4
         with:
           name: fotobuch-assistent-windows
-          path: dist/fotobuch-assistent.exe
+          path: target/release/fotobuch-assistent.exe
           if-no-files-found: error
 
   macos:
+    needs: tests
     runs-on: macos-latest   # Apple Silicon (M1 und neuer)
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Abhängigkeiten
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: App bauen
+        run: cargo build --release -p fotobuch-assistent
+      - name: App-Paket zusammensetzen (portabel, ohne Installer)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install ".[raw,dev]"
-      - name: Tests (Python)
-        run: python -m pytest -q
-      - name: Programm bauen
+          APP="Fotobuch-Assistent.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp target/release/fotobuch-assistent "$APP/Contents/MacOS/Fotobuch-Assistent"
+          cp crates/app/icons/icon.icns "$APP/Contents/Resources/icon.icns"
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>Fotobuch-Assistent</string>
+            <key>CFBundleDisplayName</key><string>Fotobuch-Assistent</string>
+            <key>CFBundleIdentifier</key><string>ch.bbv.fotobuch-assistent</string>
+            <key>CFBundleExecutable</key><string>Fotobuch-Assistent</string>
+            <key>CFBundleIconFile</key><string>icon</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>0.2.0</string>
+            <key>CFBundleVersion</key><string>0.2.0</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>NSPhotoLibraryUsageDescription</key><string>Fotos werden nur lokal gelesen.</string>
+          </dict></plist>
+          PLIST
+          chmod +x "$APP/Contents/MacOS/Fotobuch-Assistent"
+          codesign --force --deep -s - "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" Fotobuch-Assistent-mac.zip
+      - name: Selbsttest (App startet und bleibt offen)
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --console --name fotobuch-assistent --collect-all pillow_heif --collect-all rawpy --add-data "src/fotobuch/profiles:fotobuch/profiles" --add-data "src/fotobuch/web:fotobuch/web" packaging/start.py
-      - name: Selbsttest (App startet und liefert die Oberfläche)
-        run: |
-          ./dist/fotobuch-assistent --version
-          ./dist/fotobuch-assistent app --kein-browser --port 8765 > app.log 2>&1 &
+          "Fotobuch-Assistent.app/Contents/MacOS/Fotobuch-Assistent" > app.log 2>&1 &
           PID=$!
-          ok=0
-          for i in $(seq 1 40); do
-            sleep 0.5
-            if curl -fs http://127.0.0.1:8765/ | grep -q "Fotobuch-Assistent"; then ok=1; break; fi
-          done
-          curl -fs http://127.0.0.1:8765/app.css > /dev/null || ok=0
+          sleep 10
+          if ! kill -0 $PID 2>/dev/null; then cat app.log; echo "App ist beim Start beendet worden"; exit 1; fi
           kill $PID || true
-          if [ "$ok" != "1" ]; then cat app.log; exit 1; fi
-      - name: Verpacken (erhält die Ausführungsrechte)
-        run: tar -czf fotobuch-assistent-mac.tar.gz -C dist fotobuch-assistent
       - uses: actions/upload-artifact@v4
         with:
           name: fotobuch-assistent-mac
-          path: fotobuch-assistent-mac.tar.gz
+          path: Fotobuch-Assistent-mac.zip
           if-no-files-found: error

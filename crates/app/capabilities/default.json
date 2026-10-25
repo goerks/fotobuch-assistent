@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Die Oberfläche läuft über den lokalen Server; das Fenster braucht keine Tauri-Rechte.",
+  "windows": ["main"],
+  "permissions": []
+}

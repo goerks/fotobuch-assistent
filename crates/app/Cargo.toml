@@ -1,0 +1,17 @@
+[package]
+name = "fotobuch-assistent"
+version = "0.2.0"
+edition = "2021"
+description = "Fotobuch-Assistent: Fotos lokal ordnen, aussortieren und für den Druck vorbereiten"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+fotobuch-core = { path = "../core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
