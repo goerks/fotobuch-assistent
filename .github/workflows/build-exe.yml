@@ -52,7 +52,7 @@ jobs:
       - name: Selbsttest (Server liefert die Oberfläche)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath ./target/release/fotobuch-dev.exe -ArgumentList "serve","","8766" -PassThru -RedirectStandardOutput dev.log
+          $p = Start-Process -FilePath ./target/release/fotobuch-dev.exe -ArgumentList "serve",".","8766" -PassThru -RedirectStandardOutput dev.log
           $ok = $false
           for ($i = 0; $i -lt 40; $i++) {
             Start-Sleep -Milliseconds 500
