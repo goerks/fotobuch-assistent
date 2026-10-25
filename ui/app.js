@@ -279,7 +279,7 @@
       hilfe(
         "Was passiert hier?",
         h("p", {}, "Der Assistent sucht im Ordner und allen Unterordnern nach JPG, HEIC, PNG und RAW-Dateien. Er liest Aufnahmezeit, Ort, Grösse und Schärfe und merkt sich das im Unterordner «.fotobuch». Beim zweiten Mal geht es deshalb viel schneller."),
-        h("p", {}, "Fotos ohne Aufnahmezeit werden nach Änderungsdatum eingeordnet. Das ist unsicherer und wird markiert.")
+        h("p", {}, "Fotos ohne Aufnahmezeit kommen als eigenes Ereignis ans Ende des Buchs, nach Dateiname geordnet..")
       )
     );
 
@@ -400,7 +400,7 @@
       )
     );
     if (z.ohne_aufnahmezeit) {
-      v.append(h("div", { class: "warn" }, z.ohne_aufnahmezeit + " Fotos haben keine Aufnahmezeit. Sie sind nach Änderungsdatum eingeordnet, die Position kann abweichen."));
+      v.append(h("div", { class: "warn" }, z.ohne_aufnahmezeit + " Fotos haben keine Aufnahmezeit. Sie stehen als eigenes Ereignis am Schluss."));
     }
     const luecke = h("input", { type: "number", id: "luecke", min: 0.5, max: 72, step: 0.5, value: a.einstellungen.luecke_stunden, "aria-label": "Zeitlücke in Stunden" });
     luecke.addEventListener("change", () =>
@@ -439,7 +439,7 @@
         h(
           "div",
           { class: "ereignis" },
-          h("div", {}, name, h("div", { class: "zeit" }, zeitraum(e.von, e.bis) + (e.ohne_zeit ? " · " + e.ohne_zeit + " ohne Aufnahmezeit" : ""))),
+          h("div", {}, name, h("div", { class: "zeit" }, e.ohne_datum ? "Diese Fotos enthalten keine Aufnahmezeit. Sie stehen am Schluss des Buchs, nach Dateiname." : zeitraum(e.von, e.bis) + (e.ohne_zeit ? " · " + e.ohne_zeit + " ohne Aufnahmezeit" : ""))),
           h("div", { class: "zahl" }, h("b", {}, e.im_buch), " von " + e.anzahl + " Fotos", h("br"), e.seiten + (e.seiten === 1 ? " Seite" : " Seiten")),
           e.orte.length ? h("div", { class: "orte-zeile" }, "Orte: ", e.orte.slice(0, 6).map((o) => h("span", { class: "ortchip" }, o[1] + " · " + o[2])), e.orte.length > 6 ? " und " + (e.orte.length - 6) + " weitere" : null) : null,
           h("div", { class: "streifen" }, e.vorschau.map((id) => h("img", { src: vorschauUrl(id, 160), alt: "", loading: "lazy" }))),

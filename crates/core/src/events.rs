@@ -31,7 +31,14 @@ impl Ereignis {
     pub fn ende(&self, fotos: &[Foto]) -> NaiveDateTime {
         fotos[*self.fotos.last().unwrap()].zeit
     }
+    /// Alle Fotos ohne Aufnahmezeit, während andere eine haben: sie bilden das Schluss-Ereignis «Ohne Aufnahmezeit».
+    pub fn ohne_datum(&self, fotos: &[Foto]) -> bool {
+        self.fotos.iter().all(|&i| fotos[i].zeit_quelle == "datei") && fotos.iter().any(|f| f.zeit_quelle != "datei")
+    }
     pub fn titel(&self, fotos: &[Foto]) -> String {
+        if self.ohne_datum(fotos) {
+            return "Ohne Aufnahmezeit".to_string();
+        }
         let (s, e) = (self.start(fotos), self.ende(fotos));
         let tag = format!("{} {}", wochentag(&s), s.format("%d.%m.%Y"));
         if s.date() == e.date() {
@@ -45,6 +52,13 @@ impl Ereignis {
 /// Sortiert nach Aufnahmezeit (dann Name) und trennt bei Zeitlücke oder grossem Ortssprung.
 pub fn bilde_ereignisse(fotos: &[Foto], luecke_stunden: f64, max_km: f64) -> Vec<Ereignis> {
     let mut reihe: Vec<usize> = (0..fotos.len()).collect();
+    // Fotos ohne Aufnahmezeit (nur Änderungsdatum) kommen ans Ende in ein eigenes Ereignis, sofern es auch Fotos mit Zeit gibt.
+    let mut ohne: Vec<usize> = Vec::new();
+    if fotos.iter().any(|f| f.zeit_quelle != "datei") {
+        ohne = reihe.iter().copied().filter(|&i| fotos[i].zeit_quelle == "datei").collect();
+        reihe.retain(|&i| fotos[i].zeit_quelle != "datei");
+        ohne.sort_by_key(|&i| fotos[i].name.to_lowercase());
+    }
     reihe.sort_by(|&a, &b| (fotos[a].zeit, fotos[a].name.to_lowercase()).cmp(&(fotos[b].zeit, fotos[b].name.to_lowercase())));
     let mut ereignisse: Vec<Ereignis> = Vec::new();
     let mut letzte_gps: Option<(f64, f64)> = None;
@@ -69,6 +83,9 @@ pub fn bilde_ereignisse(fotos: &[Foto], luecke_stunden: f64, max_km: f64) -> Vec
         if f.gps.is_some() {
             letzte_gps = f.gps;
         }
+    }
+    if !ohne.is_empty() {
+        ereignisse.push(Ereignis { nummer: ereignisse.len() + 1, fotos: ohne });
     }
     ereignisse
 }

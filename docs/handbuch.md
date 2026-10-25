@@ -18,7 +18,7 @@ Links siehst du den Ablauf von oben nach unten: Fotos laden, Ereignisse, Aussort
 Wähle den Ordner mit den Fotos (Unterordner werden mitgelesen) und klicke «Fotos analysieren». Unterstützt sind JPG, HEIC (iPhone), PNG und RAW (über die eingebettete Vorschau). Bei grossen Ordnern dauert das einige Minuten. Beim zweiten Mal geht es schnell, weil nur neue oder geänderte Fotos gelesen werden.
 
 ### 2. Ereignisse
-Der Assistent teilt die Fotos in Ereignisse. Eine neue Gruppe beginnt nach einer Pause (Standard sechs Stunden) oder bei einem Ortssprung über 50 km. Du kannst die Pause ändern und jedem Ereignis einen Namen geben. Fotos ohne Aufnahmezeit werden gewarnt.
+Der Assistent teilt die Fotos in Ereignisse. Eine neue Gruppe beginnt nach einer Pause (Standard sechs Stunden) oder bei einem Ortssprung über 50 km. Du kannst die Pause ändern und jedem Ereignis einen Namen geben. Fotos ohne Aufnahmezeit (z. B. aus einem Chat gespeichert) bilden ein eigenes Ereignis «Ohne Aufnahmezeit» am Schluss des Buchs, nach Dateiname geordnet.
 
 ### 3. Aussortieren
 - **Exakte Duplikate** (gleiche Datei) und **Screenshots** sind schon aussortiert. Unten in «Aussortiert» holst du sie mit einem Klick zurück.
@@ -50,7 +50,7 @@ Im Fotoordner entsteht der Unterordner `.fotobuch` (Zwischenspeicher, deine Ents
 |---|---|
 | «In diesem Ordner wurden keine Fotos gefunden» | Anderen Ordner wählen. Dateien in `.fotobuch`, `fotobuch-export` und `fotobuch-bericht` werden bewusst übersprungen. |
 | Datei «nicht lesbar» | Die Datei ist beschädigt oder ein unbekanntes Format. Sie kommt nicht ins Buch. |
-| Reihenfolge stimmt nicht | Das Foto hat keine Aufnahmezeit und wurde nach Änderungsdatum eingeordnet. |
+| Reihenfolge stimmt nicht | Das Foto hat keine Aufnahmezeit und steht im Ereignis «Ohne Aufnahmezeit» am Schluss. |
 | Der Ordner-Dialog fehlt | Pfad von Hand in das Feld eingeben. |
 
 ## Mac (Apple Silicon)

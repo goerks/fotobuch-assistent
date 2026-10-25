@@ -69,6 +69,9 @@ def test_reise_wird_zum_album(umgebung):
             assert z["screenshots"] >= 1
             assert 0 < z["im_buch"] < z["dateien"]
             assert z["entfernt"] == z["dateien"] - z["im_buch"]
+            letztes = a["ereignisse"][-1]
+            assert letztes["ohne_datum"] and letztes["anzahl"] >= 5 and letztes["titel"] == "Ohne Aufnahmezeit", "Fotos ohne Zeit am Schluss"
+            assert not any(e["ohne_datum"] for e in a["ereignisse"][:-1])
             ereignisse_auto = z["ereignisse"]
 
             # 2. Ereignisse benennen, zusammenlegen, teilen, zurücksetzen

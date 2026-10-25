@@ -1094,6 +1094,7 @@ impl Projekt {
                 "im_buch": behalten.len(),
                 "vorschau": idl(&vorschau),
                 "ids": idl(&ev.fotos),
+                "ohne_datum": ev.ohne_datum(&self.fotos),
                 "ohne_zeit": ev.fotos.iter().filter(|&&x| self.fotos[x].zeit_quelle == "datei").count(),
                 "seiten": seitenplan["seiten_je_ereignis"][i],
                 "orte": self.orte_im_ereignis(&ev.fotos),
