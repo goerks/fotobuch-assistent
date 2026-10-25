@@ -176,13 +176,21 @@ test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () =
   klick(q("#btn-naechster"));
   await warteBis(() => q("#doppelseite"), "Doppelseite");
   assert.ok(q("#btn-ansicht-doppel"));
-  assert.match(q("#buch-pos").textContent, /Seiten 1–2 von \d+/);
+  assert.match(q("#buch-pos").textContent, /Seite 1 von \d+/);
+  assert.equal(qa("#doppelseite .seite").length, 1, "Seite 1 steht allein");
   const fotos = qa("#doppelseite .sfoto");
   assert.ok(fotos.length >= 3, "Fotos auf den Seiten");
   assert.ok(fotos.every((f) => /left:[\d.]+%/.test(f.getAttribute("style"))), "Positionen gesetzt");
   const vor = q("#buch-pos").textContent;
   klick(q("#btn-buch-weiter"));
   await warteBis(() => q("#buch-pos").textContent !== vor, "geblättert");
+  assert.match(q("#buch-pos").textContent, /Seiten 2–3 von/);
+  assert.equal(qa("#doppelseite .seite").length, 2, "danach Doppelseiten");
+  // Anderes Layout für eine Seite wählen
+  const vorher = q("#doppelseite .seite").innerHTML;
+  klick(q(".layout-knopf"));
+  await warteBis(() => q("#doppelseite .seite").innerHTML !== vorher, "anderes Layout");
+  assert.match(q(".layout-knopf").textContent, /2\//);
   taste("ArrowLeft");
   await warteBis(() => q("#buch-pos").textContent === vor, "mit Pfeiltaste zurück");
   // Detailansicht mit Begründung
@@ -198,7 +206,7 @@ test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () =
   await warteBis(() => q("#uebersicht"), "Übersicht");
   assert.ok(qa("#uebersicht .seitenkarte").length >= 6);
   klick(qa("#uebersicht .seitenkarte")[2]);
-  await warteBis(() => q("#doppelseite") && /Seiten 3–4/.test(q("#buch-pos").textContent), "Sprung zur Doppelseite");
+  await warteBis(() => q("#doppelseite") && /Seiten 2–3/.test(q("#buch-pos").textContent), "Sprung zur Doppelseite");
 });
 
 test("Export: schreibt Dateien, zeigt Ergebnis, App lässt sich beenden", async () => {

@@ -20,7 +20,7 @@ use sha1::{Digest, Sha1};
 use crate::duplicates::{finde_aehnliche, finde_exakte, Gruppe, SerienOptionen};
 use crate::events::{bilde_ereignisse, Ereignis};
 use crate::foto::Foto;
-use crate::layout::seitenlayout;
+use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
 use crate::pages::{lade_profil, seitenplan_ereignisse, seitenzuordnung, Profil, PROFILE};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
@@ -84,6 +84,7 @@ struct Zustand {
     entscheidungen: BTreeMap<String, String>,
     ereignis_namen: BTreeMap<String, String>,
     ort_namen: BTreeMap<String, String>,
+    layout_wahl: BTreeMap<String, usize>,
     schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     analysiert_am: Option<String>,
@@ -137,6 +138,7 @@ pub struct Projekt {
     pub entscheidungen: BTreeMap<String, String>,
     pub ereignis_namen: BTreeMap<String, String>,
     pub ort_namen: BTreeMap<String, String>,
+    pub layout_wahl: BTreeMap<String, usize>,
     pub schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     pub fotos: Vec<Foto>,
@@ -196,6 +198,7 @@ impl Projekt {
             entscheidungen: BTreeMap::new(),
             ereignis_namen: BTreeMap::new(),
             ort_namen: BTreeMap::new(),
+            layout_wahl: BTreeMap::new(),
             schritt: 1,
             cache: BTreeMap::new(),
             fotos: vec![],
@@ -230,6 +233,7 @@ impl Projekt {
                 self.entscheidungen = z.entscheidungen;
                 self.ereignis_namen = z.ereignis_namen;
                 self.ort_namen = z.ort_namen;
+                self.layout_wahl = z.layout_wahl;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
                 self.cache = z.cache;
                 self.analysiert_am = z.analysiert_am;
@@ -251,6 +255,7 @@ impl Projekt {
             entscheidungen: self.entscheidungen.clone(),
             ereignis_namen: self.ereignis_namen.clone(),
             ort_namen: self.ort_namen.clone(),
+            layout_wahl: self.layout_wahl.clone(),
             schritt: self.schritt,
             cache: self.cache.clone(),
             analysiert_am: self.analysiert_am.clone(),
@@ -626,6 +631,20 @@ impl Projekt {
         Ok(())
     }
 
+    /// Wählt für eine Seite (Schlüssel = erstes Foto) eines der angebotenen Layouts.
+    pub fn setze_layout(&mut self, key: &str, wahl: usize) -> Res<()> {
+        if !self.id_index.contains_key(key) {
+            return Err("Unbekannte Seite".into());
+        }
+        if wahl == 0 {
+            self.layout_wahl.remove(key);
+        } else {
+            self.layout_wahl.insert(key.to_string(), wahl.min(64));
+        }
+        self.speichern();
+        Ok(())
+    }
+
     pub fn setze_schritt(&mut self, schritt: i64) {
         self.schritt = schritt.clamp(1, 6);
         self.speichern();
@@ -892,12 +911,18 @@ impl Projekt {
             let fotos: Vec<usize> = (0..*n).filter_map(|_| q.pop_front()).collect();
             let ereignis = if getrennt { *ei as usize } else { erg.ereignis_von[fotos[0]] };
             let ars: Vec<f64> = fotos.iter().map(|&i| self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64).collect();
-            let felder = seitenlayout(&ars, ar_seite);
+            let varianten = layout_varianten(&ars, ar_seite, 8);
+            let key = self.ids[fotos[0]].clone();
+            let wahl = self.layout_wahl.get(&key).copied().unwrap_or(0) % varianten.len();
+            let felder = &varianten[wahl];
             let r = |x: f64| (x * 100.0).round() / 100.0;
             seiten.push(json!({
                 "nr": nr + 1,
                 "ereignis": ereignis,
                 "titel": self.ereignis_anzeigename(ereignis),
+                "key": key,
+                "layout": wahl,
+                "layouts": varianten.len(),
                 "fotos": fotos.iter().zip(felder.iter()).map(|(&i, f)| json!({"id": self.ids[i], "x": r(f[0]), "y": r(f[1]), "w": r(f[2]), "h": r(f[3])})).collect::<Vec<_>>(),
             }));
         }

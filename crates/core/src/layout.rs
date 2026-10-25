@@ -78,41 +78,61 @@ fn platziere(b: &Baum, ars: &[f64], r: Rechteck, aus: &mut Vec<Rechteck>) {
     }
 }
 
-/// Liefert je Foto (x, y, Breite, Höhe) in Prozent der Seite.
-/// `seite_ar` = Seitenbreite / Seitenhöhe.
-pub fn seitenlayout(ars: &[f64], seite_ar: f64) -> Vec<[f64; 4]> {
+/// Beste Layout-Varianten (beste zuerst, höchstens `k` verschiedene).
+/// Je Foto (x, y, Breite, Höhe) in Prozent der Seite. `seite_ar` = Seitenbreite / Seitenhöhe.
+pub fn layout_varianten(ars: &[f64], seite_ar: f64, k: usize) -> Vec<Vec<[f64; 4]>> {
     let n = ars.len();
     if n == 0 {
-        return vec![];
+        return vec![vec![]];
     }
     let ars: Vec<f64> = ars.iter().map(|&a| if a.is_finite() && a > 0.05 { a } else { 1.5 }).collect();
     let (sw, sh) = (1.0, 1.0 / seite_ar);
     let flaeche = (sw - 2.0 * RAND, sh - 2.0 * RAND * sw);
-    let mut felder = vec![(0.0, 0.0, 0.0, 0.0); n];
     let rahmen = (RAND, RAND * sw, flaeche.0, flaeche.1);
-    if n <= MAX_BAUM {
-        let mut bester: Option<(f64, Baum)> = None;
-        for (ar, baum) in alle_baeume(&ars, 0, n) {
-            let wb = flaeche.0.min(flaeche.1 * ar);
-            let punkte = wb * wb / ar;
-            if bester.as_ref().map_or(true, |(p, _)| punkte > *p + 1e-12) {
-                bester = Some((punkte, baum));
-            }
-        }
-        let (_, baum) = bester.unwrap();
-        let ar = seiten_verhaeltnis(&baum, &ars);
-        platziere(&baum, &ars, einpassen(ar, rahmen), &mut felder);
-    } else {
+    let in_prozent = |felder: Vec<Rechteck>| -> Vec<[f64; 4]> {
+        felder.into_iter().map(|(x, y, w, h)| [x / sw * 100.0, y / sh * 100.0, w / sw * 100.0, h / sh * 100.0]).collect()
+    };
+    if n > MAX_BAUM {
         // Sehr viele Fotos: zwei Hälften untereinander
         let m = n / 2;
         let (oben, unten) = (seitenlayout(&ars[..m], seite_ar * 2.0), seitenlayout(&ars[m..], seite_ar * 2.0));
-        return oben
+        return vec![oben
             .into_iter()
             .map(|r| [r[0], r[1] / 2.0, r[2], r[3] / 2.0])
             .chain(unten.into_iter().map(|r| [r[0], 50.0 + r[1] / 2.0, r[2], r[3] / 2.0]))
-            .collect();
+            .collect()];
     }
-    felder.into_iter().map(|(x, y, w, h)| [x / sw * 100.0, y / sh * 100.0, w / sw * 100.0, h / sh * 100.0]).collect()
+    let mut kandidaten: Vec<(f64, Baum)> = alle_baeume(&ars, 0, n)
+        .into_iter()
+        .map(|(ar, baum)| {
+            let wb = flaeche.0.min(flaeche.1 * ar);
+            (wb * wb / ar, baum)
+        })
+        .collect();
+    kandidaten.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    let mut aus: Vec<Vec<[f64; 4]>> = Vec::new();
+    let mut gesehen: Vec<Vec<i64>> = Vec::new();
+    for (_, baum) in kandidaten {
+        let mut felder = vec![(0.0, 0.0, 0.0, 0.0); n];
+        let ar = seiten_verhaeltnis(&baum, &ars);
+        platziere(&baum, &ars, einpassen(ar, rahmen), &mut felder);
+        let l = in_prozent(felder);
+        let sig: Vec<i64> = l.iter().flat_map(|r| r.iter().map(|v| (v / 2.0).round() as i64)).collect();
+        if gesehen.contains(&sig) {
+            continue;
+        }
+        gesehen.push(sig);
+        aus.push(l);
+        if aus.len() >= k {
+            break;
+        }
+    }
+    aus
+}
+
+/// Bestes Layout.
+pub fn seitenlayout(ars: &[f64], seite_ar: f64) -> Vec<[f64; 4]> {
+    layout_varianten(ars, seite_ar, 1).remove(0)
 }
 
 #[cfg(test)]
@@ -142,6 +162,18 @@ mod tests {
         assert!(r[0][0] < r[1][0], "Hochformat links");
         assert!(r[1][1] < r[2][1], "Querformate untereinander");
         assert!(flaeche(&r) > 3500.0, "gute Ausnutzung: {}", flaeche(&r));
+    }
+
+    #[test]
+    fn varianten_sind_verschieden_und_nach_guete_geordnet() {
+        let v = layout_varianten(&[1.5, 1.5, 0.75], 4.0 / 3.0, 6);
+        assert!(v.len() >= 3, "mehrere Varianten: {}", v.len());
+        for (i, a) in v.iter().enumerate() {
+            for b in &v[i + 1..] {
+                assert_ne!(format!("{a:?}"), format!("{b:?}"));
+            }
+        }
+        assert_eq!(v[0], seitenlayout(&[1.5, 1.5, 0.75], 4.0 / 3.0));
     }
 
     #[test]

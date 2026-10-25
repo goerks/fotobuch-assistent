@@ -132,3 +132,5 @@ a{color:var(--akzent)}
 #lupe .lupe-info p.klein-zeile{color:var(--still)}
 #lupe .lupe-info p.gut{color:var(--gut)}
 #lupe .lupe-info p.warn{color:var(--warn)}
+.leer-seite{background:transparent}
+.layout-knopf{margin-left:8px}

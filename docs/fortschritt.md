@@ -2,6 +2,16 @@
 
 Wird nach jedem Arbeitsschritt ergänzt. Neueste Einträge oben.
 
+## 2026-10-25 (abends): Buchstruktur wie gedruckt, Layout pro Seite wählbar
+
+**Fertig**
+- Seite 1 steht allein, danach Doppelseiten (2–3, 4–5, …), in Blättern, Übersicht und Sprung
+- Pro Seite bietet die App bis zu 8 Layouts an (beste zuerst), «Anderes Layout» schaltet weiter. Die Wahl wird im Projekt gespeichert
+- Tests: Layout-Varianten in Rust, Oberflächentest für Einzelseite, Doppelseiten und Layoutwechsel
+
+**Offen**
+- Eigene Layout-Vorlagen und freies Verschieben der Fotos (bewusst später)
+
 ## 2026-10-25 (später): Buchansicht, Layouts und Begründungen (Version 0.2, Testlauf 2)
 
 **Fertig**

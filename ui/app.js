@@ -887,7 +887,7 @@
     const b = a.buch;
     const alle = b.seiten.concat(b.freie_seiten.map((nr) => ({ nr, frei: true, fotos: [], titel: "Freie Seite" })));
     const n = alle.length;
-    const maxPos = Math.max(0, Math.ceil(n / 2) - 1);
+    const maxPos = Math.floor(n / 2); // Seite 1 steht allein, danach Doppelseiten
     S.buchPos = Math.max(0, Math.min(S.buchPos, maxPos));
     const speichere = (daten) => aktion(async () => { await api("/api/einstellungen", daten); await ladeUndZeige(); });
     const v = h("div", {});
@@ -927,26 +927,32 @@
       v.append(
         h("div", { class: "zeile" }, h("label", { for: "zoom" }, "Grösse"), zoom, h("span", { class: "still" }, "Klicke eine Seite, um sie gross zu sehen.")),
         h("div", { class: "uebersicht", id: "uebersicht", style: "--zoom:" + S.zoom + "px" },
-          alle.map((sp, i) => h("div", { class: "seitenkarte", "data-nr": sp.nr, role: "button", tabindex: 0, onclick: () => { S.buchPos = Math.floor(i / 2); S.buchAnsicht = "doppel"; zeige(); window.scrollTo(0, 0); }, onkeydown: (ev) => { if (ev.key === "Enter") ev.currentTarget.click(); } },
+          alle.map((sp, i) => h("div", { class: "seitenkarte", "data-nr": sp.nr, role: "button", tabindex: 0, onclick: () => { S.buchPos = Math.ceil(i / 2); S.buchAnsicht = "doppel"; zeige(); window.scrollTo(0, 0); }, onkeydown: (ev) => { if (ev.key === "Enter") ev.currentTarget.click(); } },
             seiteElement(sp, false),
             h("div", { class: "klein" }, "Seite " + sp.nr + " · " + sp.titel))))
       );
     } else {
-      const links = alle[S.buchPos * 2];
-      const rechts = alle[S.buchPos * 2 + 1];
-      const goto = h("input", { type: "number", id: "buch-goto", min: 1, max: n, value: links.nr, "aria-label": "Zu Seite springen" });
-      goto.addEventListener("change", () => { S.buchPos = Math.floor((Math.max(1, Math.min(n, Number(goto.value) || 1)) - 1) / 2); zeige(); });
+      const links = S.buchPos === 0 ? null : alle[S.buchPos * 2 - 1];
+      const rechts = alle[S.buchPos * 2];
+      const sichtbar = [links, rechts].filter(Boolean);
+      const bezeichnung = sichtbar.length === 2 ? "Seiten " + links.nr + "–" + rechts.nr : "Seite " + sichtbar[0].nr;
+      const goto = h("input", { type: "number", id: "buch-goto", min: 1, max: n, value: sichtbar[0].nr, "aria-label": "Zu Seite springen" });
+      goto.addEventListener("change", () => { S.buchPos = Math.ceil((Math.max(1, Math.min(n, Number(goto.value) || 1)) - 1) / 2); zeige(); });
+      const layoutKnopf = (sp) => sp.layouts > 1
+        ? h("button", { type: "button", class: "knopf klein-knopf layout-knopf", "data-nr": sp.nr, title: "Andere Anordnung der Fotos auf dieser Seite", onclick: () => aktion(async () => { await api("/api/seite/layout", { key: sp.key, wahl: (sp.layout + 1) % sp.layouts }); await ladeUndZeige(); }) }, "Anderes Layout (" + (sp.layout + 1) + "/" + sp.layouts + ")")
+        : null;
       v.append(
         h("div", { class: "zeile" },
           h("button", { type: "button", class: "knopf", id: "btn-buch-zurueck", disabled: S.buchPos === 0, onclick: () => { S.buchPos--; zeige(); } }, "← Zurück"),
-          h("b", { id: "buch-pos" }, "Seiten " + links.nr + (rechts ? "–" + rechts.nr : "") + " von " + n),
+          h("b", { id: "buch-pos" }, bezeichnung + " von " + n),
           h("button", { type: "button", class: "knopf", id: "btn-buch-weiter", disabled: S.buchPos >= maxPos, onclick: () => { S.buchPos++; zeige(); } }, "Weiter →"),
           h("label", { for: "buch-goto" }, "Gehe zu Seite"), goto),
         h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
           [links, rechts].map((sp) => sp
-            ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true), h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")))
+            ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true),
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)))
             : h("figure", { class: "seitenspalte leer-seite" }))),
-        h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
+        h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Anderes Layout» wechselt die Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
       );
     }
     v.append(fuss(4, 6, "Weiter zum Export →"));
@@ -992,7 +998,7 @@
     if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
     if (S.schritt === 5 && S.a && S.a.buch && S.buchAnsicht === "doppel") {
-      const maxPos = Math.max(0, Math.ceil((S.a.buch.seiten.length + S.a.buch.freie_seiten.length) / 2) - 1);
+      const maxPos = Math.floor((S.a.buch.seiten.length + S.a.buch.freie_seiten.length) / 2);
       if (ev.key === "ArrowRight" && S.buchPos < maxPos) { S.buchPos++; zeige(); ev.preventDefault(); }
       else if (ev.key === "ArrowLeft" && S.buchPos > 0) { S.buchPos--; zeige(); ev.preventDefault(); }
       return;
