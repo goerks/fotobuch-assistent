@@ -1109,8 +1109,45 @@
   }
 
   // Vorlagenauswahl wie in PowerPoint: kleine Vorschauen aller Layouts, ein Klick wählt.
-  function layoutPanel(sp) {
+  // Aufklappfenster bleiben immer im sichtbaren Fenster: Sie hängen am auslösenden Knopf, wählen oben oder unten
+  // (wo mehr Platz ist), werden bei Platzmangel scrollbar und lassen das Fenster und die Seite nicht wachsen.
+  function verankere(panel, anker) {
+    const platz = () => {
+      if (!panel.isConnected || !anker.isConnected) {
+        window.removeEventListener("resize", nachResize);
+        window.removeEventListener("scroll", platz, true);
+        return;
+      }
+      const rand = 8;
+      const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+      const spalte = (anker.closest("figure") || anker).getBoundingClientRect();
+      const breite = Math.max(0, Math.min(Math.max(spalte.width, 280), vw - 2 * rand));
+      const links = Math.max(rand, Math.min(spalte.left, vw - breite - rand));
+      const a = anker.getBoundingClientRect();
+      panel.style.left = links + "px";
+      panel.style.width = breite + "px";
+      panel.style.maxHeight = "none";
+      const hoch = panel.scrollHeight + 2;
+      const unten = vh - a.bottom - rand - 4, oben = a.top - rand - 4;
+      let top, max;
+      if (hoch <= unten || (unten >= oben && hoch > oben)) { top = a.bottom + 4; max = unten; }
+      else { max = Math.min(hoch, oben); top = a.top - 4 - max; }
+      top = Math.max(rand, Math.min(top, vh - rand - 60));
+      panel.style.top = top + "px";
+      // Auch wenn der Knopf aus dem Bild gescrollt ist, endet das Fenster nie unter dem Fensterrand
+      panel.style.maxHeight = Math.max(60, Math.min(max, vh - rand - top)) + "px";
+    };
+    const nachResize = () => { platz(); requestAnimationFrame(platz); setTimeout(platz, 120); };
+    panel.nachResize = nachResize;
+    window.addEventListener("resize", nachResize);
+    window.addEventListener("scroll", platz, true);
+    panel.platz = platz;
+    requestAnimationFrame(platz);
+  }
+
+  function layoutPanel(sp, anker) {
     const panel = h("div", { class: "layoutwahl", "data-key": sp.key }, h("span", { class: "still" }, "Layouts werden berechnet …"));
+    if (anker) verankere(panel, anker);
     api("/api/seite/layouts?key=" + encodeURIComponent(sp.key)).then((d) => {
       panel.replaceChildren(
         h("div", { class: "layoutkopf" },
@@ -1124,6 +1161,7 @@
                 felder.map((f, k) => h("span", { class: "minifoto", style: "left:" + f[0] + "%;top:" + f[1] + "%;width:" + f[2] + "%;height:" + f[3] + "%" },
                   h("img", { src: vorschauUrl(d.fotos[k], 160), alt: "" })))),
               h("span", { class: "minibez" }, i === 0 ? "Vorschlag" : felder.length === 1 && felder[0][2] === 100 ? "Randlos" : "Layout " + (i + 1))))));
+      if (panel.platz) requestAnimationFrame(panel.platz);
     }).catch((e) => meldung(e.message));
     return panel;
   }
@@ -1184,8 +1222,9 @@
       const bezeichnung = sichtbar.length === 2 ? "Seiten " + links.nr + "–" + rechts.nr : "Seite " + sichtbar[0].nr;
       const goto = h("input", { type: "number", id: "buch-goto", min: 1, max: n, value: sichtbar[0].nr, "aria-label": "Zu Seite springen" });
       goto.addEventListener("change", () => { S.buchPos = Math.ceil((Math.max(1, Math.min(n, Number(goto.value) || 1)) - 1) / 2); zeige(); });
+      const ankerNr = {};
       const layoutKnopf = (sp) => sp.layouts > 1
-        ? h("button", { type: "button", class: "knopf klein-knopf layout-knopf", "data-nr": sp.nr, "aria-expanded": S.layoutOffen === sp.key ? "true" : "false", title: "Vorlage für die Anordnung der Fotos auf dieser Seite wählen", onclick: () => { S.layoutOffen = S.layoutOffen === sp.key ? null : sp.key; zeige(); } }, "Layout wählen ▾")
+        ? (ankerNr[sp.nr] = h("button", { type: "button", class: "knopf klein-knopf layout-knopf", "data-nr": sp.nr, "aria-expanded": S.layoutOffen === sp.key ? "true" : "false", title: "Vorlage für die Anordnung der Fotos auf dieser Seite wählen", onclick: () => { S.layoutOffen = S.layoutOffen === sp.key ? null : sp.key; zeige(); } }, "Layout wählen ▾"))
         : null;
       v.append(
         h("div", { class: "zeile" },
@@ -1199,7 +1238,7 @@
                 h("div", { class: "seitenkopf" }, layoutKnopf(sp) || h("span")),
                 seiteElement(sp, true),
                 h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")),
-                S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp) : null)
+                S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp, ankerNr[sp.nr]) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
         h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
       );
@@ -1244,6 +1283,7 @@
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
+      if (S.layoutOffen && $(".layoutwahl")) { S.layoutOffen = null; zeige(); return; }
       const l = $("#lupe");
       if (l && !l.hidden) { l.hidden = true; return; }
     }

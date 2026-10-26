@@ -203,6 +203,29 @@ def test_reise_wird_zum_album(umgebung):
             seite.click(".layout-knopf >> nth=0")
             seite.wait_for_selector(".layoutoption")
             bild("layout-vorlagen")
+            # Aufklappfenster bleiben im Fenster und vergrössern nichts, auch bei kleinem Fenster und ganz oben oder unten
+            def innerhalb():
+                return seite.evaluate("""() => { const r = document.querySelector('.layoutwahl').getBoundingClientRect(); const d = document.documentElement;
+                  return {ok: r.left >= 0 && r.top >= 0 && r.right <= d.clientWidth + 0.5 && r.bottom <= d.clientHeight + 0.5, r: [r.left, r.top, r.right, r.bottom], sb: d.scrollHeight, sw: d.scrollWidth, cw: d.clientWidth}; }""")
+            for gross, (bw, bh) in {"normal": (1500, 950), "klein": (700, 480)}.items():
+                seite.set_viewport_size({"width": bw, "height": bh})
+                for rechts in (False, True):
+                    seite.evaluate("window.scrollTo(0, 0)")
+                    seite.wait_for_selector(".layoutwahl .layoutoption")
+                    seite.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)" if rechts else "window.scrollTo(0, 0)")
+                    seite.wait_for_timeout(200)
+                    m = innerhalb()
+                    assert m["ok"], (gross, rechts, m)
+                    assert m["sw"] <= m["cw"] + 1, ("kein seitliches Wachsen", m)
+                    vorher_hoehe = seite.evaluate("document.documentElement.scrollHeight")
+                    seite.wait_for_timeout(100)
+                    assert seite.evaluate("document.documentElement.scrollHeight") == vorher_hoehe
+            seite.set_viewport_size({"width": 1500, "height": 950})
+            seite.evaluate("window.scrollTo(0, 0)")
+            seite.keyboard.press("Escape")
+            seite.wait_for_function("!document.querySelector('.layoutwahl')")
+            seite.click(".layout-knopf >> nth=0")
+            seite.wait_for_selector(".layoutwahl .layoutoption")
             seite.click("#layout-zu")
             seite.click("#btn-ansicht-uebersicht")
             seite.wait_for_selector("#uebersicht .seitenkarte")

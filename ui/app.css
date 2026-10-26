@@ -157,7 +157,7 @@ a{color:var(--akzent)}
 #lupe .lupe-info p.warn{color:var(--warn)}
 .leer-seite{background:transparent}
 .layout-knopf{margin-left:8px}
-.layoutwahl{position:absolute;left:0;right:0;top:38px;z-index:5;max-height:70%;overflow:auto;box-shadow:0 8px 28px #0005;padding:10px;border:1px solid var(--linie);border-radius:10px;background:var(--karte)}
+.layoutwahl{position:fixed;left:8px;top:8px;width:min(100%,520px);z-index:20;max-height:60vh;overflow:auto;overscroll-behavior:contain;box-shadow:0 8px 28px #0005;padding:10px;border:1px solid var(--linie);border-radius:10px;background:var(--karte)}
 .layoutkopf{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .layoutliste{display:flex;gap:8px;flex-wrap:wrap}
 .layoutoption{font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;width:104px;border:2px solid var(--linie);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer}
