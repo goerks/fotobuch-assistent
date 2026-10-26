@@ -158,6 +158,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn foto_ueber_die_doppelseite_wird_je_haelfte_gerendert() {
+        let dir = tempfile::tempdir().unwrap();
+        // links rot, rechts blau: Hälften müssen zu den richtigen Seiten gehören
+        let bild = RgbImage::from_fn(400, 200, |x, _| if x < 200 { Rgb([220, 20, 20]) } else { Rgb([20, 20, 220]) });
+        let quelle = dir.path().join("p.jpg");
+        bild.save(&quelle).unwrap();
+        let links = Auftrag { nr: 1, fotos: vec![SeitenFoto { pfad: quelle.clone(), endung: "jpg".into(), feld: [0.0, 0.0, 200.0, 100.0] }] };
+        let rechts = Auftrag { nr: 2, fotos: vec![SeitenFoto { pfad: quelle, endung: "jpg".into(), feld: [-100.0, 0.0, 200.0, 100.0] }] };
+        let l = rendere_seite(&links, 800, 800);
+        let r = rendere_seite(&rechts, 800, 800);
+        let (pl, pr) = (l.get_pixel(400, 400).0, r.get_pixel(400, 400).0);
+        assert!(pl[0] > 150 && pl[2] < 80, "linke Seite zeigt die linke Hälfte: {pl:?}");
+        assert!(pr[2] > 150 && pr[0] < 80, "rechte Seite zeigt die rechte Hälfte: {pr:?}");
+    }
+
+    #[test]
     fn seite_wird_gerendert_und_pdf_ist_gueltig_aufgebaut() {
         let dir = tempfile::tempdir().unwrap();
         let bild = RgbImage::from_fn(400, 200, |x, _| Rgb([(x % 255) as u8, 80, 160]));

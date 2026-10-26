@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use fotobuch_core::projekt::{analysieren, Projekt};
 use image::{Rgb, RgbImage};
+use serde_json::{json, Value};
 
 fn motiv(seed: u32) -> RgbImage {
     RgbImage::from_fn(320, 240, |x, y| {
@@ -70,23 +71,29 @@ fn seitenplanung_mit_panorama_und_hoch_quer_paarung() {
         }
     }
     minute += 1;
-    bild_mit_zeit(&dir.path().join(format!("a{minute:02}_pano.jpg")), 900, 300, 99, minute);
+    bild_mit_zeit(&dir.path().join(format!("a{minute:02}_pano.jpg")), 900, 300, 99, minute); // 3:1, über die Doppelseite
+    minute += 1;
+    bild_mit_zeit(&dir.path().join(format!("a{minute:02}_breit.jpg")), 720, 300, 98, minute); // 2.4:1, eigene Seite
 
     let p = Arc::new(Mutex::new(Projekt::neu(dir.path()).unwrap()));
     analysieren(&p, &|_, _, _| {}).unwrap();
     let a = p.lock().unwrap().ansicht();
     let buch = &a["buch"];
     let seiten = buch["seiten"].as_array().unwrap();
-    let ganz: Vec<_> = seiten.iter().filter(|s| s["ganz"] == true).collect();
-    assert_eq!(ganz.len(), 1, "genau das Panorama hat eine eigene Seite");
-    assert_eq!(ganz[0]["fotos"].as_array().unwrap().len(), 1);
+    let art = |s: &Value| s["art"].as_i64().unwrap();
+    assert_eq!(seiten.iter().filter(|s| art(s) == 1).count(), 1, "das 2.4:1-Foto hat eine eigene Seite");
+    let links = seiten.iter().position(|s| art(s) == 2).expect("Panorama über die Doppelseite");
+    assert_eq!(art(&seiten[links + 1]), 3);
+    assert_eq!(seiten[links]["fotos"][0]["id"], seiten[links + 1]["fotos"][0]["id"], "beide Hälften zeigen dasselbe Foto");
+    assert_eq!((links + 1) % 2, 0, "die linke Hälfte hat eine gerade Seitennummer");
+    assert!(seiten[links]["fotos"][0]["w"].as_f64().unwrap() > 100.0, "das Foto reicht über den Seitenrand hinaus");
     assert_eq!(seiten.len() as i64, a["seitenplan"]["seiten_benoetigt"].as_i64().unwrap(), "Seitenzähler stimmt mit den Seiten überein");
 
-    // Gemischte Seiten: ohne Paarung wären alle Seiten rein hoch oder rein quer
+    // Gemischte Seiten: ohne Paarung wären alle Normalseiten rein hoch oder rein quer
     let ar = buch["ar"].as_f64().unwrap();
     let gemischt = seiten
         .iter()
-        .filter(|s| s["ganz"] == false)
+        .filter(|s| art(s) == 0)
         .filter(|s| {
             let formen: Vec<bool> = s["fotos"].as_array().unwrap().iter().map(|f| f["w"].as_f64().unwrap() * ar > f["h"].as_f64().unwrap()).collect();
             formen.contains(&true) && formen.contains(&false)
@@ -94,11 +101,30 @@ fn seitenplanung_mit_panorama_und_hoch_quer_paarung() {
         .count();
     assert!(gemischt >= 2, "Hoch- und Querformate teilen sich Seiten: {gemischt}");
 
-    // Das Panorama lässt sich als normales Foto behandeln und zurück
-    let id = ganz[0]["fotos"][0]["id"].as_str().unwrap().to_string();
-    p.lock().unwrap().setze_ganzseite(&id, Some(false)).unwrap();
+    // Seitenart umstellen und zurück
+    let id = seiten[links]["fotos"][0]["id"].as_str().unwrap().to_string();
+    p.lock().unwrap().setze_seitenart(&id, Some("normal")).unwrap();
     let a2 = p.lock().unwrap().ansicht();
-    assert!(a2["buch"]["seiten"].as_array().unwrap().iter().all(|s| s["ganz"] == false));
-    p.lock().unwrap().setze_ganzseite(&id, None).unwrap();
-    assert_eq!(p.lock().unwrap().ansicht()["buch"]["seiten"].as_array().unwrap().iter().filter(|s| s["ganz"] == true).count(), 1);
+    assert!(a2["buch"]["seiten"].as_array().unwrap().iter().all(|s| art(s) != 2 && art(s) != 3));
+    p.lock().unwrap().setze_seitenart(&id, None).unwrap();
+    assert!(p.lock().unwrap().ansicht()["buch"]["seiten"].as_array().unwrap().iter().any(|s| art(s) == 2));
+
+    // Foto von Hand auf eine andere Seite legen und zurück
+    let (erste, zweite) = (&seiten[0], &seiten[1]);
+    let foto = erste["fotos"][0]["id"].as_str().unwrap().to_string();
+    let (n1, n2) = (erste["fotos"].as_array().unwrap().len(), zweite["fotos"].as_array().unwrap().len());
+    p.lock().unwrap().verschiebe_foto(&foto, Some(2)).unwrap();
+    let a3 = p.lock().unwrap().ansicht();
+    let s3 = a3["buch"]["seiten"].as_array().unwrap();
+    assert_eq!(s3[0]["fotos"].as_array().unwrap().len(), n1 - 1);
+    assert_eq!(s3[1]["fotos"].as_array().unwrap().len(), n2 + 1);
+    assert!(s3[1]["fotos"].as_array().unwrap().iter().any(|f| f["id"] == json!(foto)));
+    assert_eq!(a3["fotos"][&foto]["vs"], true);
+    assert!(p.lock().unwrap().verschiebe_foto(&foto, Some(9999)).is_err());
+    let doppel_nr = links + 1;
+    assert!(p.lock().unwrap().verschiebe_foto(&foto, Some(doppel_nr)).is_err(), "auf eine Seite mit Ganzseiten-Foto geht es nicht");
+    p.lock().unwrap().verschiebe_foto(&foto, None).unwrap();
+    let a4 = p.lock().unwrap().ansicht();
+    assert_eq!(a4["buch"]["seiten"][0]["fotos"].as_array().unwrap().len(), n1);
+    assert_eq!(a4["fotos"][&foto]["vs"], false);
 }

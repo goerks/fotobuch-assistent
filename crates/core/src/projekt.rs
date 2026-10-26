@@ -85,7 +85,8 @@ struct Zustand {
     ereignis_namen: BTreeMap<String, String>,
     ort_namen: BTreeMap<String, String>,
     layout_wahl: BTreeMap<String, usize>,
-    ganzseite: BTreeMap<String, bool>,
+    seitenart: BTreeMap<String, String>,
+    verschoben: BTreeMap<String, String>,
     ereignis_teilen: BTreeSet<String>,
     ereignis_verbinden: BTreeSet<String>,
     schritt: i64,
@@ -134,7 +135,11 @@ pub struct Einstufung {
     pub eigene: bool,
 }
 
+/// Ab diesem Seitenverhältnis (Breite : Höhe) bekommt ein Foto automatisch eine eigene Seite.
 pub const PANORAMA_AB: f64 = 2.2;
+/// Ab diesem Seitenverhältnis läuft es automatisch über eine ganze Doppelseite.
+pub const DOPPEL_AB: f64 = 2.8;
+const ART_NAMEN: [&str; 3] = ["normal", "seite", "doppel"];
 
 pub struct Projekt {
     pub ordner: PathBuf,
@@ -144,7 +149,8 @@ pub struct Projekt {
     pub ereignis_namen: BTreeMap<String, String>,
     pub ort_namen: BTreeMap<String, String>,
     pub layout_wahl: BTreeMap<String, usize>,
-    pub ganzseite: BTreeMap<String, bool>,
+    pub seitenart: BTreeMap<String, String>,
+    pub verschoben: BTreeMap<String, String>,
     pub ereignis_teilen: BTreeSet<String>,
     pub ereignis_verbinden: BTreeSet<String>,
     pub schritt: i64,
@@ -207,7 +213,8 @@ impl Projekt {
             ereignis_namen: BTreeMap::new(),
             ort_namen: BTreeMap::new(),
             layout_wahl: BTreeMap::new(),
-            ganzseite: BTreeMap::new(),
+            seitenart: BTreeMap::new(),
+            verschoben: BTreeMap::new(),
             ereignis_teilen: BTreeSet::new(),
             ereignis_verbinden: BTreeSet::new(),
             schritt: 1,
@@ -245,7 +252,8 @@ impl Projekt {
                 self.ereignis_namen = z.ereignis_namen;
                 self.ort_namen = z.ort_namen;
                 self.layout_wahl = z.layout_wahl;
-                self.ganzseite = z.ganzseite;
+                self.seitenart = z.seitenart;
+                self.verschoben = z.verschoben;
                 self.ereignis_teilen = z.ereignis_teilen;
                 self.ereignis_verbinden = z.ereignis_verbinden;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
@@ -270,7 +278,8 @@ impl Projekt {
             ereignis_namen: self.ereignis_namen.clone(),
             ort_namen: self.ort_namen.clone(),
             layout_wahl: self.layout_wahl.clone(),
-            ganzseite: self.ganzseite.clone(),
+            seitenart: self.seitenart.clone(),
+            verschoben: self.verschoben.clone(),
             ereignis_teilen: self.ereignis_teilen.clone(),
             ereignis_verbinden: self.ereignis_verbinden.clone(),
             schritt: self.schritt,
@@ -747,14 +756,20 @@ impl Projekt {
             .collect()
     }
 
-    /// Fotos je Ereignis für die Seitenmathematik: Ein Foto, das eine ganze Seite bekommt, zählt wie eine volle Seite.
+    /// Fotos je Ereignis für die Seitenmathematik: Ein Foto mit eigener Seite zählt wie eine volle Seite,
+    /// ein Foto über eine Doppelseite wie zwei volle Seiten.
     fn seiten_counts(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<i64> {
         let fps = self.einstellungen.fotos_pro_seite.max(1);
         zahlen
             .iter()
             .map(|(_, b)| {
-                let ganz = b.iter().filter(|&&i| self.ist_ganzseite(i)).count() as i64;
-                b.len() as i64 - ganz + ganz * fps
+                b.iter()
+                    .map(|&i| match self.seitenart(i) {
+                        0 => 1,
+                        1 => fps,
+                        _ => 2 * fps,
+                    })
+                    .sum()
             })
             .collect()
     }
@@ -763,25 +778,83 @@ impl Projekt {
         self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64
     }
 
-    /// Bekommt dieses Foto eine eigene, ganze Seite? Panoramen automatisch, sonst nach Wahl.
-    pub fn ist_ganzseite(&self, i: usize) -> bool {
-        match self.ganzseite.get(&self.ids[i]) {
-            Some(&w) => w,
-            None => self.seitenverhaeltnis_foto(i) >= PANORAMA_AB,
+    /// Seitenart eines Fotos: 0 normal, 1 eigene Seite, 2 über die Doppelseite. Panoramen automatisch, sonst nach Wahl.
+    pub fn seitenart(&self, i: usize) -> u8 {
+        match self.seitenart.get(&self.ids[i]).map(|s| s.as_str()) {
+            Some("normal") => 0,
+            Some("seite") => 1,
+            Some("doppel") => 2,
+            _ => {
+                let ar = self.seitenverhaeltnis_foto(i);
+                if ar >= DOPPEL_AB {
+                    2
+                } else if ar >= PANORAMA_AB {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
-    /// `ganz`: Some(true/false) erzwingt, None stellt die automatische Wahl wieder her.
-    pub fn setze_ganzseite(&mut self, id: &str, ganz: Option<bool>) -> Res<()> {
+    /// `art`: «normal», «seite» oder «doppel»; None stellt die automatische Wahl wieder her.
+    pub fn setze_seitenart(&mut self, id: &str, art: Option<&str>) -> Res<()> {
         if !self.id_index.contains_key(id) {
             return Err("Unbekanntes Foto".into());
         }
-        match ganz {
-            Some(w) => self.ganzseite.insert(id.to_string(), w),
-            None => self.ganzseite.remove(id),
-        };
+        match art {
+            Some(a @ ("normal" | "seite" | "doppel")) => {
+                self.seitenart.insert(id.to_string(), a.to_string());
+                if a != "normal" {
+                    self.verschoben.remove(id);
+                }
+            }
+            None => {
+                self.seitenart.remove(id);
+            }
+            _ => return Err("Unbekannte Seitenart".into()),
+        }
         self.speichern();
         Ok(())
+    }
+
+    /// Foto auf eine andere Seite des Buchs legen (`seite` = Seitennummer) oder die Verschiebung aufheben (None).
+    pub fn verschiebe_foto(&mut self, id: &str, seite: Option<usize>) -> Res<()> {
+        let xi = *self.id_index.get(id).ok_or("Unbekanntes Foto")?;
+        match seite {
+            None => {
+                self.verschoben.remove(id);
+            }
+            Some(nr) => {
+                if self.seitenart(xi) != 0 {
+                    return Err("Dieses Foto hat eine eigene Seite. Stelle es zuerst auf «normal».".into());
+                }
+                let einst = self.einstufungen();
+                let zahlen = self.ereignis_zahlen(&einst);
+                let seiten = self.seiten_gruppen_ex(&zahlen);
+                let ziel = seiten.get(nr.wrapping_sub(1)).ok_or("Diese Seite gibt es nicht.")?;
+                if ziel.2 != 0 {
+                    return Err("Auf dieser Seite steht ein Foto über die ganze Seite.".into());
+                }
+                if ziel.1.contains(&xi) {
+                    return Ok(());
+                }
+                let anker = ziel
+                    .1
+                    .iter()
+                    .copied()
+                    .find(|&k| k != xi && !self.verschoben.contains_key(&self.ids[k]))
+                    .ok_or("Auf dieser Seite fehlt ein fest platziertes Foto als Ziel.")?;
+                self.verschoben.insert(id.to_string(), self.ids[anker].clone());
+            }
+        }
+        self.speichern();
+        Ok(())
+    }
+
+    pub fn verschiebungen_zuruecksetzen(&mut self) {
+        self.verschoben.clear();
+        self.speichern();
     }
 
     pub fn seitenplan_aus(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Value {
@@ -1016,8 +1089,8 @@ impl Projekt {
         self.seiten_gruppen_ex(zahlen).into_iter().map(|(e, f, _)| (e, f)).collect()
     }
 
-    /// Wie `seiten_gruppen`, dazu die Angabe, ob die Seite eine Ganzseite ist.
-    fn seiten_gruppen_ex(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>, bool)> {
+    /// Wie `seiten_gruppen`, dazu die Seitenart: 0 normal, 1 ganze Seite, 2 linke und 3 rechte Hälfte eines Fotos über die Doppelseite.
+    fn seiten_gruppen_ex(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>, u8)> {
         let fps = self.einstellungen.fotos_pro_seite.max(1);
         let getrennt = self.einstellungen.ereignisse_getrennt;
         let erg = self.erg();
@@ -1026,16 +1099,24 @@ impl Projekt {
         } else {
             vec![(usize::MAX, zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect())]
         };
-        let mut aus: Vec<(usize, Vec<usize>, bool)> = Vec::new();
+        let mut aus: Vec<(usize, Vec<usize>, u8)> = Vec::new();
+        let sonder = |aus: &mut Vec<(usize, Vec<usize>, u8)>, ev: usize, i: usize| {
+            if self.seitenart(i) == 1 {
+                aus.push((ev, vec![i], 1));
+            } else {
+                aus.push((ev, vec![i], 2));
+                aus.push((ev, vec![i], 3));
+            }
+        };
         for (ei, q) in schlangen {
-            let normal = q.iter().filter(|&&i| !self.ist_ganzseite(i)).count() as i64;
+            let normal = q.iter().filter(|&&i| self.seitenart(i) == 0).count() as i64;
             let groessen = crate::pages::verteile(normal, fps);
             let (mut gi, mut puffer, mut wartend): (usize, Vec<usize>, Vec<usize>) = (0, Vec::new(), Vec::new());
             let ev_von = |i: usize| if ei == usize::MAX { erg.ereignis_von[i] } else { ei };
             for &i in &q {
-                if self.ist_ganzseite(i) {
+                if self.seitenart(i) != 0 {
                     if puffer.is_empty() {
-                        aus.push((ev_von(i), vec![i], true));
+                        sonder(&mut aus, ev_von(i), i);
                     } else {
                         wartend.push(i);
                     }
@@ -1043,21 +1124,53 @@ impl Projekt {
                 }
                 puffer.push(i);
                 if puffer.len() as i64 == groessen[gi] {
-                    aus.push((ev_von(puffer[0]), std::mem::take(&mut puffer), false));
+                    aus.push((ev_von(puffer[0]), std::mem::take(&mut puffer), 0));
                     gi += 1;
                     for w in wartend.drain(..) {
-                        aus.push((ev_von(w), vec![w], true));
+                        sonder(&mut aus, ev_von(w), w);
                     }
                 }
             }
         }
         self.paarung_verbessern(&mut aus);
+        self.verschiebungen_anwenden(&mut aus);
+        // Ein Foto über die Doppelseite beginnt auf einer linken Seite (gerade Seitennummer, Seite 1 steht allein).
+        let mut k = 0;
+        while k < aus.len() {
+            if aus[k].2 == 2 && k % 2 == 0 {
+                if k + 2 < aus.len() && aus[k + 2].2 <= 1 {
+                    let p = aus.remove(k + 2);
+                    aus.insert(k, p);
+                } else {
+                    aus[k].2 = 1; // keine passende Nachbarseite: nur eine ganze Seite
+                    aus.remove(k + 1);
+                }
+            }
+            k += 1;
+        }
         aus
+    }
+
+    /// Von Hand verschobene Fotos auf die gewählte Seite legen. Leere Seiten fallen weg.
+    fn verschiebungen_anwenden(&self, seiten: &mut Vec<(usize, Vec<usize>, u8)>) {
+        for (x, y) in &self.verschoben {
+            let (Some(&xi), Some(&yi)) = (self.id_index.get(x), self.id_index.get(y)) else { continue };
+            let von = seiten.iter().position(|s| s.2 == 0 && s.1.contains(&xi));
+            let nach = seiten.iter().position(|s| s.2 == 0 && s.1.contains(&yi));
+            if let (Some(a), Some(b)) = (von, nach) {
+                if a != b {
+                    seiten[a].1.retain(|&k| k != xi);
+                    seiten[b].1.push(xi);
+                    seiten[b].1.sort_by(|&p, &q| self.fotos[p].schluessel().cmp(&self.fotos[q].schluessel()));
+                }
+            }
+        }
+        seiten.retain(|s| !s.1.is_empty());
     }
 
     /// Tauscht Fotos an Seitengrenzen (jeweils eines der letzten zwei gegen eines der ersten zwei), wenn beide Seiten
     /// dadurch deutlich besser gefüllt werden. Die Reihenfolge weicht höchstens um eine Seitengrenze von der Zeit ab.
-    fn paarung_verbessern(&self, seiten: &mut [(usize, Vec<usize>, bool)]) {
+    fn paarung_verbessern(&self, seiten: &mut [(usize, Vec<usize>, u8)]) {
         let seite_ar = self.seiten_verhaeltnis();
         let ars = |l: &[usize]| -> Vec<f64> { l.iter().map(|&i| self.seitenverhaeltnis_foto(i)).collect() };
         let guete = |l: &[usize]| crate::layout::layout_guete(&ars(l), seite_ar);
@@ -1067,7 +1180,7 @@ impl Projekt {
                 let (links, rechts) = seiten.split_at_mut(k + 1);
                 let (a, b) = (&mut links[k], &mut rechts[0]);
                 let klein = |l: &Vec<usize>| l.len() >= 2 && l.len() <= 5;
-                if a.2 || b.2 || a.0 != b.0 || !klein(&a.1) || !klein(&b.1) {
+                if a.2 != 0 || b.2 != 0 || a.0 != b.0 || !klein(&a.1) || !klein(&b.1) {
                     continue;
                 }
                 let basis = guete(&a.1) + guete(&b.1);
@@ -1096,7 +1209,17 @@ impl Projekt {
         }
     }
 
-    fn seiten_varianten(&self, fotos: &[usize]) -> Vec<Vec<[f64; 4]>> {
+    /// Layouts eines Fotos über die ganze Doppelseite, in Prozent der Doppelseite.
+    fn doppel_varianten(&self, foto: usize) -> Vec<Vec<[f64; 4]>> {
+        layout_varianten(&[self.seitenverhaeltnis_foto(foto)], self.seiten_verhaeltnis() * 2.0, 8)
+    }
+
+    /// Layouts einer Seite in Prozent dieser Seite. `art` 2 und 3: linke und rechte Hälfte eines Doppelseiten-Fotos.
+    fn seiten_varianten(&self, fotos: &[usize], art: u8) -> Vec<Vec<[f64; 4]>> {
+        if art >= 2 {
+            let versatz = if art == 2 { 0.0 } else { 50.0 };
+            return self.doppel_varianten(fotos[0]).into_iter().map(|v| v.iter().map(|f| [(f[0] - versatz) * 2.0, f[1], f[2] * 2.0, f[3]]).collect()).collect();
+        }
         let ars: Vec<f64> = fotos.iter().map(|&i| self.fotos[i].breite.max(1) as f64 / self.fotos[i].hoehe.max(1) as f64).collect();
         layout_varianten(&ars, self.seiten_verhaeltnis(), 8)
     }
@@ -1105,17 +1228,18 @@ impl Projekt {
     pub fn layouts_fuer_seite(&self, key: &str) -> Res<Value> {
         let einst = self.einstufungen();
         let zahlen = self.ereignis_zahlen(&einst);
-        let (_, fotos) = self
-            .seiten_gruppen(&zahlen)
+        let (_, fotos, art) = self
+            .seiten_gruppen_ex(&zahlen)
             .into_iter()
-            .find(|(_, f)| self.ids[f[0]] == key)
+            .find(|(_, f, _)| self.ids[f[0]] == key)
             .ok_or("Unbekannte Seite")?;
-        let varianten = self.seiten_varianten(&fotos);
+        // Ein Foto über die Doppelseite wird als ganze Doppelseite gezeigt
+        let (varianten, ar) = if art >= 2 { (self.doppel_varianten(fotos[0]), self.seiten_verhaeltnis() * 2.0) } else { (self.seiten_varianten(&fotos, art), self.seiten_verhaeltnis()) };
         let wahl = self.layout_wahl.get(key).copied().unwrap_or(0) % varianten.len();
         let r = |x: f64| (x * 100.0).round() / 100.0;
         Ok(json!({
             "aktuell": wahl,
-            "ar": self.seiten_verhaeltnis(),
+            "ar": ar,
             "fotos": fotos.iter().map(|&i| self.ids[i].clone()).collect::<Vec<_>>(),
             "layouts": varianten.iter().map(|v| v.iter().map(|f| json!([r(f[0]), r(f[1]), r(f[2]), r(f[3])])).collect::<Vec<_>>()).collect::<Vec<_>>(),
         }))
@@ -1126,7 +1250,7 @@ impl Projekt {
         let ar_seite = self.seiten_verhaeltnis();
         let mut seiten = Vec::new();
         for (nr, (ereignis, fotos, ganz)) in self.seiten_gruppen_ex(zahlen).into_iter().enumerate() {
-            let varianten = self.seiten_varianten(&fotos);
+            let varianten = self.seiten_varianten(&fotos, ganz);
             let key = self.ids[fotos[0]].clone();
             let wahl = self.layout_wahl.get(&key).copied().unwrap_or(0) % varianten.len();
             let felder = &varianten[wahl];
@@ -1138,7 +1262,8 @@ impl Projekt {
                 "key": key,
                 "layout": wahl,
                 "layouts": varianten.len(),
-                "ganz": ganz,
+                "ganz": ganz > 0,
+                "art": ganz,
                 "fotos": fotos.iter().zip(felder.iter()).map(|(&i, f)| json!({"id": self.ids[i], "x": r(f[0]), "y": r(f[1]), "w": r(f[2]), "h": r(f[3])})).collect::<Vec<_>>(),
             }));
         }
@@ -1161,8 +1286,8 @@ impl Projekt {
         let zahlen = self.ereignis_zahlen(&einst);
         let plan = self.seitenplan_aus(&zahlen);
         let mut auftraege = Vec::new();
-        for (nr, (_e, fotos, _g)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
-            let varianten = self.seiten_varianten(&fotos);
+        for (nr, (_e, fotos, art)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
+            let varianten = self.seiten_varianten(&fotos, art);
             let wahl = self.layout_wahl.get(&self.ids[fotos[0]]).copied().unwrap_or(0) % varianten.len();
             let felder = &varianten[wahl];
             auftraege.push(crate::seitenexport::Auftrag {
@@ -1279,8 +1404,9 @@ impl Projekt {
                     "ev": erg.ereignis_von[i],
                     "x": f.fehler,
                     "zq": f.zeit_quelle,
-                    "gz": self.ist_ganzseite(i),
+                    "art": ART_NAMEN[self.seitenart(i) as usize],
                     "pano": self.seitenverhaeltnis_foto(i) >= PANORAMA_AB,
+                    "vs": self.verschoben.contains_key(&self.ids[i]),
                     "raw": f.ist_raw,
                     "o": erg.ort_von[i],
                     "q": (100.0 * score(f, self.maxs)).round() as i64,
@@ -1335,6 +1461,7 @@ impl Projekt {
                 "entfernt": self.fotos.len() - im_buch,
                 "entfernt_gruende": entfernt_gruende,
                 "eigene_entscheidungen": self.entscheidungen.len(),
+                "verschiebungen": self.verschoben.len(),
                 "ereignis_aenderungen": self.ereignis_teilen.len() + self.ereignis_verbinden.len(),
             },
             "ereignisse": ereignisse,

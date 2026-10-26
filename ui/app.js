@@ -915,6 +915,38 @@
 
   // ------------------------------------------------------------------ Lupe
 
+  // Seitenart und Seite eines Fotos ändern (nur für Fotos im Buch).
+  function lupeSeite(id, f, zu) {
+    if (!f.b || !S.a.buch) return [];
+    const seiten = S.a.buch.seiten;
+    const hier = seiten.find((sp) => sp.fotos.some((p) => p.id === id));
+    const nachher = (fn) => (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await fn(); await ladeUndZeige(); }); };
+    const art = h("select", { id: "lupe-art", "aria-label": "Seitenart" },
+      h("option", { value: "normal" }, "Mit anderen Fotos auf einer Seite"),
+      h("option", { value: "seite" }, "Ganze Seite für dieses Foto"),
+      h("option", { value: "doppel" }, "Über die ganze Doppelseite"));
+    art.value = f.art;
+    art.addEventListener("change", nachher(() => api("/api/foto/ganzseite", { id, art: art.value })));
+    const block = [h("div", { class: "zeile" }, h("label", { for: "lupe-art" }, "Anordnung"), art)];
+    if (f.art === "normal" && hier) {
+      const normal = seiten.filter((sp) => !sp.ganz);
+      const i = normal.indexOf(hier);
+      const gehe = (nr) => nachher(() => api("/api/foto/seite", { id, seite: nr }));
+      const nr = h("input", { type: "number", id: "lupe-seitennr", min: 1, max: seiten.length, value: hier.nr, "aria-label": "Seitennummer" });
+      block.push(
+        h("div", { class: "zeile" },
+          h("span", {}, "Seite " + hier.nr + ":"),
+          h("button", { type: "button", class: "knopf", id: "lupe-vorher", disabled: i <= 0, onclick: gehe(i > 0 ? normal[i - 1].nr : 0) }, "← auf vorherige Seite"),
+          h("button", { type: "button", class: "knopf", id: "lupe-nachher", disabled: i < 0 || i >= normal.length - 1, onclick: gehe(i < normal.length - 1 ? normal[i + 1].nr : 0) }, "auf nächste Seite →")),
+        h("div", { class: "zeile" },
+          h("label", { for: "lupe-seitennr" }, "Auf Seite"), nr,
+          h("button", { type: "button", class: "knopf", id: "lupe-seite-los", onclick: (ev) => nachher(() => api("/api/foto/seite", { id, seite: Number(nr.value) }))(ev) }, "Verschieben"),
+          f.vs ? h("button", { type: "button", class: "knopf", id: "lupe-seite-zurueck", onclick: nachher(() => api("/api/foto/seite", { id, seite: null })) }, "An den Ursprung zurück") : null)
+      );
+    }
+    return block;
+  }
+
   function lupe(id) {
     const f = S.a.fotos[id];
     const l = $("#lupe");
@@ -925,11 +957,12 @@
         h("div", { class: "lupe-info" },
           h("b", {}, f.n),
           h("p", { class: "klein-zeile" }, f.z + " · " + f.mp + " MP · Qualität " + f.q + (f.ort ? " · " + f.ort : "")),
-          h("p", { id: "lupe-grund", class: f.b ? "gut" : "warn" }, (f.b ? "Im Buch. " : "Nicht im Buch. ") + f.gd),
+          h("p", { id: "lupe-grund", class: f.b ? "gut" : "warn" }, (/^(Nicht )?[Ii]m Buch/.test(f.gd) ? "" : f.b ? "Im Buch. " : "Nicht im Buch. ") + f.gd + (f.pano && f.b ? " Sehr breites Format (Panorama)." : "")),
           h("div", { class: "zeile" },
             h("button", { type: "button", class: "knopf haupt", id: "lupe-umschalten", onclick: (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await api("/api/foto", { id, aktion: f.b ? "entfernen" : "behalten" }); await ladeUndZeige(); }); } }, f.b ? "Aus dem Buch entfernen" : "Ins Buch holen"),
-            f.b ? h("button", { type: "button", class: "knopf", id: "lupe-ganz", title: f.pano ? "Dieses Foto ist ein Panorama und bekommt automatisch eine eigene Seite." : "Das Foto bekommt eine eigene Seite", onclick: (ev) => { ev.stopPropagation(); zu(); aktion(async () => { await api("/api/foto/ganzseite", { id, ganz: !f.gz }); await ladeUndZeige(); }); } }, f.gz ? "Nicht mehr als ganze Seite" : "Als ganze Seite") : null,
-            h("button", { type: "button", class: "knopf", id: "lupe-zu", onclick: (ev) => { ev.stopPropagation(); zu(); } }, "Schliessen (Esc)")))
+            h("button", { type: "button", class: "knopf", id: "lupe-zu", onclick: (ev) => { ev.stopPropagation(); zu(); } }, "Schliessen (Esc)")),
+          ...lupeSeite(id, f, zu)
+        )
       )
     );
     l.hidden = false;
@@ -1039,11 +1072,14 @@
         h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
           [links, rechts].map((sp) => sp
             ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true),
-                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.ganz ? " · ganze Seite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
                 S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
         h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
       );
+    }
+    if (S.a.zahlen.verschiebungen) {
+      v.append(h("div", { class: "zeile" }, h("span", {}, S.a.zahlen.verschiebungen + " von Hand verschobene Fotos. "), h("button", { type: "button", class: "knopf", id: "verschiebungen-zurueck", onclick: () => aktion(async () => { await api("/api/seiten/zuruecksetzen", {}); await ladeUndZeige(); }) }, "Alle Verschiebungen zurücksetzen")));
     }
     v.append(fuss(4, 6, "Weiter zum Export →"));
     return v;

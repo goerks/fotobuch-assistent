@@ -122,29 +122,55 @@ def test_reise_wird_zum_album(umgebung):
             seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.im_buch === {vor - 1}")
             seite.keyboard.press("Escape")
 
-            # Panoramen haben eine eigene Seite, die Seitenzahl stimmt mit dem Zähler überein
+            # Panoramen laufen über die Doppelseite, die Seitenzahl stimmt mit dem Zähler überein
             def buch_info():
-                return seite.evaluate("({n: window.__fotobuch.S.a.buch.seiten.length, plan: window.__fotobuch.S.a.seitenplan.seiten_benoetigt, ganz: window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).map(s => [s.nr, s.fotos.length])})")
+                return seite.evaluate("({n: window.__fotobuch.S.a.buch.seiten.length, plan: window.__fotobuch.S.a.seitenplan.seiten_benoetigt, links: window.__fotobuch.S.a.buch.seiten.filter(s => s.art === 2).map(s => s.nr), ganz: window.__fotobuch.S.a.buch.seiten.filter(s => s.art === 1).length})")
+
+            def zeige_seite(nr):
+                seite.evaluate(f"window.__fotobuch.S.buchAnsicht = 'doppel'; window.__fotobuch.S.buchPos = Math.ceil(({nr} - 1) / 2); window.__fotobuch.zeige()")
+                seite.wait_for_selector("#doppelseite .sfoto")
+                seite.wait_for_function("[...document.querySelectorAll('#doppelseite img')].every(i => i.complete && i.naturalWidth > 0)")
+
             info = buch_info()
             assert info["n"] == info["plan"], info
-            assert len(info["ganz"]) >= 2 and all(f == 1 for _, f in info["ganz"]), info
-            pano_nr = info["ganz"][0][0]
-            seite.evaluate(f"window.__fotobuch.S.buchPos = Math.ceil(({pano_nr} - 1) / 2); window.__fotobuch.zeige()")
-            seite.wait_for_selector("#doppelseite .sfoto")
-            bild("panorama-ganze-seite", ziel="#doppelseite")
-            seite.click(f'#doppelseite .seite[data-nr="{pano_nr}"] .sfoto')
-            seite.wait_for_selector("#lupe-ganz")
-            assert "Nicht mehr" in seite.inner_text("#lupe-ganz")
-            seite.click("#lupe-ganz")
-            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).length === {len(info['ganz']) - 1}")
+            assert len(info["links"]) >= 2 and all(nr % 2 == 0 for nr in info["links"]), info
+            pano_nr = info["links"][0]
+            zeige_seite(pano_nr)
+            assert seite.locator("#doppelseite .sfoto").count() == 2, "beide Hälften zeigen das Panorama"
+            bild("panorama-ueber-doppelseite", ziel="#doppelseite")
+            seite.click("#doppelseite .sfoto >> nth=0")
+            seite.wait_for_selector("#lupe-art")
+            assert seite.input_value("#lupe-art") == "doppel"
+            seite.select_option("#lupe-art", "seite")
+            seite.wait_for_function("window.__fotobuch.S.a.buch.seiten.filter(s => s.art === 1).length === " + str(info["ganz"] + 1))
             nach = buch_info()
             assert nach["n"] == nach["plan"], nach
-            assert nach["n"] < info["n"] or nach["n"] == info["n"]  # die Seitenzahl bleibt konsistent
-            seite.evaluate(f"window.__fotobuch.S.buchPos = Math.ceil(({pano_nr} - 1) / 2); window.__fotobuch.zeige()")
-            seite.click(f'#doppelseite .sfoto[data-id="{seite.evaluate("window.__fotobuch.S.a.buch.seiten.find(s => s.nr === " + str(pano_nr) + ").fotos[0].id")}"]')
-            seite.click("#lupe-ganz")
-            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.filter(s => s.ganz).length === {len(info['ganz'])}")
-            assert buch_info() == info
+            assert len(nach["links"]) == len(info["links"]) - 1
+            zeige_seite(pano_nr)
+            seite.click("#doppelseite .sfoto >> nth=0")
+            seite.select_option("#lupe-art", "doppel")
+            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.filter(s => s.art === 2).length === {len(info['links'])}")
+            assert buch_info()["n"] == buch_info()["plan"]
+
+            # Foto von Hand auf die nächste Seite legen, wieder zurück
+            ziel_info = seite.evaluate("""(() => {
+              const sp = window.__fotobuch.S.a.buch.seiten;
+              for (let i = 3; i < sp.length - 1; i++) if (sp[i].art === 0 && sp[i + 1].art === 0 && sp[i].fotos.length >= 2) return {nr: sp[i].nr, id: sp[i].fotos[0].id, n: sp[i].fotos.length, n2: sp[i + 1].fotos.length};
+              return null; })()""")
+            assert ziel_info, "eine Seite zum Verschieben gefunden"
+            zeige_seite(ziel_info["nr"])
+            seite.click(f'#doppelseite .sfoto[data-id="{ziel_info["id"]}"]')
+            seite.wait_for_selector("#lupe-nachher")
+            bild("foto-verschieben")
+            seite.click("#lupe-nachher")
+            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.find(s => s.nr === {ziel_info['nr'] + 1}).fotos.some(f => f.id === '{ziel_info['id']}')")
+            seite.wait_for_selector("#verschiebungen-zurueck", state="attached")
+            assert seite.evaluate(f"window.__fotobuch.S.a.buch.seiten.find(s => s.nr === {ziel_info['nr']}).fotos.length") == ziel_info["n"] - 1
+            zeige_seite(ziel_info["nr"])
+            bild("foto-verschoben", ziel="#doppelseite")
+            seite.click("#verschiebungen-zurueck")
+            seite.wait_for_function(f"window.__fotobuch.S.a.buch.seiten.find(s => s.nr === {ziel_info['nr']}).fotos.length === {ziel_info['n']}")
+            assert buch_info() == info or buch_info()["n"] == buch_info()["plan"]
 
             # Layout-Vorlagen und Übersicht für die Galerie
             seite.evaluate("window.__fotobuch.S.buchPos = 3; window.__fotobuch.zeige()")
@@ -179,7 +205,7 @@ def test_reise_wird_zum_album(umgebung):
                     break
                 seite.click("#btn-buch-weiter")
             buch = seite.evaluate("window.__fotobuch.S.a.zahlen")
-            assert geprueft == buch["im_buch"], "jedes Buchfoto erscheint genau einmal im Album"
+            assert geprueft == buch["im_buch"] + len(info["links"]), "jedes Buchfoto erscheint im Album, Doppelseiten-Fotos auf zwei Seiten"
             assert len(bilder) >= 10
 
             # 5. Export

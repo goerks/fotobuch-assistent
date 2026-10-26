@@ -145,3 +145,14 @@ Ereignisse lassen sich von Hand anpassen: mit dem vorherigen zusammenlegen, an e
 
 **Später (MMP): Gestaltung/Theming**
 Kombination aus Farbtönen, Hintergründen, Deckblättern und weiteren Gestaltungsvorlagen, die sich pro Buch wählen lässt.
+
+## MVP 2, zweite Runde (2026-10-26)
+**Fertig**
+- **Fotos zwischen Seiten verschieben:** In der Detailansicht eines Fotos im Buch: auf die vorherige oder nächste Seite, auf eine gewählte Seitennummer, oder zurück an den Ursprung. «Alle Verschiebungen zurücksetzen» steht unter dem Buch. Verschiebungen werden im Projekt gespeichert, erscheinen auch im Export (Seitenliste, JPEG, PDF) und lassen sich nicht auf Seiten mit ganzseitigem Foto legen. Leere Seiten fallen weg.
+- **Seitenart je Foto:** «Mit anderen Fotos auf einer Seite», «Ganze Seite» oder «Über die ganze Doppelseite». Automatisch: ab 2.2:1 eigene Seite, ab 2.8:1 über die Doppelseite. Ein Doppelseiten-Foto steht immer auf einer linken Seite (gerade Seitennummer); passt das nicht, rückt die nächste Seite davor. Der Seitenzähler rechnet zwei Seiten.
+- Export und Vorschau zeigen das Foto über beide Seiten ohne Bruch in der Mitte.
+
+**Offen in MVP 2**
+- Echte Anbieter-Profile (Seitenregeln sind Annahmen)
+- Abnahme an einem echten Buchprojekt
+- Neue Seite einfügen und Seiten umordnen

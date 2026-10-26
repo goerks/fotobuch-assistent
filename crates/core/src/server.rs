@@ -423,11 +423,17 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             Ok(ok())
         }
         "/api/foto/ganzseite" => {
-            let ganz = match d.get("ganz") {
-                Some(Value::Bool(b)) => Some(*b),
-                _ => None,
-            };
-            p.setze_ganzseite(&text(d, "id")?, ganz)?;
+            let art = d.get("art").and_then(|v| v.as_str());
+            p.setze_seitenart(&text(d, "id")?, art)?;
+            Ok(ok())
+        }
+        "/api/foto/seite" => {
+            let seite = d.get("seite").and_then(|v| v.as_u64()).map(|n| n as usize);
+            p.verschiebe_foto(&text(d, "id")?, seite)?;
+            Ok(ok())
+        }
+        "/api/seiten/zuruecksetzen" => {
+            p.verschiebungen_zuruecksetzen();
             Ok(ok())
         }
         "/api/ereignis/teilen" => {
