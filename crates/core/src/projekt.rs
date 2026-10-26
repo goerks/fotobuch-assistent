@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use chrono::Local;
+use chrono::{Datelike, Local};
 use image::imageops::FilterType;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ use sha1::{Digest, Sha1};
 use crate::duplicates::{finde_aehnliche, finde_exakte, Gruppe, SerienOptionen};
 use crate::events::{bilde_ereignisse, Ereignis};
 use crate::foto::Foto;
+use crate::gestaltung::{feld_im_bereich, monat_name, Gestaltung};
 use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
 use crate::pages::{lade_profil, seitenplan_ereignisse, Profil, PROFILE};
@@ -89,6 +90,7 @@ struct Zustand {
     verschoben: BTreeMap<String, String>,
     ereignis_teilen: BTreeSet<String>,
     ereignis_verbinden: BTreeSet<String>,
+    gestaltung: Gestaltung,
     schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     analysiert_am: Option<String>,
@@ -153,6 +155,7 @@ pub struct Projekt {
     pub verschoben: BTreeMap<String, String>,
     pub ereignis_teilen: BTreeSet<String>,
     pub ereignis_verbinden: BTreeSet<String>,
+    pub gestaltung: Gestaltung,
     pub schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
     pub fotos: Vec<Foto>,
@@ -217,6 +220,7 @@ impl Projekt {
             verschoben: BTreeMap::new(),
             ereignis_teilen: BTreeSet::new(),
             ereignis_verbinden: BTreeSet::new(),
+            gestaltung: Gestaltung::default(),
             schritt: 1,
             cache: BTreeMap::new(),
             fotos: vec![],
@@ -256,6 +260,7 @@ impl Projekt {
                 self.verschoben = z.verschoben;
                 self.ereignis_teilen = z.ereignis_teilen;
                 self.ereignis_verbinden = z.ereignis_verbinden;
+                self.gestaltung = z.gestaltung;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
                 self.cache = z.cache;
                 self.analysiert_am = z.analysiert_am;
@@ -282,6 +287,7 @@ impl Projekt {
             verschoben: self.verschoben.clone(),
             ereignis_teilen: self.ereignis_teilen.clone(),
             ereignis_verbinden: self.ereignis_verbinden.clone(),
+            gestaltung: self.gestaltung.clone(),
             schritt: self.schritt,
             cache: self.cache.clone(),
             analysiert_am: self.analysiert_am.clone(),
@@ -738,7 +744,7 @@ impl Projekt {
     }
 
     pub fn setze_schritt(&mut self, schritt: i64) {
-        self.schritt = schritt.clamp(1, 6);
+        self.schritt = schritt.clamp(1, 7);
         self.speichern();
     }
 
@@ -1236,26 +1242,32 @@ impl Projekt {
         // Ein Foto über die Doppelseite wird als ganze Doppelseite gezeigt
         let (varianten, ar) = if art >= 2 { (self.doppel_varianten(fotos[0]), self.seiten_verhaeltnis() * 2.0) } else { (self.seiten_varianten(&fotos, art), self.seiten_verhaeltnis()) };
         let wahl = self.layout_wahl.get(key).copied().unwrap_or(0) % varianten.len();
+        let bereich = self.gestaltung.stil().bereich;
         let r = |x: f64| (x * 100.0).round() / 100.0;
         Ok(json!({
             "aktuell": wahl,
             "ar": ar,
             "fotos": fotos.iter().map(|&i| self.ids[i].clone()).collect::<Vec<_>>(),
-            "layouts": varianten.iter().map(|v| v.iter().map(|f| json!([r(f[0]), r(f[1]), r(f[2]), r(f[3])])).collect::<Vec<_>>()).collect::<Vec<_>>(),
+            "layouts": varianten.iter().map(|v| v.iter().map(|f| { let f = feld_im_bereich(*f, bereich); json!([r(f[0]), r(f[1]), r(f[2]), r(f[3])]) }).collect::<Vec<_>>()).collect::<Vec<_>>(),
         }))
     }
 
     /// Seiten mit automatischem Layout. Die Fotos jedes Ereignisses folgen der Aufnahmezeit.
     fn buch_seiten(&self, zahlen: &[(Vec<usize>, Vec<usize>)], plan: &Value) -> Value {
         let ar_seite = self.seiten_verhaeltnis();
+        let bereich = self.gestaltung.stil().bereich;
         let mut seiten = Vec::new();
+        let mut vorher: Option<usize> = None;
         for (nr, (ereignis, fotos, ganz)) in self.seiten_gruppen_ex(zahlen).into_iter().enumerate() {
+            let beschriftung = if vorher != Some(ereignis) { Some(self.ereignis_anzeigename(ereignis)) } else { None };
+            vorher = Some(ereignis);
             let varianten = self.seiten_varianten(&fotos, ganz);
             let key = self.ids[fotos[0]].clone();
             let wahl = self.layout_wahl.get(&key).copied().unwrap_or(0) % varianten.len();
-            let felder = &varianten[wahl];
+            let felder: Vec<[f64; 4]> = varianten[wahl].iter().map(|f| feld_im_bereich(*f, bereich)).collect();
             let r = |x: f64| (x * 100.0).round() / 100.0;
             seiten.push(json!({
+                "beschriftung": beschriftung,
                 "nr": nr + 1,
                 "ereignis": ereignis,
                 "titel": self.ereignis_anzeigename(ereignis),
@@ -1277,31 +1289,101 @@ impl Projekt {
         })
     }
 
-    /// Alles, was zum Rendern der fertigen Seiten nötig ist (damit das Projekt dabei nicht gesperrt bleibt).
-    pub fn seitenauftraege(&self) -> Res<(Vec<crate::seitenexport::Auftrag>, usize, String)> {
+    /// Alles, was zum Rendern der fertigen Seiten nötig ist (damit das Projekt dabei nicht gesperrt bleibt):
+    /// Seiten, Deckblatt, Zahl der freien Seiten, Seitenformat und Stil.
+    pub fn seitenauftraege(&self) -> Res<SeitenPaket> {
         if self.ergebnis.is_none() {
             return Err("Noch nicht analysiert".into());
         }
         let einst = self.einstufungen();
         let zahlen = self.ereignis_zahlen(&einst);
         let plan = self.seitenplan_aus(&zahlen);
+        let stil = self.gestaltung.stil();
         let mut auftraege = Vec::new();
-        for (nr, (_e, fotos, art)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
+        let mut vorher: Option<usize> = None;
+        for (nr, (ereignis, fotos, art)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
+            let text = if vorher != Some(ereignis) { Some(self.ereignis_anzeigename(ereignis)) } else { None };
+            vorher = Some(ereignis);
             let varianten = self.seiten_varianten(&fotos, art);
             let wahl = self.layout_wahl.get(&self.ids[fotos[0]]).copied().unwrap_or(0) % varianten.len();
             let felder = &varianten[wahl];
             auftraege.push(crate::seitenexport::Auftrag {
                 nr: nr + 1,
+                text,
                 fotos: fotos
                     .iter()
                     .zip(felder.iter())
-                    .map(|(&i, f)| crate::seitenexport::SeitenFoto { pfad: self.ordner.join(&self.fotos[i].pfad), endung: self.fotos[i].endung.clone(), feld: *f })
+                    .map(|(&i, f)| crate::seitenexport::SeitenFoto { pfad: self.ordner.join(&self.fotos[i].pfad), endung: self.fotos[i].endung.clone(), feld: feld_im_bereich(*f, stil.bereich) })
                     .collect(),
             });
         }
         let gesamt = plan["buch_seiten"].as_i64().unwrap_or(0) as usize;
         let leere = gesamt.saturating_sub(auftraege.len());
-        Ok((auftraege, leere, self.einstellungen.seitenformat.clone()))
+        let titel_foto = self.titelfoto_index(&einst);
+        let deckblatt = crate::seitenexport::DeckblattAuftrag {
+            titel: if self.gestaltung.titel.trim().is_empty() { self.titel_auto() } else { self.gestaltung.titel.clone() },
+            untertitel: if self.gestaltung.untertitel.trim().is_empty() { self.untertitel_auto(&einst) } else { self.gestaltung.untertitel.clone() },
+            name: self.gestaltung.name.clone(),
+            foto: titel_foto.map(|i| crate::seitenexport::SeitenFoto { pfad: self.ordner.join(&self.fotos[i].pfad), endung: self.fotos[i].endung.clone(), feld: [0.0, 0.0, 100.0, 100.0] }),
+        };
+        Ok(SeitenPaket { auftraege, deckblatt, leere, format: self.einstellungen.seitenformat.clone(), stil })
+    }
+
+    // ------------------------------------------------------------------ Gestaltung
+
+    fn titel_auto(&self) -> String {
+        let name = self.ordner.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        name.replace(['-', '_'], " ").split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    /// Zeitraum der Fotos im Buch als Text, zum Beispiel «14.–17. Mai 2026» (Fotos ohne Aufnahmezeit zählen nicht).
+    fn untertitel_auto(&self, einst: &[Einstufung]) -> String {
+        let zeiten: Vec<_> = (0..self.fotos.len()).filter(|&i| einst[i].behalten && self.fotos[i].zeit_quelle == "exif").map(|i| self.fotos[i].zeit.date()).collect();
+        let (Some(von), Some(bis)) = (zeiten.iter().min().copied(), zeiten.iter().max().copied()) else { return String::new() };
+        if von == bis {
+            format!("{}. {} {}", von.day(), monat_name(von.month()), von.year())
+        } else if (von.year(), von.month()) == (bis.year(), bis.month()) {
+            format!("{}.–{}. {} {}", von.day(), bis.day(), monat_name(von.month()), von.year())
+        } else if von.year() == bis.year() {
+            format!("{}. {} – {}. {} {}", von.day(), monat_name(von.month()), bis.day(), monat_name(bis.month()), bis.year())
+        } else {
+            format!("{}. {} {} – {}. {} {}", von.day(), monat_name(von.month()), von.year(), bis.day(), monat_name(bis.month()), bis.year())
+        }
+    }
+
+    /// Das gewählte Titelfoto, sonst das erste Foto im Buch.
+    fn titelfoto_index(&self, einst: &[Einstufung]) -> Option<usize> {
+        if let Some(&i) = self.id_index.get(&self.gestaltung.titelfoto) {
+            if einst[i].behalten {
+                return Some(i);
+            }
+        }
+        let zahlen = self.ereignis_zahlen(einst);
+        self.seiten_gruppen_ex(&zahlen).into_iter().next().map(|(_, f, _)| f[0])
+    }
+
+    pub fn setze_gestaltung(&mut self, neu: &serde_json::Map<String, Value>) -> Res<()> {
+        if neu.get("zuruecksetzen").and_then(|v| v.as_bool()) == Some(true) {
+            self.gestaltung.zurueck_auf_thema();
+        }
+        let mut rest = neu.clone();
+        rest.remove("zuruecksetzen");
+        if let Some(id) = rest.get("titelfoto").and_then(|v| v.as_str()) {
+            if !id.is_empty() && !self.id_index.contains_key(id) {
+                return Err("Unbekanntes Foto".into());
+            }
+        }
+        self.gestaltung.setze(&rest)?;
+        self.speichern();
+        Ok(())
+    }
+
+    fn gestaltung_ansicht(&self, einst: &[Einstufung], zahlen: &[(Vec<usize>, Vec<usize>)]) -> Value {
+        let titelfoto = self.titelfoto_index(einst).map(|i| self.ids[i].clone());
+        let seiten = self.seiten_gruppen_ex(zahlen);
+        let schritt = (seiten.len() / 8).max(1);
+        let kandidaten: Vec<String> = seiten.iter().step_by(schritt).take(8).map(|(_, f, _)| self.ids[f[0]].clone()).collect();
+        crate::gestaltung::ansicht(&self.gestaltung, &self.titel_auto(), &self.untertitel_auto(einst), titelfoto.as_deref(), &kandidaten)
     }
 
     /// Zielordner für die fertigen Seiten: `<Ziel>/seiten`, bei vorhandenem gefülltem Ordner mit Zeitstempel.
@@ -1437,6 +1519,7 @@ impl Projekt {
             "analysiert_am": self.analysiert_am,
             "analyse_dauer": self.analyse_dauer,
             "einstellungen": self.einstellungen,
+            "gestaltung": self.gestaltung_ansicht(&einst, &zahlen),
             "profil": {
                 "name": profil.name,
                 "verifiziert": profil.verifiziert,
@@ -1579,6 +1662,15 @@ impl Projekt {
 }
 
 // ---------------------------------------------------------------------------- Analyse-Lauf
+
+/// Alles für den Export der fertigen Seiten.
+pub struct SeitenPaket {
+    pub auftraege: Vec<crate::seitenexport::Auftrag>,
+    pub deckblatt: crate::seitenexport::DeckblattAuftrag,
+    pub leere: usize,
+    pub format: String,
+    pub stil: crate::gestaltung::Stil,
+}
 
 pub type Fortschritt<'a> = &'a (dyn Fn(&str, usize, usize) + Sync);
 

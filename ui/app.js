@@ -8,8 +8,9 @@
     { nr: 2, name: "Ereignisse" },
     { nr: 3, name: "Aussortieren" },
     { nr: 4, name: "Seiten" },
-    { nr: 5, name: "Buch" },
-    { nr: 6, name: "Export" },
+    { nr: 5, name: "Gestaltung" },
+    { nr: 6, name: "Buch" },
+    { nr: 7, name: "Export" },
   ];
   const WOCHENTAG = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -201,7 +202,7 @@
     if (nr === 1) return zahl(z.dateien);
     if (nr === 2) return String(z.ereignisse);
     if (nr === 3) return zahl(z.im_buch);
-    if (nr === 4 || nr === 5) return a.seitenplan.buch_seiten + " S.";
+    if (nr === 4 || nr === 6) return a.seitenplan.buch_seiten + " S.";
     return "";
   }
 
@@ -231,7 +232,7 @@
 
   function zeigeBuch() {
     const side = $("#buch");
-    if (!S.a || !S.a.analysiert || S.schritt === 5) {
+    if (!S.a || !S.a.analysiert || S.schritt === 5 || S.schritt === 6) {
       side.hidden = true;
       return;
     }
@@ -336,7 +337,7 @@
         v.append(
           h("div", { class: "gut" }, zahl(a.zahlen.dateien) + " Fotos gefunden" + (a.analyse_dauer != null ? " (letzte Analyse: " + a.analyse_dauer + " s)" : "") + ". Du kannst direkt weitermachen."),
           h("div", { class: "zeile" },
-            h("button", { type: "button", class: "knopf haupt", id: "btn-weiter", onclick: () => geheZu(Math.max(2, Math.min(a.schritt, 5))) }, "Weiter mit meinem Buch"),
+            h("button", { type: "button", class: "knopf haupt", id: "btn-weiter", onclick: () => geheZu(Math.max(2, Math.min(a.schritt, 6))) }, "Weiter mit meinem Buch"),
             h("button", { type: "button", class: "knopf", id: "btn-analyse", onclick: starteAnalyse }, "Ordner neu einlesen"))
         );
         if (a.zahlen.nicht_lesbar) v.append(h("div", { class: "warn" }, a.zahlen.nicht_lesbar + " Dateien konnten nicht gelesen werden. Sie werden nicht ins Buch übernommen."));
@@ -854,7 +855,7 @@
         h("thead", {}, h("tr", {}, h("th", {}, "Ereignis"), h("th", { class: "z" }, "Fotos"), h("th", { class: "z" }, "Seiten"))),
         h("tbody", {}, a.ereignisse.map((ev) => h("tr", {}, h("td", {}, ereignisName(ev)), h("td", { class: "z" }, ev.im_buch), h("td", { class: "z" }, ev.seiten)))))
     );
-    v.append(fuss(3, 5, "Weiter zur Buchansicht →"));
+    v.append(fuss(3, 5, "Weiter zur Gestaltung →"));
     return v;
   }
 
@@ -866,7 +867,7 @@
       h("button", { type: "button", class: "knopf haupt", id: "btn-" + art, onclick: () => aktion(async () => { await api("/api/vorschlag/anwenden", { art }); await ladeUndZeige(); }) }, knopf));
   }
 
-  // ------------------------------------------------------------------ Schritt 5: Export
+  // ------------------------------------------------------------------ Schritt 7: Export
 
   function viewExport() {
     const a = S.a;
@@ -900,7 +901,7 @@
     if (seitenJob && seitenJob.laeuft) v.append(h("div", { id: "seiten-fortschritt", class: "still" }, "Seite " + seitenJob.fertig + " von " + seitenJob.gesamt + " wird erzeugt …"));
     if (seitenJob && seitenJob.fehler) v.append(h("div", { class: "warn" }, seitenJob.fehler));
     if (seitenJob && !seitenJob.laeuft && seitenJob.ergebnis) {
-      v.append(h("div", { class: "gut", id: "seiten-ergebnis" }, "Fertig: " + seitenJob.ergebnis.seiten + " Seiten (" + seitenJob.ergebnis.breite + " × " + seitenJob.ergebnis.hoehe + " Pixel) und die PDF «fotobuch.pdf» in " + seitenJob.ergebnis.ordner));
+      v.append(h("div", { class: "gut", id: "seiten-ergebnis" }, "Fertig: " + seitenJob.ergebnis.seiten + " Seiten (" + seitenJob.ergebnis.breite + " × " + seitenJob.ergebnis.hoehe + " Pixel) und die PDF «fotobuch.pdf» in " + seitenJob.ergebnis.ordner + (seitenJob.ergebnis.deckblatt ? ". Das Deckblatt (Thema «" + seitenJob.ergebnis.thema + "») liegt als «deckblatt.jpg» und «deckblatt.pdf» daneben." : "")));
     }
     const r = S.exportErgebnis;
     if (r) {
@@ -909,7 +910,7 @@
         ...(r.fehler.length ? [h("div", { class: "warn" }, "Nicht kopiert: " + r.fehler.join("; "))] : [])
       );
     }
-    v.append(fuss(5, null), h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-beenden", onclick: () => aktion(async () => { await api("/api/beenden", {}); S.beendet = true; zeige(); }) }, "App beenden")));
+    v.append(fuss(6, null), h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "btn-beenden", onclick: () => aktion(async () => { await api("/api/beenden", {}); S.beendet = true; zeige(); }) }, "App beenden")));
     return v;
   }
 
@@ -969,18 +970,141 @@
     l.onclick = (ev) => { if (ev.target === l) zu(); };
   }
 
-  // ------------------------------------------------------------------ Schritt 5: Buch (Seitenansicht)
+  // ------------------------------------------------------------------ Schritt 5: Gestaltung
+
+  function mixHex(a, b, t) {
+    const n = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+    const [p, q] = [n(a), n(b)];
+    return "#" + p.map((v, i) => Math.round(v * (1 - t) + q[i] * t).toString(16).padStart(2, "0")).join("");
+  }
+
+  // Deckblatt als Vorschau. `st`: Farben und Thema (id in st.deckblatt), `t`: Texte, `foto`: Foto-ID oder null.
+  function deckblattElement(st, t, foto, klein) {
+    const el = h("div", { class: "deckblatt th-" + st.deckblatt + " hg-" + st.hintergrund, "data-thema": st.deckblatt, style: "aspect-ratio:" + S.a.buch.ar + ";" + stilVars(st, { "--t-hell": mixHex(st.akzent, "#ffffff", 0.65), "--t-mitte": mixHex(st.akzent, "#ffffff", 0.28) }) });
+    const bild = foto ? h("img", { src: vorschauUrl(foto, klein ? 360 : 900), alt: "" }) : null;
+    el.append(
+      h("div", { class: "dk-foto" }, bild),
+      h("div", { class: "dk-stempel" }, h("div", { class: "dk-titel" }, t.titel)),
+      h("div", { class: "dk-untertitel" }, t.untertitel),
+      h("div", { class: "dk-name" }, st.deckblatt === "galerie" && t.name ? h("i", { class: "dk-punkt" }) : null, t.name)
+    );
+    return el;
+  }
+
+  function viewGestaltung() {
+    const a = S.a;
+    const g = a.gestaltung;
+    const w = g.wahl;
+    const speichere = (daten) => aktion(async () => { await api("/api/gestaltung", daten); await ladeUndZeige(); });
+    const texte = { titel: w.titel || g.titel_auto, untertitel: w.untertitel || g.untertitel_auto, name: w.name };
+    const v = h("div", {});
+    v.append(
+      h("h1", {}, "Gestaltung"),
+      h("p", { class: "still" }, "Wähle ein Thema für dein Buch: Farben, Seitenhintergrund, Fotorahmen und Deckblatt gehören zusammen. Du kannst jedes Teil anpassen. Die Fotos selbst bleiben unverändert, und alles wird erst beim Erzeugen der fertigen Seiten gezeichnet."),
+      h("div", { class: "themen", id: "themen", role: "radiogroup", "aria-label": "Thema" },
+        g.themen.map((t) => {
+          const st = { seite: t.seite, text: t.text, akzent: t.akzent, hintergrund: t.id === "kraft" ? "kraft" : t.id === "meer" ? "meer" : "flach", deckblatt: t.id, gross: false };
+          return h("button", { type: "button", class: "themakarte" + (w.thema === t.id ? " aktiv" : ""), "data-thema": t.id, role: "radio", "aria-checked": w.thema === t.id ? "true" : "false", title: t.beschreibung,
+            onclick: () => speichere({ thema: t.id, zuruecksetzen: true }) },
+            deckblattElement(st, texte, g.titelfoto, true),
+            h("span", { class: "themaname" }, t.name));
+        })),
+      h("p", { class: "still", id: "thema-beschreibung" }, g.themen.find((t) => t.id === w.thema).beschreibung)
+    );
+
+    const farbe = h("input", { type: "color", id: "g-farbton", value: g.stil.akzent, "aria-label": "Farbton" });
+    farbe.addEventListener("change", () => speichere({ farbton: farbe.value }));
+    const waehle = (id, wert, liste) => {
+      const sel = h("select", { id, "aria-label": id }, liste.map(([k, t]) => h("option", { value: k, selected: wert === k }, t)));
+      sel.addEventListener("change", () => speichere({ [id.replace("g-", "")]: sel.value }));
+      return sel;
+    };
+    const haken = (id, text, wert, feld) => {
+      const c = h("input", { type: "checkbox", id, checked: wert });
+      c.addEventListener("change", () => speichere({ [feld]: c.checked }));
+      return h("label", { class: "haken", for: id }, c, " " + text);
+    };
+    v.append(
+      h("h2", {}, "Anpassen"),
+      h("div", { class: "zeile gestaltzeile" },
+        h("label", { for: "g-farbton" }, "Farbton"), farbe,
+        w.farbton ? h("button", { type: "button", class: "knopf klein-knopf", id: "g-farbton-zurueck", onclick: () => speichere({ farbton: "" }) }, "Farbe des Themas") : null,
+        h("label", { for: "g-hintergrund" }, "Seitenhintergrund"),
+        waehle("g-hintergrund", w.hintergrund, [["thema", "Wie das Thema"], ["weiss", "Weiss"], ["papier", "Papier"], ["schwarz", "Schwarz"], ["kraft", "Kraftpapier"], ["meer", "Hell mit Welle"]]),
+        h("label", { for: "g-rahmen" }, "Fotorahmen"),
+        waehle("g-rahmen", w.rahmen, [["thema", "Wie das Thema"], ["keiner", "Kein Rahmen"], ["weiss", "Weisser Rand"], ["linie", "Dünner Strich"], ["polaroid", "Sofortbild, leicht schief"]])),
+      h("div", { class: "zeile gestaltzeile" },
+        haken("g-beschriftung", "Unterschrift mit dem Namen des Ereignisses", w.beschriftung, "beschriftung"),
+        haken("g-seitenzahl", "Seitenzahl", w.seitenzahl, "seitenzahl"),
+        h("button", { type: "button", class: "knopf klein-knopf", id: "g-zurueck", onclick: () => speichere({ zuruecksetzen: true }) }, "Alles auf das Thema zurücksetzen")),
+      h("h2", {}, "Deckblatt")
+    );
+    const textfeld = (id, bez, feld, vorschlag) => {
+      const i = h("input", { type: "text", id, maxlength: 80, value: w[feld], placeholder: vorschlag || "", "aria-label": bez });
+      i.addEventListener("change", () => speichere({ [feld]: i.value }));
+      return h("div", { class: "feld" }, h("label", { for: id }, bez), i);
+    };
+    v.append(
+      h("div", { class: "gestaltfelder" },
+        textfeld("g-titel", "Titel", "titel", g.titel_auto),
+        textfeld("g-untertitel", "Untertitel (zum Beispiel der Zeitraum)", "untertitel", g.untertitel_auto),
+        textfeld("g-name", "Name oder Widmung (kann leer bleiben)", "name", "")),
+      h("div", { class: "feld" }, h("span", { class: "label" }, "Titelfoto"),
+        h("div", { class: "streifen titelfotos", id: "titelfotos" },
+          g.kandidaten.map((id) => h("button", { type: "button", class: "titelfoto" + (id === g.titelfoto ? " aktiv" : ""), "data-id": id, "aria-pressed": id === g.titelfoto ? "true" : "false", "aria-label": "Titelfoto " + a.fotos[id].n,
+            onclick: () => speichere({ titelfoto: id }) }, h("img", { src: vorschauUrl(id, 160), alt: a.fotos[id].n })))),
+        h("span", { class: "hinweis" }, "Ohne Auswahl nimmt der Assistent das erste Foto im Buch.")),
+      h("h2", {}, "So sieht dein Buch aus"),
+      h("p", { class: "still" }, "Vorschau mit Deckblatt und den ersten Seiten. Die fertigen Seiten und das Deckblatt entstehen im Export («Fertige Seiten erzeugen») als JPEG (300 dpi) und PDF. Das Deckblatt liegt als eigene Datei daneben, die Seitenzahlen bleiben unverändert.")
+    );
+    const seiten = a.buch.seiten;
+    v.append(
+      h("div", { class: "gestaltvorschau", id: "gestaltvorschau" },
+        h("figure", { class: "seitenspalte" }, deckblattElement(g.stil, texte, g.titelfoto, false), h("figcaption", {}, "Deckblatt")),
+        seiten.slice(0, 2).map((sp) => h("figure", { class: "seitenspalte" }, seiteElement(sp, true), h("figcaption", {}, "Seite " + sp.nr)))),
+      fuss(4, 6, "Weiter zur Buchansicht →")
+    );
+    return v;
+  }
+
+  // ------------------------------------------------------------------ Schritt 6: Buch (Seitenansicht)
+
+  // Aussehen einer Seite nach dem gewählten Thema (Hintergrund, Rahmen, Beschriftung). Der Export zeichnet dasselbe in Druckqualität.
+  function stilVars(st, extra) {
+    const vars = { "--t-seite": st.seite, "--t-text": st.text, "--t-akzent": st.akzent, ...(extra || {}) };
+    return Object.entries(vars).map(([k, v]) => k + ":" + v).join(";");
+  }
+
+  function amRand(p) {
+    return p.x <= 0.5 || p.y <= 0.5 || p.x + p.w >= 99.5 || p.y + p.h >= 99.5;
+  }
 
   function seiteElement(sp, gross) {
-    const el = h("div", { class: "seite" + (sp.frei ? " frei" : ""), "data-nr": sp.nr, style: "aspect-ratio:" + S.a.buch.ar });
-    for (const p of sp.fotos) {
+    const st = S.a.gestaltung.stil;
+    const el = h("div", { class: "seite hg-" + st.hintergrund + " rm-" + st.rahmen + " th-" + st.deckblatt + (st.gross ? " gross" : "") + (sp.frei ? " frei" : ""), "data-nr": sp.nr, style: "aspect-ratio:" + S.a.buch.ar + ";" + stilVars(st) });
+    let voll = false;
+    sp.fotos.forEach((p, k) => {
       const f = S.a.fotos[p.id];
+      const rand = amRand(p);
+      voll = voll || rand;
+      let drehung = "";
+      if (st.rahmen === "polaroid" && !rand) {
+        let grad = ((sp.nr * 7919 + k * 104729) % 41) / 10 - 2;
+        if (Math.abs(grad) < 0.6) grad = 1.2;
+        drehung = ";transform:rotate(" + grad.toFixed(1) + "deg) scale(.94)";
+      }
       el.append(
-        h("button", { type: "button", class: "sfoto", "data-id": p.id, title: f.n + " · " + f.z, "aria-label": f.n + ", Details", style: "left:" + p.x + "%;top:" + p.y + "%;width:" + p.w + "%;height:" + p.h + "%", onclick: (ev) => { if (S.buchAnsicht === "doppel") { ev.stopPropagation(); lupe(p.id); } } },
+        h("button", { type: "button", class: "sfoto" + (rand ? " voll" : ""), "data-id": p.id, title: f.n + " · " + f.z, "aria-label": f.n + ", Details", style: "left:" + p.x + "%;top:" + p.y + "%;width:" + p.w + "%;height:" + p.h + "%" + drehung, onclick: (ev) => { if (S.buchAnsicht === "doppel") { ev.stopPropagation(); lupe(p.id); } } },
           h("img", { src: vorschauUrl(p.id, gross ? 900 : 360), alt: f.n, loading: "lazy" }))
       );
-    }
+    });
     if (sp.frei) el.append(h("span", { class: "frei-text" }, "Freie Seite"));
+    else if (!voll && sp.fotos.length) {
+      const text = st.beschriftung ? sp.beschriftung : null;
+      const nr = st.deckblatt === "galerie" ? "Nr. " + sp.nr + (text ? " · " + text : "") : text;
+      if (nr) el.append(h("span", { class: "sbeschr" }, nr));
+      if (st.seitenzahl && st.deckblatt !== "galerie") el.append(h("span", { class: "snummer" }, st.deckblatt === "leinen" ? "· " + sp.nr + " ·" : st.deckblatt === "nacht" ? String(sp.nr).padStart(2, "0") : String(sp.nr)));
+    }
     return el;
   }
 
@@ -1083,7 +1207,7 @@
     if (S.a.zahlen.verschiebungen) {
       v.append(h("div", { class: "zeile" }, h("span", {}, S.a.zahlen.verschiebungen + " von Hand verschobene Fotos. "), h("button", { type: "button", class: "knopf", id: "verschiebungen-zurueck", onclick: () => aktion(async () => { await api("/api/seiten/zuruecksetzen", {}); await ladeUndZeige(); }) }, "Alle Verschiebungen zurücksetzen")));
     }
-    v.append(fuss(4, 6, "Weiter zum Export →"));
+    v.append(fuss(5, 7, "Weiter zum Export →"));
     return v;
   }
 
@@ -1104,13 +1228,14 @@
       case 2: v = viewEreignisse(); break;
       case 3: v = viewAussortieren(); break;
       case 4: v = viewSeiten(); break;
-      case 5: v = viewBuch(); break;
-      case 6: v = viewExport(); break;
+      case 5: v = viewGestaltung(); break;
+      case 6: v = viewBuch(); break;
+      case 7: v = viewExport(); break;
       default: v = viewStart();
     }
     inhalt.replaceChildren(v);
     const rahmen = document.querySelector(".rahmen");
-    if (rahmen) rahmen.classList.toggle("breit", S.schritt === 5);
+    if (rahmen) rahmen.classList.toggle("breit", S.schritt === 5 || S.schritt === 6);
     zeigeNavigation();
     zeigeBuch();
   }
@@ -1125,7 +1250,7 @@
     const t = ev.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    if (S.schritt === 5 && S.a && S.a.buch && S.buchAnsicht === "doppel") {
+    if (S.schritt === 6 && S.a && S.a.buch && S.buchAnsicht === "doppel") {
       const maxPos = Math.floor((S.a.buch.seiten.length + S.a.buch.freie_seiten.length) / 2);
       if (ev.key === "ArrowRight" && S.buchPos < maxPos) { S.buchPos++; zeige(); ev.preventDefault(); }
       else if (ev.key === "ArrowLeft" && S.buchPos > 0) { S.buchPos--; zeige(); ev.preventDefault(); }
@@ -1149,7 +1274,7 @@
   async function start() {
     try {
       await lade();
-      if (S.a && S.a.analysiert) S.schritt = Math.max(1, Math.min(6, S.a.schritt || 2));
+      if (S.a && S.a.analysiert) S.schritt = Math.max(1, Math.min(7, S.a.schritt || 2));
       else S.schritt = 1;
       zeige();
       if (S.status.job.laeuft) pollStart();

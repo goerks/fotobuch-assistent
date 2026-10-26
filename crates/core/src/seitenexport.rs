@@ -9,6 +9,9 @@ use image::{Rgb, RgbImage};
 use rayon::prelude::*;
 use serde_json::{json, Value};
 
+use crate::thema_render;
+
+use crate::gestaltung::{self, Stil};
 use crate::scanner::{drehe, lade_bild, orientierung_von};
 
 type Res<T> = Result<T, String>;
@@ -25,6 +28,16 @@ pub struct SeitenFoto {
 pub struct Auftrag {
     pub nr: usize,
     pub fotos: Vec<SeitenFoto>,
+    /// Unterschrift (zum Beispiel der Name des Ereignisses auf dessen erster Seite)
+    pub text: Option<String>,
+}
+
+/// Das Deckblatt: Texte und Titelfoto.
+pub struct DeckblattAuftrag {
+    pub titel: String,
+    pub untertitel: String,
+    pub name: String,
+    pub foto: Option<SeitenFoto>,
 }
 
 /// Seitengrösse in Pixeln bei 300 dpi (lange Kante 297 mm, Quadrat 210 mm).
@@ -36,33 +49,40 @@ pub fn seitengroesse(format: &str) -> (u32, u32) {
     }
 }
 
-/// Rendert eine Seite: weisser Grund, jedes Foto füllt sein Feld (bei abweichendem Seitenverhältnis wird mittig beschnitten).
-pub fn rendere_seite(a: &Auftrag, breite: u32, hoehe: u32) -> RgbImage {
-    let mut seite = RgbImage::from_pixel(breite, hoehe, Rgb([255, 255, 255]));
-    for f in &a.fotos {
+/// Das Foto füllt die Fläche (bei abweichendem Seitenverhältnis wird mittig beschnitten); nicht lesbare Fotos werden grau.
+pub fn foto_fuellend(f: &SeitenFoto, w: u32, h: u32) -> RgbImage {
+    let bild = std::fs::read(&f.pfad).map_err(|e| e.to_string()).and_then(|daten| {
+        let g = lade_bild(&f.pfad, &daten, &f.endung, (w.max(h) as f64 * 1.5) as u32)?;
+        let o = orientierung_von(&g);
+        Ok(drehe(g.rgb, o))
+    });
+    match bild {
+        Ok(img) => {
+            let (iw, ih) = (img.width() as f64, img.height() as f64);
+            let s = (w as f64 / iw).max(h as f64 / ih);
+            let (nw, nh) = (((iw * s).ceil() as u32).max(w), ((ih * s).ceil() as u32).max(h));
+            let gross = imageops::resize(&img, nw, nh, FilterType::CatmullRom);
+            imageops::crop_imm(&gross, (nw - w) / 2, (nh - h) / 2, w, h).to_image()
+        }
+        // Foto nicht lesbar: grauer Platzhalter statt Abbruch
+        Err(_) => RgbImage::from_pixel(w, h, Rgb([210, 213, 218])),
+    }
+}
+
+/// Rendert eine Seite mit Hintergrund, Rahmen und Beschriftung des Stils.
+pub fn rendere_seite(a: &Auftrag, breite: u32, hoehe: u32, stil: &Stil) -> RgbImage {
+    let mut seite = thema_render::seite_hintergrund(breite, hoehe, stil);
+    let mut voll = false;
+    for (k, f) in a.fotos.iter().enumerate() {
         let px = |p: f64, g: u32| (p / 100.0 * g as f64).round() as i64;
         let (x, y) = (px(f.feld[0], breite), px(f.feld[1], hoehe));
         let (w, h) = (px(f.feld[2], breite).max(1) as u32, px(f.feld[3], hoehe).max(1) as u32);
-        let bild = std::fs::read(&f.pfad).map_err(|e| e.to_string()).and_then(|daten| {
-            let g = lade_bild(&f.pfad, &daten, &f.endung, (w.max(h) as f64 * 1.5) as u32)?;
-            let o = orientierung_von(&g);
-            Ok(drehe(g.rgb, o))
-        });
-        match bild {
-            Ok(img) => {
-                let (iw, ih) = (img.width() as f64, img.height() as f64);
-                let s = (w as f64 / iw).max(h as f64 / ih);
-                let (nw, nh) = (((iw * s).ceil() as u32).max(w), ((ih * s).ceil() as u32).max(h));
-                let gross = imageops::resize(&img, nw, nh, FilterType::CatmullRom);
-                let zugeschnitten = imageops::crop_imm(&gross, (nw - w) / 2, (nh - h) / 2, w, h).to_image();
-                imageops::replace(&mut seite, &zugeschnitten, x, y);
-            }
-            Err(_) => {
-                // Foto nicht lesbar: grauer Platzhalter statt Abbruch
-                let grau = RgbImage::from_pixel(w, h, Rgb([210, 213, 218]));
-                imageops::replace(&mut seite, &grau, x, y);
-            }
-        }
+        let randlos = gestaltung::am_rand(f.feld);
+        voll |= randlos;
+        thema_render::foto_platzieren(&mut seite, f, x, y, w, h, stil, randlos, (a.nr as u32).wrapping_mul(7919).wrapping_add(k as u32 * 104729));
+    }
+    if !voll && !a.fotos.is_empty() {
+        thema_render::beschriftung(&mut seite, stil, a.text.as_deref(), a.nr);
     }
     seite
 }
@@ -126,23 +146,33 @@ pub fn schreibe_pdf(ziel: &Path, jpegs: &[PathBuf], breite: u32, hoehe: u32) -> 
     Ok(())
 }
 
-/// Rendert alle Seiten (parallel) nach `ordner/seite-001.jpg …` und schreibt `ordner/fotobuch.pdf`.
-/// `leere`: Anzahl freier Seiten am Ende, die als weisse Seiten mitgehen.
-pub fn exportiere(auftraege: &[Auftrag], leere: usize, format: &str, ordner: &Path, fortschritt: &(dyn Fn(usize, usize) + Sync)) -> Res<Value> {
+/// Rendert Deckblatt und alle Seiten (parallel) nach `ordner/deckblatt.jpg`, `seite-001.jpg …` und schreibt
+/// `ordner/fotobuch.pdf` (Innenseiten) und `ordner/deckblatt.pdf`.
+/// `leere`: Anzahl freier Seiten am Ende, die als Seiten im Hintergrund des Stils mitgehen.
+pub fn exportiere(auftraege: &[Auftrag], deckblatt: Option<&DeckblattAuftrag>, leere: usize, format: &str, stil: &Stil, ordner: &Path, fortschritt: &(dyn Fn(usize, usize) + Sync)) -> Res<Value> {
     std::fs::create_dir_all(ordner).map_err(|e| format!("Zielordner kann nicht angelegt werden: {e}"))?;
     let (b, h) = seitengroesse(format);
     let gesamt = auftraege.len() + leere;
     let fertig = std::sync::atomic::AtomicUsize::new(0);
-    fortschritt(0, gesamt);
+    let alle = gesamt + deckblatt.is_some() as usize;
+    fortschritt(0, alle);
+    if let Some(d) = deckblatt {
+        let img = thema_render::rendere_deckblatt(stil, b, h, &d.titel, &d.untertitel, &d.name, d.foto.as_ref());
+        let pfad = ordner.join("deckblatt.jpg");
+        std::fs::write(&pfad, jpeg_bytes(&img, 92)?).map_err(|e| format!("Deckblatt kann nicht geschrieben werden: {e}"))?;
+        schreibe_pdf(&ordner.join("deckblatt.pdf"), &[pfad], b, h)?;
+        fertig.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        fortschritt(1, alle);
+    }
     let pfade: Vec<PathBuf> = (1..=gesamt).map(|nr| ordner.join(format!("seite-{nr:03}.jpg"))).collect();
     let ergebnisse: Vec<Res<()>> = (0..gesamt)
         .into_par_iter()
         .map(|k| {
-            let img = if k < auftraege.len() { rendere_seite(&auftraege[k], b, h) } else { RgbImage::from_pixel(b, h, Rgb([255, 255, 255])) };
+            let img = if k < auftraege.len() { rendere_seite(&auftraege[k], b, h, stil) } else { thema_render::seite_hintergrund(b, h, stil) };
             let bytes = jpeg_bytes(&img, 92)?;
             std::fs::write(&pfade[k], bytes).map_err(|e| format!("Seite {} kann nicht geschrieben werden: {e}", k + 1))?;
             let n = fertig.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-            fortschritt(n, gesamt);
+            fortschritt(n, alle);
             Ok(())
         })
         .collect();
@@ -150,12 +180,13 @@ pub fn exportiere(auftraege: &[Auftrag], leere: usize, format: &str, ordner: &Pa
         e?;
     }
     schreibe_pdf(&ordner.join("fotobuch.pdf"), &pfade, b, h)?;
-    Ok(json!({"ordner": ordner.to_string_lossy(), "seiten": gesamt, "breite": b, "hoehe": h, "pdf": ordner.join("fotobuch.pdf").to_string_lossy()}))
+    Ok(json!({"ordner": ordner.to_string_lossy(), "seiten": gesamt, "breite": b, "hoehe": h, "pdf": ordner.join("fotobuch.pdf").to_string_lossy(), "deckblatt": deckblatt.is_some(), "thema": stil.thema.name}))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gestaltung::Gestaltung;
 
     #[test]
     fn foto_ueber_die_doppelseite_wird_je_haelfte_gerendert() {
@@ -164,10 +195,10 @@ mod tests {
         let bild = RgbImage::from_fn(400, 200, |x, _| if x < 200 { Rgb([220, 20, 20]) } else { Rgb([20, 20, 220]) });
         let quelle = dir.path().join("p.jpg");
         bild.save(&quelle).unwrap();
-        let links = Auftrag { nr: 1, fotos: vec![SeitenFoto { pfad: quelle.clone(), endung: "jpg".into(), feld: [0.0, 0.0, 200.0, 100.0] }] };
-        let rechts = Auftrag { nr: 2, fotos: vec![SeitenFoto { pfad: quelle, endung: "jpg".into(), feld: [-100.0, 0.0, 200.0, 100.0] }] };
-        let l = rendere_seite(&links, 800, 800);
-        let r = rendere_seite(&rechts, 800, 800);
+        let links = Auftrag { nr: 1, fotos: vec![SeitenFoto { pfad: quelle.clone(), endung: "jpg".into(), feld: [0.0, 0.0, 200.0, 100.0] }], text: None };
+        let rechts = Auftrag { nr: 2, fotos: vec![SeitenFoto { pfad: quelle, endung: "jpg".into(), feld: [-100.0, 0.0, 200.0, 100.0] }], text: None };
+        let l = rendere_seite(&links, 800, 800, &Gestaltung::default().stil());
+        let r = rendere_seite(&rechts, 800, 800, &Gestaltung::default().stil());
         let (pl, pr) = (l.get_pixel(400, 400).0, r.get_pixel(400, 400).0);
         assert!(pl[0] > 150 && pl[2] < 80, "linke Seite zeigt die linke Hälfte: {pl:?}");
         assert!(pr[2] > 150 && pr[0] < 80, "rechte Seite zeigt die rechte Hälfte: {pr:?}");
@@ -179,9 +210,9 @@ mod tests {
         let bild = RgbImage::from_fn(400, 200, |x, _| Rgb([(x % 255) as u8, 80, 160]));
         let quelle = dir.path().join("a.jpg");
         bild.save(&quelle).unwrap();
-        let auftrag = Auftrag { nr: 1, fotos: vec![SeitenFoto { pfad: quelle.clone(), endung: "jpg".into(), feld: [0.0, 0.0, 100.0, 100.0] }] };
+        let auftrag = Auftrag { nr: 1, fotos: vec![SeitenFoto { pfad: quelle.clone(), endung: "jpg".into(), feld: [0.0, 0.0, 100.0, 100.0] }], text: None };
         let ziel = dir.path().join("aus");
-        let r = exportiere(&[auftrag], 1, "quadrat", &ziel, &|_, _| {}).unwrap();
+        let r = exportiere(&[auftrag], None, 1, "quadrat", &Gestaltung::default().stil(), &ziel, &|_, _| {}).unwrap();
         assert_eq!(r["seiten"], 2);
         let s1 = image::open(ziel.join("seite-001.jpg")).unwrap().to_rgb8();
         assert_eq!(s1.dimensions(), (2480, 2480));

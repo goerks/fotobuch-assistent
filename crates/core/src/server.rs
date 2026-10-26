@@ -85,17 +85,16 @@ impl App {
     /// Rendert die fertigen Seiten (JPEG + PDF) im Hintergrund. Fortschritt und Ergebnis stehen im Job.
     pub fn starte_seitenexport(&self, ziel: Option<String>) -> Res<()> {
         let projekt = self.aktuelles()?;
-        let (auftraege, leere, format, ordner) = {
+        let (paket, ordner) = {
             let p = projekt.lock().map_err(|_| "Interner Fehler")?;
-            let (a, l, f) = p.seitenauftraege()?;
-            (a, l, f, p.seiten_zielordner(ziel.as_deref()))
+            (p.seitenauftraege()?, p.seiten_zielordner(ziel.as_deref()))
         };
         {
             let mut j = self.job.lock().unwrap();
             if j.laeuft {
                 return Err("Es läuft gerade eine andere Aufgabe.".into());
             }
-            *j = Job { laeuft: true, phase: "seiten".into(), fertig: 0, gesamt: auftraege.len() + leere, fehler: None, art: "seiten".into(), ergebnis: None };
+            *j = Job { laeuft: true, phase: "seiten".into(), fertig: 0, gesamt: paket.auftraege.len() + paket.leere + 1, fehler: None, art: "seiten".into(), ergebnis: None };
         }
         let job = self.job.clone();
         std::thread::spawn(move || {
@@ -106,7 +105,7 @@ impl App {
                     j.gesamt = gesamt;
                 }
             };
-            let erg = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| crate::seitenexport::exportiere(&auftraege, leere, &format, &ordner, &fortschritt)));
+            let erg = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| crate::seitenexport::exportiere(&paket.auftraege, Some(&paket.deckblatt), paket.leere, &paket.format, &paket.stil, &ordner, &fortschritt)));
             let mut j = job.lock().unwrap();
             j.laeuft = false;
             match erg {
@@ -420,6 +419,10 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             let ziel = d.get("ziel").and_then(|v| v.as_str()).map(|s| s.to_string());
             drop(p);
             app.starte_seitenexport(ziel)?;
+            Ok(ok())
+        }
+        "/api/gestaltung" => {
+            p.setze_gestaltung(d.as_object().unwrap())?;
             Ok(ok())
         }
         "/api/foto/ganzseite" => {

@@ -93,7 +93,7 @@ Import, Sortierung nach Aufnahmezeit, Ereignisse (umbenennbar, verschiebbar), ex
 Ähnliche Bilder gruppieren, Best-of-Vorschlag mit Bestätigung, unscharfe Bilder markieren, Seitenplan mit Einzel-, Doppel- und Panoramaseiten, Hoch/Quer-Paarung, Buchvorschau, Seitenexport, erste Anbieter-Profile. Abnahme an einem echten Projekt.
 
 ### MMP: Verkaufbares Produkt
-Gestaltung/Theming (Farbtöne und Hintergründe, Deckblätter und weitere Vorlagen), Seiten einfügen und umordnen, echte Anbieter-Profile (Seitenregeln heute Annahmen), Feinschliff der Oberfläche (zum Beispiel abgeschnittener «Blättern»-Knopf), polierte Oberfläche, Installer, Hilfe, Hardware-Stufen, weitere Profile, Robustheit bei über 10'000 Fotos, Lizenzmodell (einmaliger Kauf), Datenschutz-Seite, Wettbewerbsprüfung wiederholen, Test mit 3 bis 5 Fremden.
+weitere Gestaltungsvorlagen und Thema pro Ereignis (Grundlage Theming ist umgesetzt), Seiten einfügen und umordnen, echte Anbieter-Profile (Seitenregeln heute Annahmen), Feinschliff der Oberfläche (zum Beispiel abgeschnittener «Blättern»-Knopf), polierte Oberfläche, Installer, Hilfe, Hardware-Stufen, weitere Profile, Robustheit bei über 10'000 Fotos, Lizenzmodell (einmaliger Kauf), Datenschutz-Seite, Wettbewerbsprüfung wiederholen, Test mit 3 bis 5 Fremden.
 
 ## 7. Zusammenarbeit
 

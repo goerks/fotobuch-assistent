@@ -75,3 +75,8 @@ In der Detailansicht eines Fotos im Buch: «auf vorherige Seite», «auf nächst
 
 ## Fertige Seiten
 Im Schritt «Export» erzeugt «Fertige Seiten erzeugen» für jede Seite ein Bild (JPEG, 300 dpi) und eine PDF mit allen Seiten, im Unterordner «seiten» des Zielordners. Das dauert bei einem grossen Buch einige Minuten, ein Balken zeigt den Fortschritt.
+
+## Gestaltung
+
+Im Schritt «Gestaltung» wählst du ein Thema für das ganze Buch: Klar, Leinen, Nacht, Kraft, Meer oder Galerie. Ein Thema legt Farben, Seitenhintergrund, Fotorahmen, Schrift und Deckblatt fest. Darunter kannst du den Farbton, den Seitenhintergrund und den Fotorahmen ändern, Unterschrift und Seitenzahl ein- oder ausschalten und das Deckblatt beschriften (Titel, Untertitel, Name oder Widmung). Ohne eigene Eingabe nimmt der Assistent den Ordnernamen als Titel und den Zeitraum der Aufnahmen als Untertitel. Das Titelfoto wählst du aus einer Reihe von Fotos aus dem Buch. «Alles auf das Thema zurücksetzen» entfernt deine Änderungen an Farbton, Hintergrund und Rahmen.
+Die Vorschau im Programm ist eine Annäherung. Beim Erzeugen der fertigen Seiten (Export) werden Deckblatt und Seiten in Druckqualität gezeichnet. Das Deckblatt liegt als eigene Datei («deckblatt.jpg» und «deckblatt.pdf») neben den Seiten.

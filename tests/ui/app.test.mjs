@@ -68,8 +68,8 @@ test("Start: Schritt 1 zeigt Hilfe, Datenschutz und gesperrte Folgeschritte", as
   assert.ok(q(".privat").textContent.includes("lokal"));
   assert.ok(q("details.hilfe"), "Hilfetext vorhanden");
   const nav = qa("#schritte button");
-  assert.equal(nav.length, 6);
-  assert.ok(nav[1].disabled && nav[5].disabled, "Folgeschritte gesperrt");
+  assert.equal(nav.length, 7);
+  assert.ok(nav[1].disabled && nav[6].disabled, "Folgeschritte gesperrt");
   assert.equal(nav[0].getAttribute("aria-current"), "step");
   assert.ok(q("#buch").hidden, "Buch-Leiste erst nach Analyse");
 });
@@ -187,6 +187,37 @@ test("Seiten: Zähler, Profilwarnung, Kürzen-Vorschlag", async () => {
   assert.equal(q("#buch-seiten").textContent, "8");
 });
 
+test("Gestaltung: Thema wählen, anpassen, Deckblatt und Titelfoto", async () => {
+  klick(q("#btn-naechster"));
+  await warteBis(() => q("#themen"), "Themen");
+  assert.equal(qa(".themakarte").length, 6);
+  assert.equal(q(".themakarte.aktiv").dataset.thema, "klar", "Standard ist Klar");
+  assert.ok(q("#gestaltvorschau .deckblatt"), "Deckblatt in der Vorschau");
+  assert.ok(qa("#gestaltvorschau .sbeschr").length >= 1, "Unterschrift auf der ersten Seite");
+  klick(q('.themakarte[data-thema="nacht"]'));
+  await warteBis(() => q(".themakarte.aktiv")?.dataset.thema === "nacht", "Thema Nacht");
+  assert.ok(q("#gestaltvorschau .seite").classList.contains("th-nacht"));
+  assert.ok(/--t-seite:\s*#131417/.test(q("#gestaltvorschau .seite").getAttribute("style")));
+  setze(q("#g-rahmen"), "polaroid");
+  await warteBis(() => q("#gestaltvorschau .seite").classList.contains("rm-polaroid"), "Sofortbild-Rahmen");
+  setze(q("#g-hintergrund"), "kraft");
+  await warteBis(() => q("#gestaltvorschau .seite").classList.contains("hg-kraft"), "Kraftpapier");
+  setze(q("#g-farbton"), "#aa3300");
+  await warteBis(() => /--t-akzent:\s*#aa3300/.test(q("#gestaltvorschau .seite").getAttribute("style")), "eigener Farbton");
+  assert.ok(q("#g-farbton-zurueck"), "Weg zurück zur Themenfarbe");
+  setze(q("#g-titel"), "Unsere Reise");
+  await warteBis(() => q("#gestaltvorschau .dk-titel").textContent === "Unsere Reise", "Titel");
+  setze(q("#g-name"), "Familie Muster");
+  await warteBis(() => q("#gestaltvorschau .dk-name").textContent === "Familie Muster", "Name");
+  klick(qa("#titelfotos .titelfoto")[1]);
+  await warteBis(() => qa("#titelfotos .titelfoto")[1]?.classList.contains("aktiv"), "Titelfoto gewählt");
+  klick(q("#g-zurueck"));
+  await warteBis(() => !q("#g-farbton-zurueck") && q("#g-rahmen").value === "thema" && q("#g-hintergrund").value === "thema", "auf das Thema zurückgesetzt");
+  assert.equal(q("#g-titel").value, "Unsere Reise", "Texte bleiben");
+  klick(q('.themakarte[data-thema="klar"]'));
+  await warteBis(() => q(".themakarte.aktiv")?.dataset.thema === "klar", "zurück zu Klar");
+});
+
 test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#doppelseite"), "Doppelseite");
@@ -218,7 +249,7 @@ test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () =
   klick(q("#lupe-zu"));
   // Seitenformat ändern
   setze(q("#seitenformat"), "quadrat");
-  await warteBis(() => q(".seite")?.getAttribute("style").includes("aspect-ratio:1"), "Quadratformat");
+  await warteBis(() => /aspect-ratio:\s*1(;|$)/.test(q(".seite")?.getAttribute("style") || ""), "Quadratformat");
   // Übersicht
   klick(q("#btn-ansicht-uebersicht"));
   await warteBis(() => q("#uebersicht"), "Übersicht");

@@ -4,3 +4,4 @@ Nach jeder Umsetzungsrunde entsteht eine Galerie mit Bildern der App aus dem aut
 
 - [Runde 1: fertige Seiten, Ganzseiten, Hoch/Quer-Paarung](runde-1.md)
 - [Runde 2: Fotos verschieben, Panorama über die Doppelseite](runde-2.md)
+- [Runde 3: Gestaltung mit sechs Themen](runde-3.md)

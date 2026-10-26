@@ -15,6 +15,9 @@ import pytest
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
+ALLE_THEMEN = ["klar", "leinen", "nacht", "kraft", "meer", "galerie"]
+# Zum schnelleren Entwickeln: FOTOBUCH_E2E_THEMEN=klar,nacht
+THEMEN = [t for t in os.environ.get("FOTOBUCH_E2E_THEMEN", ",".join(ALLE_THEMEN)).split(",") if t in ALLE_THEMEN]
 WURZEL = Path(__file__).resolve().parents[2]
 BIN = Path(os.environ.get("FOTOBUCH_BIN", WURZEL / "target" / "release" / ("fotobuch-dev.exe" if os.name == "nt" else "fotobuch-dev")))
 
@@ -111,8 +114,31 @@ def test_reise_wird_zum_album(umgebung):
             seite.wait_for_selector("h1")
             bild("seiten")
 
-            # 3. Eine Entscheidung treffen: im Buch ein Foto gross ansehen und entfernen
+            # Gestaltung: Themen ansehen, Leinen mit eigenem Titel wählen
             seite.evaluate("window.__fotobuch.geheZu(5)")
+            seite.wait_for_selector("#gestaltvorschau .deckblatt")
+            assert seite.locator(".themakarte").count() == 6
+            assert seite.evaluate("window.__fotobuch.S.a.gestaltung.wahl.thema") == "klar"
+            seite.wait_for_function("[...document.querySelectorAll('#themen img, #gestaltvorschau img')].every(i => i.complete && i.naturalWidth > 0)", timeout=30000)
+            bild("gestaltung", voll=True)
+            seite.click('.themakarte[data-thema="leinen"]')
+            seite.wait_for_function("document.querySelector('.themakarte.aktiv')?.dataset.thema === 'leinen'")
+            seite.fill("#g-titel", "New York 2026")
+            seite.press("#g-titel", "Tab")
+            seite.wait_for_function("window.__fotobuch.S.a.gestaltung.wahl.titel === 'New York 2026'")
+            seite.fill("#g-name", "Familie Muster")
+            seite.press("#g-name", "Tab")
+            seite.wait_for_function("window.__fotobuch.S.a.gestaltung.wahl.name === 'Familie Muster'")
+            seite.click("#titelfotos .titelfoto >> nth=2")
+            seite.wait_for_function("window.__fotobuch.S.a.gestaltung.wahl.titelfoto !== ''")
+            seite.wait_for_function("[...document.querySelectorAll('#themen img, #gestaltvorschau img')].every(i => i.complete && i.naturalWidth > 0)", timeout=30000)
+            assert seite.inner_text("#gestaltvorschau .dk-titel") == "New York 2026"
+            assert seite.locator("#gestaltvorschau .seite.th-leinen.rm-weiss").count() == 2
+            assert seite.evaluate("window.__fotobuch.S.a.gestaltung.untertitel_auto").startswith("14.–17. Mai 2026"), seite.evaluate("window.__fotobuch.S.a.gestaltung.untertitel_auto")
+            bild("gestaltung-leinen", ziel="#gestaltvorschau")
+
+            # 3. Eine Entscheidung treffen: im Buch ein Foto gross ansehen und entfernen
+            seite.evaluate("window.__fotobuch.geheZu(6)")
             seite.wait_for_selector("#doppelseite .sfoto")
             vor = seite.evaluate("window.__fotobuch.S.a.zahlen.im_buch")
             seite.click("#doppelseite .sfoto")
@@ -185,7 +211,7 @@ def test_reise_wird_zum_album(umgebung):
             seite.evaluate("window.__fotobuch.S.buchAnsicht = 'doppel'; window.__fotobuch.zeige()")
 
             # 4. Buch durchblättern, jede Doppelseite prüfen und festhalten
-            seite.evaluate("window.__fotobuch.geheZu(5)")
+            seite.evaluate("window.__fotobuch.geheZu(6)")
             seite.wait_for_selector("#doppelseite .sfoto")
             seite.evaluate("window.__fotobuch.S.buchPos = 0; window.__fotobuch.zeige()")
             bilder = []
@@ -209,7 +235,7 @@ def test_reise_wird_zum_album(umgebung):
             assert len(bilder) >= 10
 
             # 5. Export
-            seite.evaluate("window.__fotobuch.geheZu(6)")
+            seite.evaluate("window.__fotobuch.geheZu(7)")
             ziel = basis / "Ausgabe"
             seite.fill("#ziel", str(ziel))
             seite.click("#btn-export")
@@ -222,6 +248,19 @@ def test_reise_wird_zum_album(umgebung):
             seite.click("#btn-seiten")
             seite.wait_for_selector("#seiten-ergebnis", timeout=300000)
             bild("export-fertige-seiten", voll=True)
+
+            # Alle Themen exportieren und prüfen (Hintergrund, Deckblatt), je Thema ein Bild für die Galerie
+            erwartet = {"klar": (255, 255, 255), "leinen": (251, 250, 246), "nacht": (19, 20, 23), "meer": (234, 243, 246), "galerie": (247, 247, 245)}
+            themen_ordner = {"leinen": ziel / "seiten"}  # Leinen wurde oben mit eigenem Titel exportiert
+            for t in [t for t in THEMEN if t != "leinen"]:
+                seite.evaluate("window.__fotobuch.geheZu(5)")
+                seite.click(f'.themakarte[data-thema="{t}"]')
+                seite.wait_for_function(f"document.querySelector('.themakarte.aktiv')?.dataset.thema === '{t}'")
+                seite.evaluate("window.__fotobuch.geheZu(7)")
+                seite.fill("#ziel", str(basis / f"Thema-{t}"))
+                seite.click("#btn-seiten")
+                seite.wait_for_function(f"document.querySelector('#seiten-ergebnis')?.textContent.includes('Thema-{t}')", timeout=300000)
+                themen_ordner[t] = basis / f"Thema-{t}" / "seiten"
             seite.click("#btn-beenden")
             browser.close()
     finally:
@@ -245,6 +284,37 @@ def test_reise_wird_zum_album(umgebung):
     assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF")
     assert pdf.count(b"/Type /Page ") == plan_seiten
     assert f"/Count {plan_seiten}".encode() in pdf
+
+    # Deckblatt und Themen
+    assert (seiten_dir / "deckblatt.jpg").exists() and (seiten_dir / "deckblatt.pdf").exists()
+    with Image.open(seiten_dir / "deckblatt.jpg") as c:
+        assert c.size == (3508, 2631)
+        assert all(abs(a - b) < 25 for a, b in zip(c.convert("RGB").getpixel((5, 5)), (127, 148, 130))), "Deckblatt im gewählten Thema (Leinen)"
+    galerie_dir = ausgabe / "galerie"
+    nahe = lambda p, soll, tol=12: all(abs(a - b) <= tol for a, b in zip(p, soll))
+    for t in THEMEN:
+        d = themen_ordner[t]
+        assert (d / "deckblatt.jpg").exists() and (d / "fotobuch.pdf").exists(), t
+        seiten_t = sorted(d.glob("seite-*.jpg"))
+        assert len(seiten_t) == plan_seiten, (t, len(seiten_t))
+        with Image.open(d / "deckblatt.jpg") as c, Image.open(seiten_t[1]) as s2, Image.open(seiten_t[2]) as s3:
+            c, s2, s3 = c.convert("RGB"), s2.convert("RGB"), s3.convert("RGB")
+            assert c.size == s2.size == (3508, 2631)
+            ecke = s2.getpixel((5, 5))
+            if t in erwartet:
+                assert nahe(ecke, erwartet[t]), (t, ecke)
+            else:
+                assert ecke[0] > ecke[2] + 30 and 150 < ecke[0] < 235, ("Kraftpapier", ecke)
+            if t == "nacht":
+                assert sum(c.getpixel((20, c.height - 20))) < 150, "Nacht: dunkler Fuss am Deckblatt"
+            if t == "meer":
+                assert sum(c.getpixel((5, 5))) > sum(c.getpixel((5, c.height - 5))) + 60, "Meer: Verlauf von hell nach dunkel"
+            if t == "klar":
+                assert nahe(c.getpixel((5, 5)), (255, 255, 255))
+            drei = Image.new("RGB", (1800, 450), (90, 90, 90))
+            for k, img in enumerate((c, s2, s3)):
+                drei.paste(img.resize((600, 450)), (k * 600, 0))
+            drei.save(galerie_dir / f"{20 + ALLE_THEMEN.index(t):02d}-thema-{t}.jpg", quality=88)
 
     # Neustart: Entscheidung und Ereignisname bleiben erhalten
     proc, url = starte(fotos)

@@ -128,3 +128,55 @@ fn seitenplanung_mit_panorama_und_hoch_quer_paarung() {
     assert_eq!(a4["buch"]["seiten"][0]["fotos"].as_array().unwrap().len(), n1);
     assert_eq!(a4["fotos"][&foto]["vs"], false);
 }
+
+/// Gestaltung: Thema wählen, Wahl bleibt nach Neustart, Felder liegen im Themenbereich, Export schreibt Deckblatt und Seiten im Thema.
+#[test]
+fn gestaltung_thema_wahl_bleibt_und_export_schreibt_deckblatt() {
+    let basis = tempfile::tempdir().unwrap();
+    let dir = basis.path().join("Meine_Reise-2026");
+    std::fs::create_dir(&dir).unwrap();
+    for k in 0..6u32 {
+        // zwei Tage: Zeit aus dem Änderungsdatum
+        bild_mit_zeit(&dir.join(format!("f{k}.jpg")), 400, 300, k + 5, if k < 3 { k as u64 } else { 1440 * 2 + k as u64 });
+    }
+    let p = Arc::new(Mutex::new(Projekt::neu(&dir).unwrap()));
+    analysieren(&p, &|_, _, _| {}).unwrap();
+    let a = p.lock().unwrap().ansicht();
+    let g = &a["gestaltung"];
+    assert_eq!(g["wahl"]["thema"], "klar", "Standard");
+    assert_eq!(g["themen"].as_array().unwrap().len(), 6);
+    assert_eq!(g["titel_auto"], "Meine Reise 2026", "Titel aus dem Ordnernamen");
+    assert_eq!(g["untertitel_auto"], "", "ohne EXIF-Aufnahmezeit gibt es keinen Zeitraum (das Änderungsdatum ist unzuverlässig)");
+    let klar_feld = a["buch"]["seiten"][0]["fotos"][0].clone();
+
+    {
+        let mut pj = p.lock().unwrap();
+        assert!(pj.setze_gestaltung(json!({"thema": "gibtsnicht"}).as_object().unwrap()).is_err());
+        assert!(pj.setze_gestaltung(json!({"titelfoto": "unbekannt"}).as_object().unwrap()).is_err());
+        pj.setze_gestaltung(json!({"thema": "galerie", "titel": "Unsere Reise", "name": "Familie Muster", "farbton": "#00AA55"}).as_object().unwrap()).unwrap();
+    }
+    let a2 = p.lock().unwrap().ansicht();
+    assert_eq!(a2["gestaltung"]["stil"]["rahmen"], "linie");
+    assert_eq!(a2["gestaltung"]["stil"]["akzent"], "#00aa55");
+    let feld = &a2["buch"]["seiten"][0]["fotos"][0];
+    assert!(feld["x"].as_f64().unwrap() > klar_feld["x"].as_f64().unwrap(), "Galerie lässt mehr Rand: {feld} gegen {klar_feld}");
+    assert!(feld["w"].as_f64().unwrap() < klar_feld["w"].as_f64().unwrap());
+
+    // Wahl überlebt einen Neustart
+    drop(p);
+    let p2 = Arc::new(Mutex::new(Projekt::neu(&dir).unwrap()));
+    assert_eq!(p2.lock().unwrap().ansicht()["gestaltung"]["wahl"]["name"], "Familie Muster");
+
+    // Export: Deckblatt mit den gewählten Texten, Seiten mit dem Hintergrund des Themas
+    let paket = p2.lock().unwrap().seitenauftraege().unwrap();
+    assert_eq!(paket.deckblatt.titel, "Unsere Reise");
+    assert!(paket.deckblatt.foto.is_some(), "erstes Foto im Buch als Titelfoto");
+    let ziel = basis.path().join("aus");
+    fotobuch_core::seitenexport::exportiere(&paket.auftraege, Some(&paket.deckblatt), paket.leere, "quadrat", &paket.stil, &ziel, &|_, _| {}).unwrap();
+    assert!(ziel.join("deckblatt.jpg").exists() && ziel.join("deckblatt.pdf").exists() && ziel.join("fotobuch.pdf").exists());
+    let s1 = image::open(ziel.join("seite-001.jpg")).unwrap().to_rgb8();
+    let ecke = s1.get_pixel(5, 5).0;
+    assert!(ecke.iter().zip([247u8, 247, 245]).all(|(a, b)| (*a as i32 - b as i32).abs() < 8), "Galerie-Hintergrund: {ecke:?}");
+    let c = image::open(ziel.join("deckblatt.jpg")).unwrap().to_rgb8();
+    assert_eq!(c.dimensions(), (2480, 2480));
+}

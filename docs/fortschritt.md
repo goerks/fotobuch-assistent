@@ -156,3 +156,10 @@ Kombination aus Farbtönen, Hintergründen, Deckblättern und weiteren Gestaltun
 - Abnahme an einem echten Buchprojekt (Anwender)
 
 **In die MMP-Phase verschoben (2026-10-26):** Neue Seite einfügen und Seiten umordnen, echte Anbieter-Profile, Feinschliff der Oberfläche, Theming.
+
+## 2026-10-26: Gestaltung (Theming) umgesetzt
+
+Neuer Schritt «Gestaltung» (zwischen Seiten und Buch, Export ist jetzt Schritt 7). Sechs Themen: Klar, Leinen, Nacht, Kraft, Meer, Galerie. Jedes Thema bringt Farben, Seitenhintergrund (flach, Kraftpapier, Welle), Fotorahmen (keiner, weisser Rand, dünner Strich, Sofortbild leicht schief), Schrift und ein eigenes Deckblatt mit. Anpassbar sind Farbton, Seitenhintergrund, Fotorahmen, Unterschrift und Seitenzahl sowie Titel, Untertitel (Standard: Zeitraum aus den Aufnahmezeiten), Name und Titelfoto. Die Wahl gilt pro Buch und wird im Projekt gespeichert.
+Der Export zeichnet Deckblatt (`deckblatt.jpg`, `deckblatt.pdf`) und alle Seiten im Thema (300 dpi). Das Deckblatt ist eine eigene Datei, die Seitenzahl des Buchs ändert sich nicht. Schriften sind eingebunden (siehe `docs/schriften.md`), alles bleibt offline.
+Tests: Rust (Themen, Zeichnen, Export), jsdom (Themenwahl, Anpassen), Browser-Durchlauf mit Export aller sechs Themen und Pixelprüfung. Bilder: [Galerie Runde 3](galerie/runde-3.md).
+Noch offen: Thema pro Ereignis, weitere Themen (Polaroid, Hochzeit, Reise-Tagebuch), eigene Hintergrund- und Deckblattbilder, Deckblatt-Vorgaben der echten Druckdienste.
