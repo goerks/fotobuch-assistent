@@ -132,7 +132,8 @@ a{color:var(--akzent)}
 .buchleiste{padding:8px 0;border-bottom:1px solid var(--linie)}
 .buchleiste .abstand{flex:1}
 .doppelseite{max-width:calc(140vh * var(--ar,1.33));width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px auto;padding:10px;background:#0001;border-radius:10px}
-.seitenspalte{margin:0}
+.seitenspalte{margin:0;position:relative}
+.seitenkopf{display:flex;justify-content:center;min-height:34px;align-items:center;margin-bottom:4px}
 .seitenspalte figcaption{font-size:13px;color:var(--still);margin-top:6px;text-align:center}
 .seite{position:relative;width:100%;background:#fff;box-shadow:0 1px 6px #0004;overflow:hidden}
 .seite.frei{background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f1efe9 10px,#f1efe9 20px)}
@@ -156,7 +157,7 @@ a{color:var(--akzent)}
 #lupe .lupe-info p.warn{color:var(--warn)}
 .leer-seite{background:transparent}
 .layout-knopf{margin-left:8px}
-.layoutwahl{margin-top:8px;padding:10px;border:1px solid var(--linie);border-radius:10px;background:var(--karte)}
+.layoutwahl{position:absolute;left:0;right:0;top:38px;z-index:5;max-height:70%;overflow:auto;box-shadow:0 8px 28px #0005;padding:10px;border:1px solid var(--linie);border-radius:10px;background:var(--karte)}
 .layoutkopf{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .layoutliste{display:flex;gap:8px;flex-wrap:wrap}
 .layoutoption{font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;width:104px;border:2px solid var(--linie);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer}

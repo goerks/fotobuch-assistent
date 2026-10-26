@@ -1071,8 +1071,10 @@
           h("label", { for: "buch-goto" }, "Gehe zu Seite"), goto),
         h("div", { class: "doppelseite", id: "doppelseite", style: "--ar:" + b.ar },
           [links, rechts].map((sp) => sp
-            ? h("figure", { class: "seitenspalte" }, seiteElement(sp, true),
-                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : ""), " ", layoutKnopf(sp)),
+            ? h("figure", { class: "seitenspalte" },
+                h("div", { class: "seitenkopf" }, layoutKnopf(sp) || h("span")),
+                seiteElement(sp, true),
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")),
                 S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
         h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
