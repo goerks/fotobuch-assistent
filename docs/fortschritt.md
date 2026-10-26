@@ -153,6 +153,6 @@ Kombination aus Farbtönen, Hintergründen, Deckblättern und weiteren Gestaltun
 - Export und Vorschau zeigen das Foto über beide Seiten ohne Bruch in der Mitte.
 
 **Offen in MVP 2**
-- Echte Anbieter-Profile (Seitenregeln sind Annahmen)
-- Abnahme an einem echten Buchprojekt
-- Neue Seite einfügen und Seiten umordnen
+- Abnahme an einem echten Buchprojekt (Anwender)
+
+**In die MMP-Phase verschoben (2026-10-26):** Neue Seite einfügen und Seiten umordnen, echte Anbieter-Profile, Feinschliff der Oberfläche, Theming.
