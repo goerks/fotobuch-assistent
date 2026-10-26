@@ -1,0 +1,38 @@
+:root{--bg:#fbfaf7;--bg2:#f2efe8;--text:#1c2430;--mut:#5b6573;--acc:#2f6fed;--acc2:#1d4fb8;--karte:#fff;--rand:#e3dfd5;--navy:#161b26;--schatten:0 18px 50px rgba(28,36,48,.16)}
+@media(prefers-color-scheme:dark){:root{--bg:#12151b;--bg2:#181c24;--text:#eceff4;--mut:#a3adbb;--acc:#6b9bff;--acc2:#8fb2ff;--karte:#1d222c;--rand:#2c3340;--schatten:0 18px 50px rgba(0,0,0,.5)}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+img{max-width:100%;height:auto;display:block}a{color:var(--acc)}
+.breit{max-width:1180px;margin:0 auto;padding:0 20px}.schmal{max-width:760px;margin:0 auto;padding:0 20px}
+.kopf{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rand)}
+.kopfinnen{display:flex;align-items:center;gap:22px;height:60px}.logo{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text);text-decoration:none;margin-right:auto}.logo img{border-radius:7px}
+.kopf nav{display:flex;gap:20px}.kopf nav a{color:var(--mut);text-decoration:none;font-size:15px}.kopf nav a:hover{color:var(--text)}
+.sprache{border:1px solid var(--rand);border-radius:999px;padding:4px 13px;font-size:14px;text-decoration:none;color:var(--text)}
+.held{padding:64px 0 40px;background:radial-gradient(900px 400px at 85% 0,color-mix(in srgb,var(--acc) 14%,transparent),transparent)}
+.heldinnen{display:grid;grid-template-columns:1fr 1.25fr;gap:48px;align-items:center}
+.etikett{display:inline-block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--acc);font-weight:700;margin:0 0 12px}
+h1{font-size:clamp(34px,5vw,58px);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}
+.sub{font-size:19px;color:var(--mut);margin:0 0 26px;max-width:520px}
+.knopfzeile{display:flex;flex-wrap:wrap;gap:12px}
+.knopf{display:inline-block;background:var(--acc);color:#fff;padding:11px 20px;border-radius:12px;font-weight:600;text-decoration:none;border:1px solid transparent}
+.knopf:hover{background:var(--acc2)}.knopf.gross{padding:14px 26px;font-size:18px}.knopf.hell{background:transparent;color:var(--text);border-color:var(--rand)}.knopf.hell:hover{background:var(--bg2)}
+.klein{font-size:14px;color:var(--mut);margin-top:14px}
+.heldbild{position:relative}.rahmen{border-radius:12px;overflow:hidden;border:1px solid var(--rand);box-shadow:var(--schatten);background:var(--karte)}
+.schweber{position:absolute;width:34%;border-radius:8px;box-shadow:var(--schatten);border:4px solid #fff}.s1{left:-9%;bottom:-8%;transform:rotate(-5deg)}.s2{right:-3%;top:-9%;transform:rotate(4deg)}
+.streifen{border-block:1px solid var(--rand);background:var(--bg2)}.streifen ul{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:10px 34px;margin:0 auto;padding:16px 20px;font-weight:600;font-size:15px}
+.streifen li::before{content:"✓ ";color:var(--acc)}
+.block{padding:84px 0}.getoent{background:var(--bg2)}h2{font-size:clamp(28px,3.4vw,40px);margin:0 0 10px;letter-spacing:-.01em}.lead{color:var(--mut);max-width:680px;margin:0 0 38px}
+.raster{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.karte{background:var(--karte);border:1px solid var(--rand);border-radius:16px;padding:22px}.karte h3{margin:10px 0 6px;font-size:18px}.karte p{margin:0;color:var(--mut);font-size:15.5px}.ico{font-size:28px}
+.schritte{list-style:none;margin:0;padding:0;display:grid;gap:56px}.schritt{display:grid;grid-template-columns:1fr 1.5fr;gap:40px;align-items:center}.schritt:nth-child(even){grid-template-columns:1.5fr 1fr}.schritt:nth-child(even) .text{order:2}
+.nr{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;font-weight:700}.schritt h3{font-size:24px;margin:10px 0 8px}.schritt p{color:var(--mut);margin:0}
+.zwischen{margin:72px 0 22px;font-size:26px}.raster4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.klein{margin:0}figure.klein figcaption{font-size:14.5px;color:var(--mut);margin-top:9px}figure.klein b{color:var(--text)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}.tabs button{font:inherit;font-size:15px;padding:8px 18px;border-radius:999px;border:1px solid var(--rand);background:var(--karte);color:var(--text);cursor:pointer}.tabs button[aria-selected=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+.themapanel{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.themapanel[hidden]{display:none}.themapanel img{border-radius:8px;box-shadow:var(--schatten);border:1px solid var(--rand);background:#fff}
+.dlraster{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.dlkarte{background:var(--karte);border:1px solid var(--rand);border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:10px}.dlkarte h3{margin:0;font-size:24px}.sys{margin:0;color:var(--mut);font-size:14.5px}.dlkarte ul{margin:6px 0 0;padding-left:18px;color:var(--mut);font-size:14.5px}.dlkarte .knopf{text-align:center;margin-top:6px}
+.dlkarte.treffer{outline:3px solid var(--acc)}.mitte{text-align:center;margin:26px 0 0}
+.ehrlich{margin-top:44px;background:var(--karte);border:1px solid var(--rand);border-left:5px solid var(--acc);border-radius:12px;padding:6px 26px 14px}.ehrlich li{color:var(--mut);margin:7px 0}
+details{border-bottom:1px solid var(--rand);padding:15px 2px}summary{cursor:pointer;font-weight:600;font-size:18px}details p{margin:10px 0 0;color:var(--mut)}
+.fuss{border-top:1px solid var(--rand);padding:30px 0 50px;color:var(--mut);font-size:14.5px}
+@media(max-width:960px){.heldinnen,.schritt,.schritt:nth-child(even){grid-template-columns:1fr}.schritt:nth-child(even) .text{order:0}.raster,.raster4{grid-template-columns:1fr 1fr}.dlraster{grid-template-columns:1fr}.kopf nav{display:none}.schweber{display:none}.themapanel{grid-template-columns:1fr}}
+@media(max-width:560px){.raster,.raster4{grid-template-columns:1fr}.block{padding:56px 0}.held{padding-top:36px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

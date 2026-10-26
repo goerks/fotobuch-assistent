@@ -6,7 +6,7 @@ Arbeitstitel. Ein **lokales, offline arbeitendes Werkzeug**, das die Vorarbeit f
 
 ## Ausprobieren
 
-Fertige, portable Programme (kein Installer) entstehen in der GitHub-Aktion «App bauen» (`.github/workflows/build-exe.yml`): `fotobuch-assistent.exe` für Windows und `Fotobuch-Assistent-mac.zip` (Apple Silicon) für den Mac. Anleitung für Nutzer: [docs/handbuch.md](docs/handbuch.md).
+Fertige, portable Programme (kein Installer) entstehen in der GitHub-Aktion «App bauen» (`.github/workflows/build-exe.yml`): `fotobuch-assistent.exe` für Windows und `Fotobuch-Assistent-mac.zip` (Apple Silicon) für den Mac. Dazu gibt es ein Linux-Paket (`Fotobuch-Assistent-linux-x86_64.tar.gz`). Veröffentlichte Versionen (Tag `v*`) stehen unter [Releases](https://github.com/goerks/fotobuch-assistent/releases). Webseite (Deutsch/Englisch): Ordner `website/`, gebaut mit `tools/web_demo.py`, `tools/web_screens.py` und `tools/web_build.py`. Anleitung für Nutzer: [docs/handbuch.md](docs/handbuch.md).
 
 Aus dem Quellcode (Rust, aktuelle stabile Version; unter Linux zusätzlich `libwebkit2gtk-4.1-dev`):
 

@@ -1,9 +1,12 @@
-name: App bauen (Windows und Mac, portabel)
+name: App bauen (Windows, Mac und Linux, portabel)
 
 on:
   workflow_dispatch:
   push:
-    tags: ["v*"]
+    tags: ["v*"]   # ein Tag wie v0.3.0 veröffentlicht zusätzlich ein Release mit den Downloads
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: never
@@ -106,8 +109,8 @@ jobs:
             <key>CFBundleExecutable</key><string>Fotobuch-Assistent</string>
             <key>CFBundleIconFile</key><string>icon</string>
             <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleShortVersionString</key><string>0.2.0</string>
-            <key>CFBundleVersion</key><string>0.2.0</string>
+            <key>CFBundleShortVersionString</key><string>0.3.0</string>
+            <key>CFBundleVersion</key><string>0.3.0</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
             <key>NSPhotoLibraryUsageDescription</key><string>Fotos werden nur lokal gelesen.</string>
@@ -128,3 +131,81 @@ jobs:
           name: fotobuch-assistent-mac
           path: Fotobuch-Assistent-mac.zip
           if-no-files-found: error
+
+  linux:
+    needs: tests
+    runs-on: ubuntu-22.04   # ältere Systembibliotheken, damit das Programm auf vielen Distributionen läuft
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Systembibliotheken für das Fenster (WebKitGTK) und den Selbsttest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev libxdo-dev libssl-dev xvfb
+      - name: App bauen
+        run: cargo build --release -p fotobuch-assistent
+      - name: Selbsttest (App startet und bleibt offen)
+        run: |
+          xvfb-run -a ./target/release/fotobuch-assistent > app.log 2>&1 &
+          sleep 15
+          if ! pgrep -f target/release/fotobuch-assistent > /dev/null; then cat app.log; echo "App ist beim Start beendet worden"; exit 1; fi
+          pkill -f target/release/fotobuch-assistent || true
+      - name: Paket zusammensetzen (portabel, ohne Installer)
+        run: |
+          D="Fotobuch-Assistent"
+          mkdir -p "$D"
+          cp target/release/fotobuch-assistent "$D/fotobuch-assistent"
+          cp crates/app/icons/128x128.png "$D/fotobuch-assistent.png"
+          cat > "$D/Fotobuch-Assistent.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Fotobuch-Assistent
+          Comment=Fotos lokal ordnen, aussortieren und für den Druck vorbereiten
+          Exec=./fotobuch-assistent
+          Icon=fotobuch-assistent
+          Categories=Graphics;Photography;
+          Terminal=false
+          DESKTOP
+          cat > "$D/LIESMICH.txt" <<'TXT'
+          Fotobuch-Assistent für Linux (portabel, keine Installation)
+
+          Starten: Doppelklick auf «fotobuch-assistent» oder im Terminal ./fotobuch-assistent
+          Falls nötig zuerst ausführbar machen: chmod +x fotobuch-assistent
+
+          Voraussetzung: WebKitGTK 4.1 (auf den meisten Desktop-Systemen vorhanden).
+            Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0
+            Fedora:        sudo dnf install webkit2gtk4.1
+            Arch:          sudo pacman -S webkit2gtk-4.1
+
+          Alles läuft lokal. Es werden keine Fotos hochgeladen, deine Originale bleiben unverändert.
+          TXT
+          chmod +x "$D/fotobuch-assistent"
+          tar -czf Fotobuch-Assistent-linux-x86_64.tar.gz "$D"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fotobuch-assistent-linux
+          path: Fotobuch-Assistent-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: pakete
+      - name: Dateien mit festen Namen bereitstellen (die Webseite verlinkt genau diese Namen)
+        run: |
+          mkdir -p release
+          cp pakete/fotobuch-assistent-windows/fotobuch-assistent.exe release/Fotobuch-Assistent-windows.exe
+          cp pakete/fotobuch-assistent-mac/Fotobuch-Assistent-mac.zip release/
+          cp pakete/fotobuch-assistent-linux/Fotobuch-Assistent-linux-x86_64.tar.gz release/
+          ls -la release
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

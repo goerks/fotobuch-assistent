@@ -164,3 +164,5 @@ Der Export zeichnet Deckblatt (`deckblatt.jpg`, `deckblatt.pdf`) und alle Seiten
 Tests: Rust (Themen, Zeichnen, Export), jsdom (Themenwahl, Anpassen), Browser-Durchlauf mit Export aller sechs Themen und Pixelprüfung. Bilder: [Galerie Runde 3](galerie/runde-3.md).
 Noch offen: Thema pro Ereignis, weitere Themen (Polaroid, Hochzeit, Reise-Tagebuch), eigene Hintergrund- und Deckblattbilder, Deckblatt-Vorgaben der echten Druckdienste.
 Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach Platz, werden bei Platzmangel scrollbar und bleiben immer im Fenster, ohne Fenster oder Seite zu vergrössern. Der Browser-Durchlauf prüft das bei normalem und kleinem Fenster. Auswahllisten (Seitenformat, Rahmen usw.) und Kontextmenüs zeichnet das Betriebssystem selbst im Fenster.
+
+**Später (nur gemerkt):** Recherche zu lokalen Modellen für bessere Auswahl: [docs/ideen/lokale-modelle.md](ideen/lokale-modelle.md). Nichts davon ist umgesetzt.
