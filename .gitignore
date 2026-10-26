@@ -75,3 +75,4 @@ fotobuch-export/
 # Rust
 /target/
 crates/app/gen/
+!docs/galerie/**/*.jpg
