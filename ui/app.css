@@ -292,3 +292,24 @@ a{color:var(--akzent)}
 .legende .k::before{content:"●";margin-right:5px}
 .legende .k.drin::before{color:#1f7a4d}.legende .k.draussen::before{color:#5d6675}.legende .k.eigen::before{color:var(--akzent)}
 .knopf.klein{padding:4px 10px;font-size:.85rem}
+
+/* Ereignisse: Feinheit und Zeitleiste */
+.feinheit{display:flex;align-items:center;gap:28px;background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:14px 20px;margin:10px 0}
+.fein-links{width:170px;flex-shrink:0}
+.fein-zahl{font-size:1.5rem;font-weight:700;line-height:1.15}
+.fein-mitte{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.fein-mitte input[type=range]{width:100%}
+.fein-enden{display:flex;justify-content:space-between;font-size:.85rem}
+.zeitleiste{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:12px 18px;margin:10px 0}
+.zl-kopf{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:8px}
+.zl-kopf .still{font-size:.85rem}
+.zl-tag{display:flex;align-items:flex-end;gap:12px;margin:6px 0}
+.zl-name{width:96px;flex-shrink:0;display:flex;flex-direction:column;font-size:.9rem}
+.zl-name .still{font-size:.78rem}
+.zl-balken{flex:1;min-width:0;display:flex;align-items:flex-end;gap:3px;height:62px;border-bottom:1px solid var(--linie);padding-top:16px}
+.zl-fach{flex:1;min-width:6px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative;height:100%}
+.zl-bar{width:100%;border-radius:3px 3px 0 0;min-height:2px}
+.zl-teile,.zl-grenze{border:0;background:transparent;cursor:pointer;padding:0;line-height:1;font-size:.85rem;color:#b8541a}
+.zl-grenze{color:var(--akzent);font-size:.95rem}
+.textknopf{border:0;background:transparent;color:var(--akzent);font-weight:600;cursor:pointer;padding:4px 6px}
+.orte-zeile summary{cursor:pointer;color:var(--akzent);font-weight:600;font-size:.88rem}

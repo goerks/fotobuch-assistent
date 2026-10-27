@@ -1057,7 +1057,72 @@ impl Projekt {
     fn ereignis_anzeigename(&self, ei: usize) -> String {
         let ev = &self.erg().ereignisse[ei];
         let key = self.ids[ev.fotos[0]].clone();
-        self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| ev.titel(&self.fotos))
+        self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| self.auto_titel(ei))
+    }
+
+    /// Vorgeschlagener Name eines Ereignisses. Gleiche Namen am selben Tag werden durchnummeriert.
+    pub fn auto_titel(&self, ei: usize) -> String {
+        let erg = self.erg();
+        let basis = erg.ereignisse[ei].titel(&self.fotos);
+        let vorher = erg.ereignisse[..ei].iter().filter(|e| e.titel(&self.fotos) == basis).count();
+        if vorher == 0 { basis } else { format!("{} ({})", basis, vorher + 1) }
+    }
+
+    /// Wie viele Ereignisse ergäben sich bei dieser Pause? Ändert nichts.
+    pub fn ereignis_vorschau(&self, luecke_stunden: f64) -> usize {
+        let e = &self.einstellungen;
+        Self::ereignisse_anpassen(bilde_ereignisse(&self.fotos, luecke_stunden.clamp(0.5, 72.0), e.max_km), &self.ids, &self.ereignis_teilen, &self.ereignis_verbinden).len()
+    }
+
+    /// Die Reise auf einen Blick: je Tag Fotos pro Stunde, mit dem Ereignis, zu dem sie gehören,
+    /// einer möglichen Teilung bei einer Pause und der Grenze zum vorherigen Ereignis.
+    fn zeitleiste(&self) -> Value {
+        use chrono::Timelike;
+        #[derive(Default)]
+        struct Fach {
+            n: usize,
+            ev: BTreeMap<usize, usize>,
+            teile: Option<(i64, String)>,
+            grenze: Option<String>,
+        }
+        let erg = self.erg();
+        let mut tage: BTreeMap<chrono::NaiveDate, BTreeMap<u32, Fach>> = BTreeMap::new();
+        for (k, ev) in erg.ereignisse.iter().enumerate() {
+            if ev.ohne_datum(&self.fotos) {
+                continue;
+            }
+            let mut vorher: Option<chrono::NaiveDateTime> = None;
+            for (pos, &i) in ev.fotos.iter().enumerate() {
+                let f = &self.fotos[i];
+                let fach = tage.entry(f.zeit.date()).or_default().entry(f.zeit.hour()).or_default();
+                fach.n += 1;
+                *fach.ev.entry(k).or_insert(0) += 1;
+                if let (true, Some(v)) = (pos > 0, vorher) {
+                    let luecke = (f.zeit - v).num_minutes();
+                    if luecke >= 20 && fach.teile.as_ref().map_or(true, |(g, _)| luecke > *g) {
+                        fach.teile = Some((luecke, self.ids[i].clone()));
+                    }
+                } else if pos == 0 && ev.nummer > 1 {
+                    fach.grenze = Some(self.ids[ev.fotos[0]].clone());
+                }
+                vorher = Some(f.zeit);
+            }
+        }
+        let liste: Vec<Value> = tage
+            .into_iter()
+            .map(|(tag, faecher)| {
+                let (von, bis) = (*faecher.keys().next().unwrap(), *faecher.keys().last().unwrap());
+                let stunden: Vec<Value> = (von..=bis)
+                    .map(|h| match faecher.get(&h) {
+                        Some(f) => json!({"h": h, "n": f.n, "ev": f.ev.iter().max_by_key(|(_, n)| **n).map(|(k, _)| *k), "teile": f.teile.as_ref().map(|(_, id)| id), "grenze": f.grenze}),
+                        None => json!({"h": h, "n": 0, "ev": null, "teile": null, "grenze": null}),
+                    })
+                    .collect();
+                let dt = tag.and_hms_opt(12, 0, 0).unwrap();
+                json!({"datum": tag.to_string(), "name": format!("{} {}", crate::events::wochentag(&dt), tag.format("%d.%m.")), "fotos": faecher.values().map(|f| f.n).sum::<usize>(), "stunden": stunden})
+            })
+            .collect();
+        json!(liste)
     }
 
     /// Verständliche Begründung, warum ein Foto im Buch ist oder nicht.
@@ -1470,7 +1535,7 @@ impl Projekt {
                 "key": key,
                 "nummer": ev.nummer,
                 "name": self.ereignis_namen.get(&key).cloned().unwrap_or_default(),
-                "titel": ev.titel(&self.fotos),
+                "titel": self.auto_titel(i),
                 "von": ev.start(&self.fotos).format("%Y-%m-%dT%H:%M").to_string(),
                 "bis": ev.ende(&self.fotos).format("%Y-%m-%dT%H:%M").to_string(),
                 "anzahl": ev.fotos.len(),
@@ -1582,6 +1647,7 @@ impl Projekt {
                 "ereignis_aenderungen": self.ereignis_teilen.len() + self.ereignis_verbinden.len(),
             },
             "ereignisse": ereignisse,
+            "zeitleiste": self.zeitleiste(),
             "orte": orte_ansicht,
             "zahlen_orte": {
                 "orte": erg.orte.len(),
@@ -1634,7 +1700,7 @@ impl Projekt {
                 continue;
             }
             let key = self.ids[erg.ereignisse[ei].fotos[0]].clone();
-            let name = self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| erg.ereignisse[ei].titel(&self.fotos));
+            let name = self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| self.auto_titel(ei));
             let ordnername = kuerze(&sauber(&format!("{:02}_{}", ei + 1, name)), 80);
             for &i in buch {
                 nr += 1;
@@ -1660,7 +1726,7 @@ impl Projekt {
                 let (ei, rel) = &rel_von[&i];
                 let f = &self.fotos[i];
                 let key = self.ids[erg.ereignisse[*ei].fotos[0]].clone();
-                let name = self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| erg.ereignisse[*ei].titel(&self.fotos));
+                let name = self.ereignis_namen.get(&key).cloned().unwrap_or_else(|| self.auto_titel(*ei));
                 let ort = erg.ort_von[i].map(|o| self.ort_name(o)).unwrap_or_default();
                 zeilen.push(vec![(seitennr + 1).to_string(), name, rel.clone(), f.name.clone(), f.zeit.format("%Y-%m-%d %H:%M").to_string(), ort]);
             }

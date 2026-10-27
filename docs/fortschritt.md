@@ -173,3 +173,10 @@ Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach 
 - Pro Ereignis eine Auswahl-Galerie: im Buch mit Seitenzahl, aussortiert mit Grund, Klick überschreibt (blau).
 - Vergleich vorher/nachher: [docs/galerie/schritte/01-umfang.png](galerie/schritte/01-umfang.png).
 - Reihenfolge der Schritte bleibt (Aussortieren vor Umfang), weil die Galerie das Überschreiben im Umfang erlaubt.
+
+## Ablauf-Verbesserung, Schritt 2 (Ereignisse)
+- Regler «Feinheit» (grob bis fein) statt Zahlenfelder, mit Live-Zahl der Ereignisse (`/api/ereignisse/vorschau`). Pause und Umkreis stehen unter «Genauer einstellen».
+- Zeitleiste der Reise (Fotos pro Stunde, Farbe = Ereignis). ✂ teilt an einer Pause (ab 20 Minuten), ◂ legt mit dem vorherigen Ereignis zusammen.
+- Lesbare Namen: «Sa 18.07. Nachmittag» (Wochentag, Datum, Tageszeit); gleiche Namen werden nummeriert. Ortsnamen kann die App offline nicht ermitteln.
+- Orte eingeklappt, Teilen und Zusammenlegen als Textknöpfe. Vergleich: [docs/galerie/schritte/02-ereignisse.png](galerie/schritte/02-ereignisse.png).
+

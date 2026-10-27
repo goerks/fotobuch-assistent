@@ -119,6 +119,33 @@ test("Ereignisse: zusammenlegen, wieder teilen, zurücksetzen", async () => {
   assert.equal(qa(".ereignis").length, 2);
 });
 
+test("Ereignisse: Feinheit-Regler und Zeitleiste mit Teilen und Zusammenlegen", async () => {
+  const S = () => win.__fotobuch.S.a;
+  assert.ok(q("#feinheit"), "Regler Feinheit");
+  assert.match(q("#fein-zahl").textContent, /^2 Ereignisse$/);
+  assert.ok(q("#luecke"), "genaue Einstellung bleibt unter «Genauer einstellen»");
+  assert.ok(q("#zeitleiste") && qa("#zeitleiste .zl-bar").length >= 2, "Zeitleiste mit Balken");
+  assert.ok(qa("#zeitleiste .zl-tag").length >= 1);
+  // fein: Pause 0,5 Stunden
+  setze(q("#feinheit"), "100");
+  await warteBis(() => S().einstellungen.luecke_stunden === 0.5, "feine Einteilung gespeichert");
+  const fein = S().zahlen.ereignisse;
+  setze(q("#feinheit"), "0");
+  await warteBis(() => S().einstellungen.luecke_stunden === 24, "grobe Einteilung gespeichert");
+  assert.ok(S().zahlen.ereignisse <= 2 && S().zahlen.ereignisse <= fein, "grob ergibt nicht mehr Ereignisse als fein");
+  setze(q("#luecke"), "6");
+  await warteBis(() => S().einstellungen.luecke_stunden === 6 && S().zahlen.ereignisse === 2, "wieder 6 Stunden");
+  // Zeitleiste: Klick auf die Grenze legt zusammen, Zurücksetzen stellt wieder her
+  const grenze = q("#zeitleiste .zl-grenze");
+  assert.ok(grenze, "Grenze zwischen den Ereignissen");
+  klick(grenze);
+  await warteBis(() => S().zahlen.ereignisse === 1, "über die Zeitleiste zusammengelegt");
+  klick(q("#ereignisse-zurueck"));
+  await warteBis(() => S().zahlen.ereignisse === 2, "zurückgesetzt");
+  // lesbare Namen
+  assert.match(q('input[data-key]').placeholder, /^(Mo|Di|Mi|Do|Fr|Sa|So) \d\d\.\d\d\. /);
+});
+
 test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswahl", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#serie"), "Serienansicht");

@@ -1,6 +1,6 @@
 //! Ereignisse bilden: Fotos nach Zeit sortieren und bei grossen Lücken oder Ortswechseln trennen.
 
-use chrono::{Datelike, NaiveDateTime, Weekday};
+use chrono::{Datelike, NaiveDateTime, Timelike, Weekday};
 
 use crate::foto::Foto;
 use crate::scanner::entfernung_km;
@@ -35,17 +35,38 @@ impl Ereignis {
     pub fn ohne_datum(&self, fotos: &[Foto]) -> bool {
         self.fotos.iter().all(|&i| fotos[i].zeit_quelle == "datei") && fotos.iter().any(|f| f.zeit_quelle != "datei")
     }
+    /// Lesbarer Name aus Wochentag, Datum und Tageszeit, zum Beispiel «Sa 18.07. Nachmittag».
     pub fn titel(&self, fotos: &[Foto]) -> String {
         if self.ohne_datum(fotos) {
             return "Ohne Aufnahmezeit".to_string();
         }
         let (s, e) = (self.start(fotos), self.ende(fotos));
-        let tag = format!("{} {}", wochentag(&s), s.format("%d.%m.%Y"));
-        if s.date() == e.date() {
-            format!("{} {}–{}", tag, s.format("%H:%M"), e.format("%H:%M"))
-        } else {
-            format!("{} {} bis {} {}", tag, s.format("%H:%M"), wochentag(&e), e.format("%d.%m.%Y %H:%M"))
+        if s.date() != e.date() {
+            return format!("{} {} bis {} {}", wochentag(&s), s.format("%d.%m."), wochentag(&e), e.format("%d.%m."));
         }
+        format!("{} {} {}", wochentag(&s), s.format("%d.%m."), tageszeit(s.hour(), e.hour()))
+    }
+}
+
+/// Tageszeit eines Ereignisses nach Start- und Endstunde.
+pub fn tageszeit(von: u32, bis: u32) -> &'static str {
+    let teil = |h: u32| match h {
+        5..=11 => 0,
+        12..=16 => 1,
+        17..=21 => 2,
+        _ => 3,
+    };
+    let (a, b) = (teil(von), teil(bis));
+    if a == b {
+        ["Vormittag", "Nachmittag", "Abend", "Nacht"][a]
+    } else if a == 0 && b >= 2 {
+        "Tagsüber"
+    } else if a == 0 {
+        "Vormittag bis Nachmittag"
+    } else if a == 1 {
+        "Nachmittag und Abend"
+    } else {
+        "Abend"
     }
 }
 
@@ -88,4 +109,18 @@ pub fn bilde_ereignisse(fotos: &[Foto], luecke_stunden: f64, max_km: f64) -> Vec
         ereignisse.push(Ereignis { nummer: ereignisse.len() + 1, fotos: ohne });
     }
     ereignisse
+}
+
+#[cfg(test)]
+mod namen_tests {
+    use super::tageszeit;
+
+    #[test]
+    fn tageszeit_nach_start_und_ende() {
+        assert_eq!(tageszeit(9, 11), "Vormittag");
+        assert_eq!(tageszeit(14, 16), "Nachmittag");
+        assert_eq!(tageszeit(18, 20), "Abend");
+        assert_eq!(tageszeit(9, 19), "Tagsüber");
+        assert_eq!(tageszeit(13, 19), "Nachmittag und Abend");
+    }
 }

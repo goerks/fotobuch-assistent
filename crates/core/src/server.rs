@@ -452,6 +452,10 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             p.ereignis_mit_vorherigem(&text(d, "key")?)?;
             Ok(ok())
         }
+        "/api/ereignisse/vorschau" => {
+            let l = d.get("luecke_stunden").and_then(|v| v.as_f64()).ok_or("Ungültige Anfrage")?;
+            Ok(json!({"anzahl": p.ereignis_vorschau(l)}))
+        }
         "/api/ereignisse/zuruecksetzen" => {
             if p.ergebnis.is_some() {
                 p.ereignisse_zuruecksetzen();

@@ -397,46 +397,89 @@
 
   // ------------------------------------------------------------------ Schritt 2: Ereignisse
 
+  const EV_FARBEN = ["#2a6db5", "#1f8a7a", "#c98a1b", "#8b5cb8", "#c0504d", "#4f7f2a"];
+  const GRENZEN_LUECKE = [24, 0.5]; // grob (Stunden), fein (Stunden)
+  const lueckeVonFein = (f) => Math.round(GRENZEN_LUECKE[0] * Math.pow(GRENZEN_LUECKE[1] / GRENZEN_LUECKE[0], f / 100) * 100) / 100;
+  const feinVonLuecke = (l) => Math.max(0, Math.min(100, Math.round((Math.log(GRENZEN_LUECKE[0] / l) / Math.log(GRENZEN_LUECKE[0] / GRENZEN_LUECKE[1])) * 100)));
+  const stundenText = (l) => (Number.isInteger(l) ? String(l) : String(l).replace(".", ",")) + (l === 1 ? " Stunde" : " Stunden");
+
+  function zeitleiste(a) {
+    const tage = a.zeitleiste || [];
+    if (!tage.length) return null;
+    const maxn = Math.max(1, ...tage.flatMap((t) => t.stunden.map((s) => s.n)));
+    const aenderung = (daten, pfad) => aktion(async () => { await api(pfad, daten); await ladeUndZeige(); });
+    return h("div", { class: "zeitleiste", id: "zeitleiste" },
+      h("div", { class: "zl-kopf" }, h("b", {}, "Die Reise auf einen Blick"), h("span", { class: "still" }, "Jeder Balken zeigt die Fotos einer Stunde, die Farbe das Ereignis. ✂ teilt an einer Pause, ◂ legt mit dem vorherigen Ereignis zusammen.")),
+      tage.map((tag) =>
+        h("div", { class: "zl-tag" },
+          h("div", { class: "zl-name" }, h("b", {}, tag.name), h("span", { class: "still" }, tag.fotos + " Fotos")),
+          h("div", { class: "zl-balken" }, tag.stunden.map((s) => {
+            const farbe = s.n ? EV_FARBEN[(s.ev || 0) % EV_FARBEN.length] : "transparent";
+            const stil = "height:" + (s.n ? 6 + Math.round((44 * s.n) / maxn) : 2) + "px;background:" + farbe;
+            const titel = String(s.h).padStart(2, "0") + " Uhr: " + s.n + (s.n === 1 ? " Foto" : " Fotos");
+            return h("div", { class: "zl-fach", title: titel },
+              s.teile ? h("button", { type: "button", class: "zl-teile", "data-id": s.teile, title: "An dieser Pause ein neues Ereignis beginnen", "aria-label": "Hier teilen", onclick: () => aenderung({ id: s.teile }, "/api/ereignis/teilen") }, "✂") : null,
+              s.grenze ? h("button", { type: "button", class: "zl-grenze", "data-key": s.grenze, title: "Mit dem vorherigen Ereignis zusammenlegen", "aria-label": "Mit vorherigem zusammenlegen", onclick: () => aenderung({ key: s.grenze }, "/api/ereignis/zusammenlegen") }, "◂") : null,
+              h("div", { class: "zl-bar", style: stil }));
+          }))
+        )
+      )
+    );
+  }
+
   function viewEreignisse() {
     const a = S.a;
     const z = a.zahlen;
     const v = h("div", {});
     v.append(
       h("h1", {}, "Ereignisse"),
-      h("p", { class: "still" }, "Der Assistent hat deine Fotos nach der Aufnahmezeit sortiert und in " + z.ereignisse + " Ereignisse geteilt (Tage, Ausflüge, Anlässe). Gib ihnen Namen, sie erscheinen später im Export."),
+      h("p", { class: "still" }, "So hat der Assistent deine Reise eingeteilt: " + z.ereignisse + " Ereignisse (Tage, Ausflüge, Anlässe). Passe die Feinheit an oder korrigiere in der Zeitleiste. Gib den Ereignissen Namen, sie erscheinen im Buch."),
       hilfe(
         "Wie wird geteilt?",
-        h("p", {}, "Eine neue Gruppe beginnt, wenn zwischen zwei Fotos mehr als die eingestellte Zeitlücke liegt oder der Ort mehr als " + a.einstellungen.max_km + " km springt. Ist die Einteilung zu fein oder zu grob, ändere die Zeitlücke."),
-        h("p", {}, "Beispiele: 6 Stunden trennt Vormittag und Abend am selben Tag nicht, aber die Nacht dazwischen. 2 Stunden macht aus einem Tag mehrere Gruppen.")
+        h("p", {}, "Eine neue Gruppe beginnt, wenn zwischen zwei Fotos eine Pause liegt, die länger ist als die eingestellte Zeit, oder wenn der Ort mehr als " + a.einstellungen.max_km + " km springt."),
+        h("p", {}, "Mit dem Regler «Feinheit» stellst du die Pause ein: grob heisst wenige grosse Ereignisse, fein viele kleine. Genauere Werte findest du unter «Genauer einstellen».")
       )
     );
     if (z.ohne_aufnahmezeit) {
       v.append(h("div", { class: "warn" }, z.ohne_aufnahmezeit + " Fotos haben keine Aufnahmezeit. Sie stehen als eigenes Ereignis am Schluss."));
     }
-    const luecke = h("input", { type: "number", id: "luecke", min: 0.5, max: 72, step: 0.5, value: a.einstellungen.luecke_stunden, "aria-label": "Zeitlücke in Stunden" });
-    luecke.addEventListener("change", () =>
-      aktion(async () => {
-        await api("/api/einstellungen", { luecke_stunden: Number(luecke.value) });
-        await ladeUndZeige();
-      })
-    );
-    v.append(h("div", { class: "zeile" }, h("label", { for: "luecke" }, "Neues Ereignis nach einer Pause von"), luecke, h("span", {}, "Stunden")));
+
+    // Feinheit
+    const l0 = a.einstellungen.luecke_stunden;
+    const regler = h("input", { type: "range", id: "feinheit", min: 0, max: 100, step: 1, value: feinVonLuecke(l0), "aria-label": "Feinheit der Einteilung" });
+    const zahlEl = h("div", { class: "fein-zahl", id: "fein-zahl" }, pl(z.ereignisse, "Ereignis", "Ereignisse"));
+    const pauseEl = h("span", { class: "still", id: "fein-pause" }, "Neue Gruppe nach " + stundenText(l0) + " Pause");
+    const luecke = h("input", { type: "number", id: "luecke", min: 0.5, max: 72, step: 0.5, value: l0, "aria-label": "Zeitlücke in Stunden" });
+    let timer = null;
+    regler.addEventListener("input", () => {
+      const l = lueckeVonFein(Number(regler.value));
+      pauseEl.textContent = "Neue Gruppe nach " + stundenText(l) + " Pause";
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try { const r = await api("/api/ereignisse/vorschau", { luecke_stunden: l }); zahlEl.textContent = pl(r.anzahl, "Ereignis", "Ereignisse"); } catch (e) { /* Vorschau ist nur Zugabe */ }
+      }, 120);
+    });
+    regler.addEventListener("change", () => aktion(async () => { await api("/api/einstellungen", { luecke_stunden: lueckeVonFein(Number(regler.value)) }); await ladeUndZeige(); }));
+    luecke.addEventListener("change", () => aktion(async () => { await api("/api/einstellungen", { luecke_stunden: Number(luecke.value) }); await ladeUndZeige(); }));
+    const genau = h("details", { class: "hilfe", id: "genau" }, h("summary", {}, "Genauer einstellen"),
+      h("div", { class: "zeile" }, h("label", { for: "luecke" }, "Neues Ereignis nach einer Pause von"), luecke, h("span", {}, "Stunden")));
     const zo = a.zahlen_orte;
     if (zo.mit_gps) {
       const radius = h("input", { type: "number", id: "ort-radius", min: 25, max: 5000, step: 25, value: a.einstellungen.ort_radius_m, "aria-label": "Ortsradius in Metern" });
-      radius.addEventListener("change", () =>
-        aktion(async () => {
-          await api("/api/einstellungen", { ort_radius_m: Number(radius.value) });
-          await ladeUndZeige();
-        })
-      );
-      v.append(
+      radius.addEventListener("change", () => aktion(async () => { await api("/api/einstellungen", { ort_radius_m: Number(radius.value) }); await ladeUndZeige(); }));
+      genau.append(
         h("div", { class: "zeile" }, h("label", { for: "ort-radius" }, "Fotos gelten als gleicher Ort bis"), radius, h("span", {}, "Meter Umkreis")),
         h("p", { class: "still", id: "orte-info" }, zo.mit_gps + " von " + a.zahlen.lesbar + " Fotos haben GPS-Daten und ergeben " + pl(zo.orte, "Ort", "Orte") + ". Fotos ohne GPS bekommen den Ort des zeitlich nächsten Fotos (bis 30 Minuten). Die Orte prüfst und begrenzt du im nächsten Schritt.")
       );
     } else {
-      v.append(h("p", { class: "still", id: "orte-info" }, "Keines der Fotos hat GPS-Daten. Deshalb gibt es keine Orte. Das ist normal bei Kameras ohne Ortung oder wenn Ortungsdienste aus waren."));
+      genau.append(h("p", { class: "still", id: "orte-info" }, "Keines der Fotos hat GPS-Daten. Deshalb gibt es keine Orte. Das ist normal bei Kameras ohne Ortung oder wenn Ortungsdienste aus waren."));
     }
+    v.append(h("div", { class: "feinheit" },
+      h("div", { class: "fein-links" }, h("div", { class: "still" }, "Feinheit"), zahlEl),
+      h("div", { class: "fein-mitte" }, regler, h("div", { class: "fein-enden still" }, h("span", {}, "Grob: wenige grosse Ereignisse"), h("span", {}, "Fein: viele kleine")), pauseEl)), genau);
+
+    const zl = zeitleiste(a);
+    if (zl) v.append(zl);
 
     for (const e of a.ereignisse) {
       const name = h("input", { type: "text", class: "breit", "data-key": e.key, value: e.name, placeholder: e.titel, "aria-label": "Name von Ereignis " + e.nummer, maxlength: 80 });
@@ -449,19 +492,19 @@
       v.append(
         h(
           "div",
-          { class: "ereignis" },
+          { class: "ereignis", style: "border-left:6px solid " + EV_FARBEN[e.index % EV_FARBEN.length] },
           h("div", {}, name, h("div", { class: "zeit" }, e.ohne_datum ? "Diese Fotos enthalten keine Aufnahmezeit. Sie stehen am Schluss des Buchs, nach Dateiname." : zeitraum(e.von, e.bis) + (e.ohne_zeit ? " · " + e.ohne_zeit + " ohne Aufnahmezeit" : ""))),
           h("div", { class: "zahl" }, h("b", {}, e.im_buch), " von " + e.anzahl + " Fotos", h("br"), e.seiten + (e.seiten === 1 ? " Seite" : " Seiten")),
-          e.orte.length ? h("div", { class: "orte-zeile" }, "Orte: ", e.orte.slice(0, 6).map((o) => h("span", { class: "ortchip" }, o[1] + " · " + o[2])), e.orte.length > 6 ? " und " + (e.orte.length - 6) + " weitere" : null) : null,
+          e.orte.length ? h("details", { class: "orte-zeile" }, h("summary", {}, "Orte prüfen (" + e.orte.length + ")"), e.orte.slice(0, 12).map((o) => h("span", { class: "ortchip" }, o[1] + " · " + o[2])), e.orte.length > 12 ? " und " + (e.orte.length - 12) + " weitere" : null) : null,
           h("div", { class: "streifen" }, e.vorschau.map((id) => h("img", { src: vorschauUrl(id, 160), alt: "", loading: "lazy" }))),
           h(
             "div",
             { class: "ev-werkzeuge" },
             e.nummer > 1
-              ? h("button", { class: "klein", "data-aktion": "zusammenlegen", onclick: () => aktion(async () => { await api("/api/ereignis/zusammenlegen", { key: e.key }); S.teilenOffen = null; await ladeUndZeige(); }) }, "Mit vorherigem zusammenlegen")
+              ? h("button", { class: "klein textknopf", "data-aktion": "zusammenlegen", onclick: () => aktion(async () => { await api("/api/ereignis/zusammenlegen", { key: e.key }); S.teilenOffen = null; await ladeUndZeige(); }) }, "Mit vorherigem zusammenlegen")
               : null,
             e.anzahl > 1
-              ? h("button", { class: "klein", "data-aktion": "teilen", onclick: () => { S.teilenOffen = S.teilenOffen === e.key ? null : e.key; zeige(); } }, S.teilenOffen === e.key ? "Teilen abbrechen" : "Teilen …")
+              ? h("button", { class: "klein textknopf", "data-aktion": "teilen", onclick: () => { S.teilenOffen = S.teilenOffen === e.key ? null : e.key; zeige(); } }, S.teilenOffen === e.key ? "Teilen abbrechen" : "Teilen …")
               : null
           ),
           S.teilenOffen === e.key
