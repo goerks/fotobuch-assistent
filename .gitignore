@@ -76,3 +76,7 @@ fotobuch-export/
 /target/
 crates/app/gen/
 !docs/galerie/**/*.jpg
+
+# Webseite: gezeichnete Demobilder und App-Screenshots (keine privaten Fotos)
+!website/img/*.webp
+!website/img/*.png
