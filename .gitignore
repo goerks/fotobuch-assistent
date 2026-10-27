@@ -80,3 +80,4 @@ crates/app/gen/
 # Webseite: gezeichnete Demobilder und App-Screenshots (keine privaten Fotos)
 !website/img/*.webp
 !website/img/*.png
+!docs/galerie/schritte/*.png

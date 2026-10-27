@@ -7,7 +7,7 @@
     { nr: 1, name: "Fotos laden" },
     { nr: 2, name: "Ereignisse" },
     { nr: 3, name: "Aussortieren" },
-    { nr: 4, name: "Seiten" },
+    { nr: 4, name: "Umfang" },
     { nr: 5, name: "Gestaltung" },
     { nr: 6, name: "Buch" },
     { nr: 7, name: "Export" },
@@ -242,17 +242,17 @@
     let status;
     if (p.ueber_maximum) {
       status = h("div", { class: "warn" }, "Mehr Seiten als das Profil erlaubt (" + S.a.profil.seiten_max + ").");
-    } else if (p.fehlende_fotos === 0) {
-      status = h("div", { class: "gut" }, "Alle Seiten sind gefüllt.");
+    } else if (p.leere_seiten === 0) {
+      status = h("div", { class: "gut" }, "Alle Seiten sind belegt.");
     } else {
-      status = h("p", { class: "still" }, "Bis zur vollen Seitenzahl fehlen noch ", h("b", {}, p.fehlende_fotos), " Fotos.");
+      status = h("p", { class: "still" }, p.leere_seiten === 1 ? "Eine Seite bleibt frei." : p.leere_seiten + " Seiten bleiben frei.");
     }
     side.replaceChildren(
       h("h2", {}, "Dein Buch"),
       h("div", { class: "wert", id: "buch-fotos" }, zahl(z.im_buch)),
       h("div", { class: "still" }, "Fotos im Buch (von " + zahl(z.dateien) + ")"),
       h("div", { class: "wert", id: "buch-seiten", style: "margin-top:12px" }, p.buch_seiten),
-      h("div", { class: "still" }, "Seiten · " + p.seiten_benoetigt + " nötig bei " + p.fotos_pro_seite + " Fotos pro Seite"),
+      h("div", { class: "still" }, "Seiten · " + p.seiten_benoetigt + " belegt, " + p.pro_seite_von + " bis " + p.pro_seite_bis + " Fotos pro Seite"),
       status,
       h(
         "ul",
@@ -779,7 +779,9 @@
     zeige();
   }
 
-  // ------------------------------------------------------------------ Schritt 4: Seiten
+  // ------------------------------------------------------------------ Schritt 4: Umfang
+
+  const DICHTEN = [[-1, "Kompakt"], [0, "Normal"], [1, "Gross"]];
 
   function viewSeiten() {
     const a = S.a;
@@ -788,29 +790,35 @@
     const prof = a.profil;
     const v = h("div", {});
     v.append(
-      h("h1", {}, "Seiten"),
-      h("p", { class: "still" }, "Wie viele Fotos passen auf eine Seite, und wie viele Seiten ergibt dein Buch? Der Zähler rechnet mit, während du Fotos auswählst."),
+      h("h1", {}, "Umfang"),
+      h("p", { class: "still" }, "Wie viel Platz bekommt jedes Ereignis? Der Assistent wählt die Seitenzahl je Ereignis so, dass die Fotos in deinen Bereich passen. Darunter siehst du, welche Fotos es ins Buch geschafft haben."),
       hilfe(
-        "So rechnet der Seitenzähler",
-        h("p", {}, "Seiten = Fotos geteilt durch Fotos pro Seite, aufgerundet. Druckdienste erlauben nur bestimmte Seitenzahlen (zum Beispiel ab 24, dann in Zweierschritten). Das Buch hat deshalb immer die nächste erlaubte Seitenzahl."),
-        h("p", {}, "Beginnt jedes Ereignis auf einer neuen Seite, bleiben dort oft Plätze frei. Das ist übersichtlicher, braucht aber mehr Seiten."),
-        h("p", {}, "Vorschläge machen genau dort Platz oder füllen auf, wo sich eine Seite lohnt. Du entscheidest, ob du sie anwendest.")
+        "So wird gerechnet",
+        h("p", {}, "Du gibst einen Bereich an, zum Beispiel 2 bis 5 Fotos pro Seite. Ein Ereignis mit wenigen Fotos bekommt eine Seite, ein grosses mehrere, auch eine ungerade Zahl."),
+        h("p", {}, "Doppelseiten werden bevorzugt: Ein Ereignis soll möglichst auf einer linken Seite beginnen. Geht das nur auf Kosten eines schlechten Fotoverhältnisses, beginnt es auf der rechten Seite."),
+        h("p", {}, "Pro Ereignis kannst du die Dichte (kompakt, normal, gross) oder die Seitenzahl selbst festlegen. Druckdienste erlauben nur bestimmte Seitenzahlen (zum Beispiel ab 24, dann in Zweierschritten). Freie Plätze nutzt der Assistent, indem er Seiten luftiger macht.")
       )
     );
 
     const feld = (id, bez, hin, el) => h("div", { class: "feld" }, h("label", { for: id }, bez), el, hin ? h("span", { class: "hinweis" }, hin) : null);
     const speichere = (daten) => aktion(async () => { await api("/api/einstellungen", daten); await ladeUndZeige(); });
-
-    const fps = h("input", { type: "number", id: "fps", min: 1, max: 8, step: 1, value: e.fotos_pro_seite });
-    fps.addEventListener("change", () => speichere({ fotos_pro_seite: Number(fps.value) }));
+    const zahlFeld = (id, wert, min, max, schluessel) => {
+      const x = h("input", { type: "number", id, min, max, step: 1, value: wert });
+      x.addEventListener("change", () => speichere({ [schluessel]: Number(x.value) }));
+      return x;
+    };
     const getrennt = h("input", { type: "checkbox", id: "getrennt", checked: e.ereignisse_getrennt });
     getrennt.addEventListener("change", () => speichere({ ereignisse_getrennt: getrennt.checked }));
     const profil = h("select", { id: "profil" }, prof.auswahl.map((n) => h("option", { value: n, selected: n === e.profil }, n)));
     profil.addEventListener("change", () => speichere({ profil: profil.value }));
+    const ziel = h("input", { type: "number", id: "ziel-seiten", min: 1, max: 1000, step: 1, value: e.seiten_ziel || "", placeholder: "so viel nötig" });
+    ziel.addEventListener("change", () => speichere({ seiten_ziel: ziel.value || null }));
 
     v.append(
       h("div", { class: "zeile" },
-        feld("fps", "Fotos pro Seite", "Durchschnitt, ein bis acht", fps),
+        feld("von", "Fotos pro Seite von", null, zahlFeld("von", e.pro_seite_von, 1, 12, "pro_seite_von")),
+        feld("bis", "bis", null, zahlFeld("bis", e.pro_seite_bis, 1, 12, "pro_seite_bis")),
+        feld("ziel-seiten", "Buchgrösse in Seiten", "Leer: so viele wie nötig", ziel),
         feld("profil", "Druckdienst", null, profil)),
       h("div", { class: "zeile" }, getrennt, h("label", { for: "getrennt" }, "Jedes Ereignis beginnt auf einer neuen Seite"))
     );
@@ -832,39 +840,74 @@
     // Zähler
     const zaehler = h("div", { class: "zaehler", id: "zaehler" },
       h("div", { class: "gross" }, p.buch_seiten + " Seiten"),
-      h("p", {}, zahl(p.fotos) + " Fotos ergeben " + p.seiten_benoetigt + " Seiten" + (p.leere_seiten ? ", " + (p.leere_seiten === 1 ? "1 Seite bleibt" : p.leere_seiten + " Seiten bleiben") + " leer." : ".")));
-    if (p.ueber_maximum) zaehler.append(h("div", { class: "warn" }, "Das sind mehr Seiten als erlaubt (" + prof.seiten_max + "). Entferne Fotos oder erhöhe Fotos pro Seite."));
-    else if (p.fehlende_fotos === 0) zaehler.append(h("div", { class: "gut" }, "Alle " + p.buch_seiten + " Seiten sind gefüllt."));
-    else zaehler.append(h("p", {}, "Um alle " + p.buch_seiten + " Seiten zu füllen, fehlen ", h("b", { id: "fehlend" }, p.fehlende_fotos), " Fotos."));
-    if (p.kleinere_stufe) zaehler.append(h("p", {}, "Mit ", h("b", { id: "weglassen" }, p.weglassen_fuer_kleinere_stufe), (p.weglassen_fuer_kleinere_stufe === 1 ? " Foto weniger passt das Buch auf " : " Fotos weniger passt das Buch auf "), h("b", {}, p.kleinere_stufe), " Seiten."));
+      h("p", {}, zahl(p.fotos) + " Fotos auf " + p.seiten_benoetigt + " Seiten" + (p.leere_seiten ? ", " + (p.leere_seiten === 1 ? "1 Seite bleibt" : p.leere_seiten + " Seiten bleiben") + " frei." : ".")));
+    if (p.ueber_maximum) zaehler.append(h("div", { class: "warn" }, "Das sind mehr Seiten als erlaubt (" + prof.seiten_max + "). Entferne Fotos oder erhöhe den Bereich."));
+    const stufen = [];
+    if (p.kleinere_stufe) stufen.push(h("button", { type: "button", class: "knopf", id: "btn-kleiner", onclick: () => speichere({ seiten_ziel: p.kleinere_stufe }) }, "Auf " + p.kleinere_stufe + " Seiten verdichten"));
+    if (p.groessere_stufe) stufen.push(h("button", { type: "button", class: "knopf", id: "btn-groesser", onclick: () => speichere({ seiten_ziel: p.groessere_stufe }) }, "Auf " + p.groessere_stufe + " Seiten auflockern"));
+    if (stufen.length) zaehler.append(h("div", { class: "zeile" }, ...stufen));
     v.append(zaehler);
 
-    // Vorschläge
-    const vs = a.vorschlaege;
-    if (vs.auffuellen.length) {
-      v.append(vorschlagBlock("auffuellen", "Auffüllen", (vs.auffuellen.length === 1 ? "Dieses Foto aus einer aussortierten Serie füllt" : "Diese " + vs.auffuellen.length + " Fotos aus aussortierten Serien füllen") + " freie Plätze, ohne eine Seite zu verändern.", vs.auffuellen, "Alle ins Buch nehmen"));
-    }
-    if (vs.kuerzen.length) {
-      v.append(vorschlagBlock("kuerzen", "Kürzen auf " + p.kleinere_stufe + " Seiten", (vs.kuerzen.length === 1 ? "Dieses Foto ist das schwächste" : "Diese " + vs.kuerzen.length + " Fotos sind die schwächsten") + " an den Stellen, wo dadurch eine Seite wegfällt.", vs.kuerzen, "Alle entfernen"));
-    }
-
-    // Tabelle
+    // Ereignisse mit Auswahl-Galerie
+    v.append(h("h2", {}, "Ereignisse und ihre Auswahl"));
+    if (!e.ereignisse_getrennt) v.append(h("p", { class: "still" }, "Die Ereignisse laufen ohne Trennung ineinander. Die Seitenzahl gilt für das ganze Buch."));
+    S.umfangOffen = S.umfangOffen || new Set([0]);
+    a.ereignisse.forEach((ev, i) => v.append(ereignisKarte(ev, p.ereignisse[i], i)));
     v.append(
-      h("h2", {}, "Seiten je Ereignis"),
-      h("table", { id: "tabelle" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Ereignis"), h("th", { class: "z" }, "Fotos"), h("th", { class: "z" }, "Seiten"))),
-        h("tbody", {}, a.ereignisse.map((ev) => h("tr", {}, h("td", {}, ereignisName(ev)), h("td", { class: "z" }, ev.im_buch), h("td", { class: "z" }, ev.seiten)))))
+      h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", id: "umfang-zurueck", onclick: () => aktion(async () => { await api("/api/umfang/zuruecksetzen", {}); await ladeUndZeige(); }) }, "Dichte und Seitenzahlen zurücksetzen"))
     );
     v.append(fuss(3, 5, "Weiter zur Gestaltung →"));
     return v;
   }
 
-  function vorschlagBlock(art, titel, text, ids, knopf) {
-    return h("div", { class: "vorschlag", "data-art": art },
-      h("h3", {}, titel),
-      h("p", {}, text),
-      h("div", { class: "streifen", style: "margin-bottom:10px" }, ids.slice(0, 12).map((id) => h("img", { src: vorschauUrl(id, 160), alt: S.a.fotos[id].n, title: S.a.fotos[id].n }))),
-      h("button", { type: "button", class: "knopf haupt", id: "btn-" + art, onclick: () => aktion(async () => { await api("/api/vorschlag/anwenden", { art }); await ladeUndZeige(); }) }, knopf));
+  function ereignisKarte(ev, up, i) {
+    const a = S.a;
+    const getrennt = a.einstellungen.ereignisse_getrennt;
+    const nachher = () => ladeUndZeige();
+    const setze = (daten) => aktion(async () => { await api("/api/ereignis/umfang", { key: ev.key, ...daten }); await nachher(); });
+    const kopf = h("div", { class: "ek-kopf" },
+      h("div", { class: "ek-titel" },
+        h("b", {}, ereignisName(ev)),
+        h("span", { class: "still" }, ev.anzahl + " Fotos aufgenommen · " + ev.im_buch + " im Buch" + (ev.anzahl > ev.im_buch ? " · " + (ev.anzahl - ev.im_buch) + " aussortiert" : ""))));
+    if (getrennt && up.fotos > 0) {
+      const dichte = h("div", { class: "seg", role: "group", "aria-label": "Dichte" }, DICHTEN.map(([w, t]) =>
+        h("button", { type: "button", "data-dichte": w, "aria-pressed": String(up.dichte === w), class: up.dichte === w ? "an" : "", onclick: () => setze({ dichte: w === up.dichte ? null : w }) }, t)));
+      const schritt = (d) => setze({ seiten: Math.max(1, Math.min(up.fotos, up.normal_seiten + d)) });
+      const zaehl = h("div", { class: "stepper" },
+        h("button", { type: "button", class: "minus", "aria-label": "Eine Seite weniger", disabled: up.normal_seiten <= 1, onclick: () => schritt(-1) }, "−"),
+        h("b", { class: "seitenzahl" }, up.seiten + (up.seiten === 1 ? " Seite" : " Seiten")),
+        h("button", { type: "button", class: "plus", "aria-label": "Eine Seite mehr", disabled: up.normal_seiten >= up.fotos, onclick: () => schritt(1) }, "+"));
+      kopf.append(dichte, zaehl);
+      if (up.manuell) kopf.append(h("button", { type: "button", class: "knopf klein", onclick: () => setze({ seiten: null }) }, "Automatisch"));
+    }
+    const von = up.start ? "Seite " + up.start + (up.seiten > 1 ? "–" + (up.start + up.seiten - 1) : "") : "";
+    const zeile = getrennt && up.fotos > 0
+      ? h("div", { class: "ek-meta still" }, von + " · " + up.pro_seite.toString().replace(".", ",") + " Fotos pro Seite · beginnt auf der " + (up.start === 1 ? "ersten Seite" : up.links ? "linken Seite" : "rechten Seite") + (up.manuell ? " · Seitenzahl von dir festgelegt" : ""))
+      : null;
+    const offen = S.umfangOffen.has(i);
+    const galerie = h("details", { class: "galerie", open: offen, "data-ereignis": i }, h("summary", {}, "Auswahl aus diesem Ereignis"));
+    galerie.addEventListener("toggle", () => { if (galerie.open) { S.umfangOffen.add(i); fuelleGalerie(galerie, ev); } else S.umfangOffen.delete(i); });
+    if (offen) fuelleGalerie(galerie, ev);
+    return h("div", { class: "ereigniskarte", "data-ereignis": i }, kopf, zeile, galerie);
+  }
+
+  function fuelleGalerie(galerie, ev) {
+    if (galerie.querySelector(".gitter")) return;
+    const a = S.a;
+    const eigene = ev.ids.filter((id) => a.fotos[id].e);
+    const wechsel = (id) => aktion(async () => { await api("/api/foto", { id, aktion: a.fotos[id].b ? "entfernen" : "behalten" }); await ladeUndZeige(); });
+    galerie.append(
+      h("p", { class: "hinweis still" }, "Klick auf ein Foto holt es ins Buch oder nimmt es heraus. Deine Wahl bleibt erhalten."),
+      h("div", { class: "gitter" }, ev.ids.map((id) => {
+        const f = a.fotos[id];
+        const text = f.b ? (f.s ? "S. " + f.s : "im Buch") : (f.g || "aussortiert").split(",")[0].split(":")[0];
+        return h("button", { type: "button", class: "gfoto " + (f.b ? "drin" : "draussen") + (f.e ? " eigen" : ""), "data-id": id, "data-status": f.b ? "buch" : "aus", title: f.n + " · " + f.g, onclick: () => wechsel(id) },
+          h("img", { src: vorschauUrl(id, 160), alt: f.n, loading: "lazy" }),
+          h("span", { class: "gmarke" }, text));
+      })),
+      h("div", { class: "legende still" }, h("span", { class: "k drin" }, "im Buch mit Seitenzahl"), h("span", { class: "k draussen" }, "aussortiert, mit Grund"), h("span", { class: "k eigen" }, "von dir geändert"))
+    );
+    if (eigene.length) galerie.append(h("button", { type: "button", class: "knopf klein", onclick: () => aktion(async () => { for (const id of eigene) await api("/api/foto", { id, aktion: "auto" }); await ladeUndZeige(); }) }, "Meine Änderungen in diesem Ereignis zurücknehmen"));
   }
 
   // ------------------------------------------------------------------ Schritt 7: Export
@@ -884,7 +927,7 @@
       h("div", { class: "chips" }, chip(zahl(a.zahlen.im_buch), "Fotos"), chip(p.buch_seiten, "Seiten"), chip(a.zahlen.ereignisse, "Ereignisse"))
     );
     if (p.ueber_maximum) v.append(h("div", { class: "warn" }, "Das Buch hat mehr Seiten als das Profil erlaubt. Du kannst trotzdem exportieren."));
-    if (p.fehlende_fotos) v.append(h("div", { class: "warn" }, "Es fehlen noch " + p.fehlende_fotos + " Fotos bis zur vollen Seitenzahl. Du kannst trotzdem exportieren."));
+    if (p.leere_seiten) v.append(h("div", { class: "hinweis still" }, (p.leere_seiten === 1 ? "Eine Seite bleibt" : p.leere_seiten + " Seiten bleiben") + " frei, weil der Druckdienst nur bestimmte Seitenzahlen erlaubt."));
     const ziel = h("input", { type: "text", id: "ziel", class: "breit", placeholder: a.ordner + "\\fotobuch-export", "aria-label": "Zielordner", value: S.zielPfad || "" });
     ziel.addEventListener("input", () => { S.zielPfad = ziel.value; });
     v.append(
@@ -1180,7 +1223,7 @@
       h("p", { class: "still" }, "So würde dein Buch aussehen. Die Reihenfolge folgt der Aufnahmezeit. Pro Seite wählt der Assistent die Anordnung, bei der die Fotos möglichst gross sind, nichts beschnitten wird und Hoch- und Querformate zusammenpassen. Klicke ein Foto an für Details oder zum Entfernen."),
       hilfe("Wie wird angeordnet?",
         h("ul", {},
-          h("li", {}, "Jedes Ereignis beginnt auf einer neuen Seite (einstellbar im Schritt «Seiten»)."),
+          h("li", {}, "Jedes Ereignis beginnt auf einer neuen Seite (einstellbar im Schritt «Umfang»)."),
           h("li", {}, "Fotos einer Seite bleiben in zeitlicher Reihenfolge. Das Layout (nebeneinander, untereinander, verschachtelt) wird je nach Hoch- oder Querformat gewählt."),
           h("li", {}, "Es wird nicht beschnitten, die Fotos behalten ihr Seitenverhältnis."),
           h("li", {}, "Freie Seiten am Ende gibt es, weil Druckdienste nur bestimmte Seitenzahlen erlauben.")))
@@ -1188,12 +1231,9 @@
     const fmt = h("select", { id: "seitenformat", "aria-label": "Seitenformat" },
       [["quer", "Quer (4:3)"], ["quadrat", "Quadratisch"], ["hoch", "Hoch (3:4)"]].map(([w, t]) => h("option", { value: w, selected: a.einstellungen.seitenformat === w }, t)));
     fmt.addEventListener("change", () => speichere({ seitenformat: fmt.value }));
-    const fps = h("input", { type: "number", id: "bf-fps", min: 1, max: 8, step: 1, value: a.einstellungen.fotos_pro_seite });
-    fps.addEventListener("change", () => speichere({ fotos_pro_seite: Number(fps.value) }));
     v.append(
       h("div", { class: "zeile buchleiste" },
         h("label", { for: "seitenformat" }, "Seitenformat"), fmt,
-        h("label", { for: "bf-fps" }, "Fotos pro Seite (Durchschnitt)"), fps,
         h("span", { class: "still" }, a.zahlen.im_buch + " Fotos auf " + b.seiten.length + " Seiten" + (b.freie_seiten.length ? " + " + b.freie_seiten.length + " freie" : "")),
         h("span", { class: "abstand" }),
         h("button", { type: "button", class: "knopf" + (S.buchAnsicht === "doppel" ? " haupt" : ""), id: "btn-ansicht-doppel", onclick: () => { S.buchAnsicht = "doppel"; zeige(); } }, "Blättern"),

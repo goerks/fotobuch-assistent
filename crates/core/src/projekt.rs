@@ -23,7 +23,8 @@ use crate::foto::Foto;
 use crate::gestaltung::{feld_im_bereich, monat_name, Gestaltung};
 use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
-use crate::pages::{lade_profil, seitenplan_ereignisse, Profil, PROFILE};
+use crate::pages::{lade_profil, Profil, PROFILE};
+use crate::umfang::{self, Eingabe};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
 
 pub const ZUSTANDSDATEI: &str = "projekt.json";
@@ -40,7 +41,11 @@ pub struct Einstellungen {
     pub serie_minuten: f64,
     pub ort_radius_m: i64,
     pub max_pro_ort: Option<i64>,
-    pub fotos_pro_seite: i64,
+    /// Bereich «Fotos pro Seite»: Jedes Ereignis bekommt so viele Seiten, dass es hineinpasst.
+    pub pro_seite_von: i64,
+    pub pro_seite_bis: i64,
+    /// Gewünschte Seitenzahl des Buchs; leer = so viele wie nötig.
+    pub seiten_ziel: Option<i64>,
     pub profil: String,
     pub seiten_min: Option<i64>,
     pub seiten_schritt: Option<i64>,
@@ -58,7 +63,9 @@ impl Default for Einstellungen {
             serie_minuten: 15.0,
             ort_radius_m: 200,
             max_pro_ort: None,
-            fotos_pro_seite: 3,
+            pro_seite_von: 2,
+            pro_seite_bis: 5,
+            seiten_ziel: None,
             profil: "allgemein".into(),
             seiten_min: None,
             seiten_schritt: None,
@@ -90,6 +97,8 @@ struct Zustand {
     verschoben: BTreeMap<String, String>,
     ereignis_teilen: BTreeSet<String>,
     ereignis_verbinden: BTreeSet<String>,
+    ereignis_dichte: BTreeMap<String, i64>,
+    ereignis_seiten: BTreeMap<String, i64>,
     gestaltung: Gestaltung,
     schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
@@ -155,6 +164,8 @@ pub struct Projekt {
     pub verschoben: BTreeMap<String, String>,
     pub ereignis_teilen: BTreeSet<String>,
     pub ereignis_verbinden: BTreeSet<String>,
+    pub ereignis_dichte: BTreeMap<String, i64>,
+    pub ereignis_seiten: BTreeMap<String, i64>,
     pub gestaltung: Gestaltung,
     pub schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
@@ -220,6 +231,8 @@ impl Projekt {
             verschoben: BTreeMap::new(),
             ereignis_teilen: BTreeSet::new(),
             ereignis_verbinden: BTreeSet::new(),
+            ereignis_dichte: BTreeMap::new(),
+            ereignis_seiten: BTreeMap::new(),
             gestaltung: Gestaltung::default(),
             schritt: 1,
             cache: BTreeMap::new(),
@@ -260,6 +273,8 @@ impl Projekt {
                 self.verschoben = z.verschoben;
                 self.ereignis_teilen = z.ereignis_teilen;
                 self.ereignis_verbinden = z.ereignis_verbinden;
+                self.ereignis_dichte = z.ereignis_dichte;
+                self.ereignis_seiten = z.ereignis_seiten;
                 self.gestaltung = z.gestaltung;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
                 self.cache = z.cache;
@@ -287,6 +302,8 @@ impl Projekt {
             verschoben: self.verschoben.clone(),
             ereignis_teilen: self.ereignis_teilen.clone(),
             ereignis_verbinden: self.ereignis_verbinden.clone(),
+            ereignis_dichte: self.ereignis_dichte.clone(),
+            ereignis_seiten: self.ereignis_seiten.clone(),
             gestaltung: self.gestaltung.clone(),
             schritt: self.schritt,
             cache: self.cache.clone(),
@@ -648,11 +665,11 @@ impl Projekt {
                         _ => e.max_km = x,
                     }
                 }
-                "aehnlich_abstand" | "ort_radius_m" | "fotos_pro_seite" => {
+                "aehnlich_abstand" | "ort_radius_m" | "pro_seite_von" | "pro_seite_bis" => {
                     let (lo, hi) = match k.as_str() {
                         "aehnlich_abstand" => (0, 16),
                         "ort_radius_m" => (25, 5000),
-                        _ => (1, 8),
+                        _ => (1, 12),
                     };
                     let x = ganzzahl_aus(v).ok_or_else(|| format!("Ungültiger Wert für {k}"))?;
                     if !(lo..=hi).contains(&x) {
@@ -661,7 +678,14 @@ impl Projekt {
                     match k.as_str() {
                         "aehnlich_abstand" => e.aehnlich_abstand = x,
                         "ort_radius_m" => e.ort_radius_m = x,
-                        _ => e.fotos_pro_seite = x,
+                        "pro_seite_von" => {
+                            e.pro_seite_von = x;
+                            e.pro_seite_bis = e.pro_seite_bis.max(x);
+                        }
+                        _ => {
+                            e.pro_seite_bis = x;
+                            e.pro_seite_von = e.pro_seite_von.min(x);
+                        }
                     }
                 }
                 "profil" => {
@@ -687,7 +711,7 @@ impl Projekt {
                         _ => true,
                     }
                 }
-                "seiten_min" | "seiten_schritt" | "seiten_max" | "max_pro_ort" => {
+                "seiten_min" | "seiten_schritt" | "seiten_max" | "max_pro_ort" | "seiten_ziel" => {
                     let x = match v {
                         Value::Null => None,
                         Value::String(s) if s.is_empty() => None,
@@ -703,6 +727,7 @@ impl Projekt {
                         "seiten_min" => e.seiten_min = x,
                         "seiten_schritt" => e.seiten_schritt = x,
                         "seiten_max" => e.seiten_max = x,
+                        "seiten_ziel" => e.seiten_ziel = x,
                         _ => e.max_pro_ort = x,
                     }
                 }
@@ -762,22 +787,35 @@ impl Projekt {
             .collect()
     }
 
-    /// Fotos je Ereignis für die Seitenmathematik: Ein Foto mit eigener Seite zählt wie eine volle Seite,
-    /// ein Foto über eine Doppelseite wie zwei volle Seiten.
-    fn seiten_counts(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<i64> {
-        let fps = self.einstellungen.fotos_pro_seite.max(1);
-        zahlen
+    /// Eingabe der Seitenrechnung je Ereignis (oder eine Gruppe, wenn Ereignisse nicht getrennt werden).
+    fn umfang_eingabe(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<Eingabe> {
+        let erg = self.erg();
+        let je_ereignis: Vec<Eingabe> = zahlen
             .iter()
-            .map(|(_, b)| {
-                b.iter()
-                    .map(|&i| match self.seitenart(i) {
-                        0 => 1,
-                        1 => fps,
-                        _ => 2 * fps,
-                    })
-                    .sum()
+            .enumerate()
+            .map(|(ei, (_, b))| {
+                let key = &self.ids[erg.ereignisse[ei].fotos[0]];
+                let (mut normal, mut sonder) = (0, 0);
+                for &i in b {
+                    match self.seitenart(i) {
+                        0 => normal += 1,
+                        1 => sonder += 1,
+                        _ => sonder += 2,
+                    }
+                }
+                Eingabe { normal, sonder, dichte: self.ereignis_dichte.get(key).copied().unwrap_or(0), manuell: self.ereignis_seiten.get(key).copied() }
             })
-            .collect()
+            .collect();
+        if self.einstellungen.ereignisse_getrennt {
+            je_ereignis
+        } else {
+            vec![Eingabe { normal: je_ereignis.iter().map(|e| e.normal).sum(), sonder: je_ereignis.iter().map(|e| e.sonder).sum(), ..Default::default() }]
+        }
+    }
+
+    pub fn umfang_plan(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> umfang::Plan {
+        let e = &self.einstellungen;
+        umfang::plane(&self.umfang_eingabe(zahlen), e.pro_seite_von, e.pro_seite_bis, &self.profil(), e.seiten_ziel)
     }
 
     pub fn seitenverhaeltnis_foto(&self, i: usize) -> f64 {
@@ -863,9 +901,47 @@ impl Projekt {
         self.speichern();
     }
 
+    /// Seitenzähler für die App: Seiten je Ereignis, Buchgrösse und Spielraum.
     pub fn seitenplan_aus(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Value {
-        let counts = self.seiten_counts(zahlen);
-        seitenplan_ereignisse(&counts, self.einstellungen.fotos_pro_seite, &self.profil(), self.einstellungen.ereignisse_getrennt)
+        let plan = self.umfang_plan(zahlen);
+        let e = &self.einstellungen;
+        let profil = self.profil();
+        let getrennt = e.ereignisse_getrennt;
+        let total: usize = zahlen.iter().map(|(_, b)| b.len()).sum();
+        let erg = self.erg();
+        // Je Ereignis: bei getrennten Ereignissen der eigene Plan, sonst anteilig
+        let normal_gesamt: i64 = plan.gruppen.iter().map(|g| g.normal_seiten).sum::<i64>().max(1);
+        let ereignisse: Vec<Value> = zahlen
+            .iter()
+            .enumerate()
+            .map(|(ei, (_, b))| {
+                let key = self.ids[erg.ereignisse[ei].fotos[0]].clone();
+                let dichte = self.ereignis_dichte.get(&key).copied().unwrap_or(0);
+                if getrennt {
+                    let g = &plan.gruppen[ei];
+                    json!({"seiten": g.seiten(), "normal_seiten": g.normal_seiten, "min": g.min, "max": g.max, "start": g.start, "links": g.beginnt_links() && !b.is_empty(),
+                        "manuell": g.manuell, "dichte": dichte, "fotos": b.len(), "pro_seite": if g.normal_seiten > 0 { (b.len() as f64 / g.seiten().max(1) as f64 * 10.0).round() / 10.0 } else { 0.0 }})
+                } else {
+                    let anteil = if total == 0 { 0 } else { ((b.len() as f64 / total as f64) * normal_gesamt as f64).round() as i64 };
+                    json!({"seiten": anteil, "normal_seiten": anteil, "min": 0, "max": 0, "start": 0, "links": false, "manuell": false, "dichte": 0, "fotos": b.len(), "pro_seite": 0.0})
+                }
+            })
+            .collect();
+        json!({
+            "fotos": total,
+            "pro_seite_von": e.pro_seite_von,
+            "pro_seite_bis": e.pro_seite_bis,
+            "ziel": e.seiten_ziel,
+            "ereignisse_getrennt": getrennt,
+            "seiten_benoetigt": plan.summe,
+            "buch_seiten": plan.buch,
+            "leere_seiten": plan.leer,
+            "ueber_maximum": plan.buch > profil.max(),
+            "kleinere_stufe": plan.kleinere,
+            "groessere_stufe": plan.groessere,
+            "seiten_je_ereignis": ereignisse.iter().map(|e| e["seiten"].clone()).collect::<Vec<_>>(),
+            "ereignisse": ereignisse,
+        })
     }
 
     pub fn seitenplan(&self) -> Value {
@@ -873,91 +949,40 @@ impl Projekt {
         self.seitenplan_aus(&self.ereignis_zahlen(&einst))
     }
 
-    /// Konkrete Fotos zum Auffüllen oder Kürzen, passend zum Seitenzähler.
-    fn vorschlaege_aus(&self, plan: &Value, einst: &[Einstufung], zahlen: &[(Vec<usize>, Vec<usize>)]) -> (Vec<usize>, Vec<usize>) {
-        let fps = self.einstellungen.fotos_pro_seite.max(1);
-        let getrennt = self.einstellungen.ereignisse_getrennt;
-        let maxs = self.maxs;
-
-        let mut auf: Vec<usize> = Vec::new();
-        let fehlt = plan["fehlende_fotos"].as_i64().unwrap_or(0);
-        if fehlt > 0 {
-            let mut frei: Vec<i64> = if getrennt {
-                self.seiten_counts(zahlen)
-                    .into_iter()
-                    .map(|n| if n == 0 { 0 } else { ((n + fps - 1) / fps * fps - n).max(0) })
-                    .collect()
-            } else {
-                vec![fehlt]
-            };
-            let mut kandidaten: Vec<(f64, String, usize, usize)> = Vec::new();
-            for (ei, (ids, _)) in zahlen.iter().enumerate() {
-                for &i in ids {
-                    let e = &einst[i];
-                    if e.behalten || e.eigene {
-                        continue;
-                    }
-                    if !(e.grund.starts_with("Serie") || e.grund.starts_with("Ort")) {
-                        continue;
-                    }
-                    kandidaten.push((-score(&self.fotos[i], maxs), self.ids[i].clone(), if getrennt { ei } else { 0 }, i));
+    /// Dichte (-1 kompakt, 0 normal, 1 gross) und/oder feste Seitenzahl eines Ereignisses. `None` setzt zurück.
+    pub fn ereignis_umfang(&mut self, key: &str, dichte: Option<Option<i64>>, seiten: Option<Option<i64>>) -> Res<()> {
+        if !self.id_index.contains_key(key) {
+            return Err("Unbekanntes Ereignis".into());
+        }
+        if let Some(d) = dichte {
+            match d {
+                Some(x) if (-1..=1).contains(&x) && x != 0 => {
+                    self.ereignis_dichte.insert(key.to_string(), x);
                 }
-            }
-            kandidaten.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().then_with(|| a.1.cmp(&b.1)));
-            for (_s, _id, ei, i) in kandidaten {
-                if auf.len() as i64 >= fehlt {
-                    break;
-                }
-                if frei[ei] > 0 {
-                    frei[ei] -= 1;
-                    auf.push(i);
+                _ => {
+                    self.ereignis_dichte.remove(key);
                 }
             }
         }
-
-        let mut kuerzen: Vec<usize> = Vec::new();
-        let weglassen = plan["weglassen_fuer_kleinere_stufe"].as_i64();
-        if let (Some(w), Some(kp)) = (weglassen, plan["kuerzungsplan"].as_object()) {
-            if w > 0 {
-                // Reihenfolge: nach Ereignis-Index, wie die Schlüssel im Plan stehen
-                let mut eintraege: Vec<(usize, i64)> = kp.iter().filter_map(|(k, v)| Some((k.parse().ok()?, v.as_i64()?))).collect();
-                eintraege.sort();
-                for (ei, anzahl) in eintraege {
-                    let buch: Vec<usize> = if getrennt { zahlen[ei].1.clone() } else { zahlen.iter().flat_map(|(_, b)| b.iter().copied()).collect() };
-                    // Eigene Entscheidungen zum Behalten sind geschützt
-                    let mut frei_zum_entfernen: Vec<usize> =
-                        buch.into_iter().filter(|&i| self.entscheidungen.get(&self.ids[i]).map(|s| s.as_str()) != Some("behalten")).collect();
-                    frei_zum_entfernen.sort_by(|&a, &b| score(&self.fotos[a], maxs).partial_cmp(&score(&self.fotos[b], maxs)).unwrap());
-                    kuerzen.extend(frei_zum_entfernen.into_iter().take(anzahl as usize));
+        if let Some(s) = seiten {
+            match s {
+                Some(x) if (1..=500).contains(&x) => {
+                    self.ereignis_seiten.insert(key.to_string(), x);
                 }
-                if kuerzen.len() as i64 != w {
-                    kuerzen.clear(); // nicht exakt machbar, lieber nichts vorschlagen
+                None => {
+                    self.ereignis_seiten.remove(key);
                 }
+                _ => return Err("Ungültige Seitenzahl".into()),
             }
-        }
-        (auf, kuerzen)
-    }
-
-    pub fn vorschlag_anwenden(&mut self, art: &str, ids: Option<Vec<String>>) -> Res<usize> {
-        let einst = self.einstufungen();
-        let zahlen = self.ereignis_zahlen(&einst);
-        let plan = self.seitenplan_aus(&zahlen);
-        let (auf, kuerzen) = self.vorschlaege_aus(&plan, &einst, &zahlen);
-        let liste = match art {
-            "auffuellen" => auf,
-            "kuerzen" => kuerzen,
-            _ => return Err("Unbekannter Vorschlag".into()),
-        };
-        let erlaubt: Vec<String> = liste.iter().map(|&i| self.ids[i].clone()).collect();
-        let ziel: Vec<String> = match ids {
-            Some(l) => l.into_iter().filter(|i| erlaubt.contains(i)).collect(),
-            None => erlaubt,
-        };
-        for i in &ziel {
-            self.entscheidungen.insert(i.clone(), if art == "auffuellen" { "behalten" } else { "entfernen" }.into());
         }
         self.speichern();
-        Ok(ziel.len())
+        Ok(())
+    }
+
+    pub fn umfang_zuruecksetzen(&mut self) {
+        self.ereignis_dichte.clear();
+        self.ereignis_seiten.clear();
+        self.speichern();
     }
 
     // ------------------------------------------------------------------ Ansicht
@@ -1097,9 +1122,9 @@ impl Projekt {
 
     /// Wie `seiten_gruppen`, dazu die Seitenart: 0 normal, 1 ganze Seite, 2 linke und 3 rechte Hälfte eines Fotos über die Doppelseite.
     fn seiten_gruppen_ex(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>, u8)> {
-        let fps = self.einstellungen.fotos_pro_seite.max(1);
         let getrennt = self.einstellungen.ereignisse_getrennt;
         let erg = self.erg();
+        let plan = self.umfang_plan(zahlen);
         let schlangen: Vec<(usize, Vec<usize>)> = if getrennt {
             zahlen.iter().enumerate().map(|(ei, (_, b))| (ei, b.clone())).collect()
         } else {
@@ -1116,7 +1141,8 @@ impl Projekt {
         };
         for (ei, q) in schlangen {
             let normal = q.iter().filter(|&&i| self.seitenart(i) == 0).count() as i64;
-            let groessen = crate::pages::verteile(normal, fps);
+            let gruppe = if getrennt { ei } else { 0 };
+            let groessen = umfang::verteile_auf(normal, plan.gruppen.get(gruppe).map_or(1, |g| g.normal_seiten.max(1)));
             let (mut gi, mut puffer, mut wartend): (usize, Vec<usize>, Vec<usize>) = (0, Vec::new(), Vec::new());
             let ev_von = |i: usize| if ei == usize::MAX { erg.ereignis_von[i] } else { ei };
             for &i in &q {
@@ -1421,7 +1447,14 @@ impl Projekt {
         let im_buch = einst.iter().filter(|e| e.behalten).count();
         let zahlen = self.ereignis_zahlen(&einst);
         let seitenplan = self.seitenplan_aus(&zahlen);
-        let (auf, kuerzen) = self.vorschlaege_aus(&seitenplan, &einst, &zahlen);
+        let mut seite_von: HashMap<usize, usize> = HashMap::new();
+        for (nr, (_, fotos, art)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
+            if art != 3 {
+                for i in fotos {
+                    seite_von.entry(i).or_insert(nr + 1);
+                }
+            }
+        }
         let profil = self.profil();
         let idl = |l: &[usize]| -> Vec<String> { l.iter().map(|&i| self.ids[i].clone()).collect() };
 
@@ -1495,6 +1528,7 @@ impl Projekt {
                     "r": rang.get(&i),
                     "gd": self.begruendung(i, e, rang.get(&i).copied()),
                     "ort": erg.ort_von[i].map(|o| self.ort_name(o)),
+                    "s": seite_von.get(&i),
                     "ar": (f.breite.max(1) as f64 / f.hoehe.max(1) as f64 * 1000.0).round() / 1000.0,
                 }),
             );
@@ -1558,7 +1592,6 @@ impl Projekt {
             "serien": serien,
             "fotos": fotos_kompakt,
             "seitenplan": seitenplan,
-            "vorschlaege": {"auffuellen": idl(&auf), "kuerzen": idl(&kuerzen)},
             "buch": self.buch_seiten(&zahlen, &seitenplan),
         })
     }
@@ -1590,7 +1623,6 @@ impl Projekt {
         let einst = self.einstufungen();
         let zahlen = self.ereignis_zahlen(&einst);
         let plan = self.seitenplan_aus(&zahlen);
-        let fps = self.einstellungen.fotos_pro_seite.max(1);
         let getrennt = self.einstellungen.ereignisse_getrennt;
         let erg = self.erg();
 
@@ -1648,12 +1680,13 @@ impl Projekt {
         }
         let _ = std::fs::write(ziel.join("seitenliste.csv"), csv);
         let liesmich = format!(
-            "Fotobuch-Assistent: Export\nErstellt am {}\n\nFotos im Buch: {}\nSeiten (benötigt / Buch): {} / {}\nFotos pro Seite: {}, Ereignisse beginnen auf neuer Seite: {}\n\nSo geht es weiter:\n1. Öffne die Software deines Druckdienstes und lade die Fotos aus den nummerierten Ordnern hoch.\n   Die Nummern am Dateianfang geben die Reihenfolge vor.\n2. In seitenliste.csv steht, welches Foto auf welche Seite gehört.\n3. Die Originalfotos wurden nicht verändert.\n",
+            "Fotobuch-Assistent: Export\nErstellt am {}\n\nFotos im Buch: {}\nSeiten (benötigt / Buch): {} / {}\nFotos pro Seite: {} bis {}, Ereignisse beginnen auf neuer Seite: {}\n\nSo geht es weiter:\n1. Öffne die Software deines Druckdienstes und lade die Fotos aus den nummerierten Ordnern hoch.\n   Die Nummern am Dateianfang geben die Reihenfolge vor.\n2. In seitenliste.csv steht, welches Foto auf welche Seite gehört.\n3. Die Originalfotos wurden nicht verändert.\n",
             Local::now().format("%d.%m.%Y %H:%M"),
             nr,
             plan["seiten_benoetigt"],
             buch_seiten,
-            fps,
+            self.einstellungen.pro_seite_von,
+            self.einstellungen.pro_seite_bis,
             if getrennt { "ja" } else { "nein" }
         );
         let _ = std::fs::write(ziel.join("LIESMICH.txt"), liesmich);

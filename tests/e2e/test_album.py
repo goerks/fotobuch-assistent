@@ -111,8 +111,22 @@ def test_reise_wird_zum_album(umgebung):
             seite.evaluate("document.querySelector('#orte, .ort')?.scrollIntoView()")
             bild("orte")
             seite.evaluate("window.__fotobuch.geheZu(4)")
-            seite.wait_for_selector("h1")
-            bild("seiten")
+            seite.wait_for_selector(".ereigniskarte")
+            seite.wait_for_function("[...document.querySelectorAll('.ereigniskarte details[open] img')].filter(i => { const r = i.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; }).every(i => i.complete && i.naturalWidth > 0)", timeout=30000)
+            # Umfang: Kein Ereignis wird auf eine feste Zahl gezwungen, kleine haben eine Seite, die Doppelseiten-Wahl bleibt ein Wunsch
+            up = seite.evaluate("window.__fotobuch.S.a.seitenplan")
+            assert seite.locator(".ereigniskarte").count() == len(up["ereignisse"])
+            assert all(e["seiten"] >= 1 for e in up["ereignisse"] if e["fotos"] > 0)
+            assert all(e["fotos"] / e["seiten"] <= up["pro_seite_bis"] + 1e-9 for e in up["ereignisse"] if e["fotos"] > 0)
+            assert sum(1 for e in up["ereignisse"] if e["fotos"] > 0 and e["links"]) >= len(up["ereignisse"]) - 2, "die meisten Ereignisse beginnen links"
+            bild("umfang")
+            vorher_buch = seite.evaluate("window.__fotobuch.S.a.zahlen.im_buch")
+            seite.click(".ereigniskarte >> nth=0 >> .gfoto.drin >> nth=0")
+            seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.im_buch === {vorher_buch - 1}")
+            assert seite.locator(".ereigniskarte >> nth=0 >> .gfoto.eigen").count() == 1
+            bild("umfang-auswahl", ziel=".ereigniskarte >> nth=0")
+            seite.click(".ereigniskarte >> nth=0 >> .gfoto.eigen")
+            seite.wait_for_function(f"window.__fotobuch.S.a.zahlen.im_buch === {vorher_buch}")
 
             # Gestaltung: Themen ansehen, Leinen mit eigenem Titel wählen
             seite.evaluate("window.__fotobuch.geheZu(5)")

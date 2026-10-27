@@ -27,13 +27,12 @@ Der Assistent teilt die Fotos in Ereignisse. Eine neue Gruppe beginnt nach einer
 
 Tastatur in den Serien: Pfeiltasten wählen ein Foto, Leertaste wechselt behalten/entfernen, N und P springen zur nächsten oder vorherigen Serie, V setzt auf den Vorschlag, G zeigt das Foto gross.
 
-### 4. Seiten
-Stelle ein, wie viele Fotos durchschnittlich auf eine Seite sollen, und wähle den Druckdienst. Der Zähler zeigt:
-- wie viele Seiten die Fotos brauchen und wie viele das Buch haben wird (Druckdienste erlauben nur bestimmte Seitenzahlen),
-- wie viele Fotos bis zur vollen Seitenzahl fehlen,
-- wie viele Fotos du weglassen müsstest, um eine Stufe zu sparen.
+### 4. Umfang
+Gib einen Bereich an, wie viele Fotos auf eine Seite sollen (zum Beispiel 2 bis 5), und wähle den Druckdienst. Der Assistent gibt jedem Ereignis so viele Seiten, dass seine Fotos in den Bereich passen: ein kleines Ereignis eine Seite, ein grosses mehrere, auch eine ungerade Zahl. Doppelseiten werden bevorzugt, die meisten Ereignisse beginnen deshalb auf einer linken Seite. Ist das nicht sinnvoll möglich, beginnt ein Ereignis rechts.
 
-«Auffüllen» und «Kürzen» schlagen konkrete Fotos vor: zum Auffüllen die besten aussortierten Serienreste, zum Kürzen die schwächsten Fotos genau dort, wo eine Seite wegfällt. Fotos, die du selbst behalten hast, schlägt der Assistent nie zum Entfernen vor.
+- Pro Ereignis stellst du die Dichte (kompakt, normal, gross) ein oder legst die Seitenzahl mit Plus und Minus selbst fest. «Automatisch» nimmt die eigene Seitenzahl zurück.
+- «Buchgrösse in Seiten» legt ein Ziel fest. Leer lassen heisst: so viele Seiten wie nötig. Der Zähler zeigt die Seitenzahl, die der Druckdienst erlaubt, und bietet die nächstkleinere oder nächstgrössere Stufe an, wenn sie sich mit dem Bereich erreichen lässt.
+- Unter jedem Ereignis zeigt die Auswahl-Galerie, welche Fotos im Buch sind (mit Seitenzahl) und welche aussortiert wurden (mit Grund). Ein Klick holt ein Foto ins Buch oder nimmt es heraus. Solche eigenen Entscheidungen sind blau markiert und bleiben erhalten.
 
 Die Option «Jedes Ereignis beginnt auf einer neuen Seite» macht das Buch übersichtlicher, braucht aber oft mehr Seiten.
 

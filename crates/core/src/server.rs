@@ -410,10 +410,15 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             p.ort_umbenennen(&text(d, "key")?, d.get("name").and_then(|v| v.as_str()).unwrap_or(""));
             Ok(ok())
         }
-        "/api/vorschlag/anwenden" => {
-            let ids = d.get("ids").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect());
-            let n = p.vorschlag_anwenden(&text(d, "art")?, ids)?;
-            Ok(json!({"ok": true, "anzahl": n}))
+        "/api/ereignis/umfang" => {
+            let key = text(d, "key")?;
+            let zahl = |name: &str| -> Option<Option<i64>> { d.get(name).map(|v| v.as_i64()) };
+            p.ereignis_umfang(&key, zahl("dichte"), zahl("seiten"))?;
+            Ok(ok())
+        }
+        "/api/umfang/zuruecksetzen" => {
+            p.umfang_zuruecksetzen();
+            Ok(ok())
         }
         "/api/export/seiten" => {
             let ziel = d.get("ziel").and_then(|v| v.as_str()).map(|s| s.to_string());

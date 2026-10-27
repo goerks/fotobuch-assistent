@@ -20,7 +20,7 @@ async function warteBis(fn, text, ms = 15000) {
     try { const v = fn(); if (v) return v; } catch { /* weiter */ }
     await warte(50);
   }
-  throw new Error("Zeitüberschreitung: " + text + "\nSeite:\n" + doc.body.textContent.slice(0, 600));
+  throw new Error("Zeitüberschreitung: " + text + "\nSeite:\n" + (doc.querySelector(".ereigniskarte") || doc.body).textContent.slice(0, 500));
 }
 const q = (s) => doc.querySelector(s);
 const qa = (s) => [...doc.querySelectorAll(s)];
@@ -174,17 +174,57 @@ test("Orte: Rangliste, Benennen und Begrenzung pro Ort", async () => {
   await warteBis(() => q("#buch-fotos").textContent === "19", "zurückgesetzt");
 });
 
-test("Seiten: Zähler, Profilwarnung, Kürzen-Vorschlag", async () => {
+test("Umfang: Bereich, Dichte, Seitenzahl je Ereignis und Auswahl-Galerie", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#zaehler"), "Zähler");
   assert.match(q("#zaehler").textContent, /24 Seiten/);
-  assert.match(q("#zaehler").textContent, /fehlen/);
-  // Eigene Seitenregel: ab 4 Seiten. 19 Fotos in 2 Ereignissen brauchen 7 Seiten, Schritt 2 -> 8
+  assert.equal(qa(".ereigniskarte").length, 2, "eine Karte je Ereignis");
+  assert.equal(q("#von").value, "2");
+  assert.equal(q("#bis").value, "5");
+  const plan = () => win.__fotobuch.S.a.seitenplan;
+  const karte = (i) => qa(".ereigniskarte")[i];
+  const seiten = (i) => Number(karte(i).querySelector(".seitenzahl").textContent.split(" ")[0]);
+  // Das Ereignis mit wenigen Fotos hat eine Seite, kein Ereignis wird auf eine feste Zahl gezwungen
+  const summe = () => plan().ereignisse.reduce((s, e) => s + e.seiten, 0);
+  assert.equal(summe(), plan().seiten_benoetigt);
+  assert.ok(plan().ereignisse.every((e) => e.seiten >= 1 && e.fotos / e.seiten <= 5 + 1e-9), "höchstens fünf Fotos pro Seite");
+
+  // Eigene Seitenregel: ab 4 Seiten, die Zähler-Zahl folgt dem Profil
   setze(q("#seiten-min"), "4");
-  await warteBis(() => q("#zaehler .gross")?.textContent === "8 Seiten", "8 Seiten");
-  assert.equal(q("#seiten-min").value, "4");
-  assert.equal(qa("#tabelle tbody tr").length, 2);
-  assert.equal(q("#buch-seiten").textContent, "8");
+  await warteBis(() => win.__fotobuch.S.a.einstellungen.seiten_min === 4 && q("#zaehler .gross").textContent === plan().buch_seiten + " Seiten", "Seitenregel");
+  assert.equal(plan().buch_seiten % 2, 0);
+
+  // Seitenzahl eines Ereignisses von Hand ändern, auch ungerade
+  const vorher = seiten(0);
+  klick(karte(0).querySelector(".plus"));
+  await warteBis(() => seiten(0) === vorher + 1, "eine Seite mehr");
+  assert.match(karte(0).textContent, /von dir festgelegt/);
+  assert.equal(plan().ereignisse[0].manuell, true);
+  klick(karte(0).querySelector("button.klein"));
+  await warteBis(() => seiten(0) === vorher && !/von dir festgelegt/.test(karte(0).textContent), "wieder automatisch");
+
+  // Dichte
+  klick(karte(1).querySelector('[data-dichte="1"]'));
+  await warteBis(() => karte(1).querySelector('[data-dichte="1"]').getAttribute("aria-pressed") === "true", "Dichte gross");
+  assert.ok(plan().ereignisse[1].seiten >= 1);
+  klick(q("#umfang-zurueck"));
+  await warteBis(() => karte(1).querySelector('[data-dichte="0"]').getAttribute("aria-pressed") === "true", "Dichte zurück");
+
+  // Galerie: alle Fotos des Ereignisses, im Buch mit Seitenzahl, Klick überschreibt
+  const galerie = karte(0).querySelector("details.galerie");
+  assert.ok(galerie.open, "das erste Ereignis ist aufgeklappt");
+  const ev0 = win.__fotobuch.S.a.ereignisse[0];
+  assert.equal(galerie.querySelectorAll(".gfoto").length, ev0.anzahl);
+  const drin = galerie.querySelector(".gfoto.drin");
+  assert.match(drin.querySelector(".gmarke").textContent, /^S\. \d+$/, "Seitenzahl am Foto");
+  const imBuch = Number(q("#buch-fotos").textContent);
+  klick(drin);
+  await warteBis(() => Number(q("#buch-fotos").textContent) === imBuch - 1, "Foto herausgenommen");
+  const id = drin.dataset.id;
+  const nach = () => qa(".gfoto").find((x) => x.dataset.id === id);
+  assert.ok(nach().classList.contains("draussen") && nach().classList.contains("eigen"), "als eigene Wahl markiert");
+  klick(nach());
+  await warteBis(() => Number(q("#buch-fotos").textContent) === imBuch, "Foto zurückgeholt");
 });
 
 test("Gestaltung: Thema wählen, anpassen, Deckblatt und Titelfoto", async () => {

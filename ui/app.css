@@ -265,3 +265,30 @@ a{color:var(--akzent)}
 .th-galerie .dk-untertitel{left:33%;top:71.6%;font-size:2.6cqh;letter-spacing:.05em;text-transform:uppercase}
 .th-galerie .dk-name{left:33%;top:77%;font-size:2.6cqh;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:1.4cqh}
 .dk-punkt{display:inline-block;width:1.5cqh;height:1.5cqh;border-radius:50%;background:var(--t-akzent)}
+
+/* Umfang: Ereignisse mit Auswahl */
+.ereigniskarte{border:1px solid var(--linie);border-radius:12px;padding:12px 16px;margin:10px 0;background:var(--karte)}
+.ek-kopf{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.ek-titel{flex:1 1 220px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ek-meta{margin:4px 0 2px;font-size:.88rem}
+.seg{display:inline-flex;border:1px solid var(--linie);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--karte);padding:6px 12px;cursor:pointer;font:inherit;font-size:.9rem}
+.seg button.an{background:var(--akzent);color:var(--akzent-text);font-weight:600}
+.stepper{display:inline-flex;align-items:center;gap:8px}
+.stepper button{width:30px;height:30px;border:1px solid var(--linie);border-radius:8px;background:var(--karte);cursor:pointer;font-size:1.1rem;line-height:1}
+.stepper button:disabled{opacity:.4;cursor:default}
+.seitenzahl{min-width:84px;text-align:center}
+.galerie{margin-top:8px}
+.galerie summary{cursor:pointer;font-weight:600;color:var(--akzent)}
+.gitter{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin:8px 0}
+.gfoto{position:relative;border:0;padding:0;border-radius:6px;overflow:hidden;cursor:pointer;aspect-ratio:4/3;background:#d9dde5}
+.gfoto img{display:block;width:100%;height:100%;object-fit:cover}
+.gfoto.draussen img{opacity:.45;filter:grayscale(.6)}
+.gfoto.eigen{outline:3px solid var(--akzent);outline-offset:-3px}
+.gmarke{position:absolute;left:4px;bottom:4px;max-width:calc(100% - 8px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 7px;border-radius:999px;font-size:.72rem;font-weight:700;color:#fff;background:#1f7a4d}
+.gfoto.draussen .gmarke{background:#5d6675}
+.gfoto.eigen .gmarke{background:var(--akzent)}
+.legende{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.8rem}
+.legende .k::before{content:"●";margin-right:5px}
+.legende .k.drin::before{color:#1f7a4d}.legende .k.draussen::before{color:#5d6675}.legende .k.eigen::before{color:var(--akzent)}
+.knopf.klein{padding:4px 10px;font-size:.85rem}

@@ -166,3 +166,10 @@ Noch offen: Thema pro Ereignis, weitere Themen (Polaroid, Hochzeit, Reise-Tagebu
 Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach Platz, werden bei Platzmangel scrollbar und bleiben immer im Fenster, ohne Fenster oder Seite zu vergrössern. Der Browser-Durchlauf prüft das bei normalem und kleinem Fenster. Auswahllisten (Seitenformat, Rahmen usw.) und Kontextmenüs zeichnet das Betriebssystem selbst im Fenster.
 
 **Später (nur gemerkt):** Recherche zu lokalen Modellen für bessere Auswahl: [docs/ideen/lokale-modelle.md](ideen/lokale-modelle.md). Nichts davon ist umgesetzt.
+
+## Ablauf-Verbesserung, Schritt 1 (Umfang)
+- Der Schritt «Seiten» heisst «Umfang». Statt einer festen Zahl gilt ein Bereich «Fotos pro Seite» (Standard 2 bis 5). Jedes Ereignis bekommt so viele Seiten, dass es hineinpasst (eine bis viele, auch ungerade). Doppelseiten sind bevorzugt: die Rechnung (`crates/core/src/umfang.rs`, dynamische Programmierung über die Seitenzahl) bestraft Ereignisse, die rechts beginnen, und freie Seiten. Dichte pro Ereignis, feste Seitenzahl von Hand, Zielseitenzahl für das Buch.
+- «Auffüllen» und «Kürzen» entfallen. Freie Plätze füllt die Rechnung mit luftigeren Seiten, die nächste Buchgrösse bietet der Zähler an.
+- Pro Ereignis eine Auswahl-Galerie: im Buch mit Seitenzahl, aussortiert mit Grund, Klick überschreibt (blau).
+- Vergleich vorher/nachher: [docs/galerie/schritte/01-umfang.png](galerie/schritte/01-umfang.png).
+- Reihenfolge der Schritte bleibt (Aussortieren vor Umfang), weil die Galerie das Überschreiben im Umfang erlaubt.
