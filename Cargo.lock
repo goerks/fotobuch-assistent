@@ -984,7 +984,7 @@ dependencies = [
 
 [[package]]
 name = "fotobuch-assistent"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
  "fotobuch-core",
  "serde_json",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "fotobuch-core"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
  "ab_glyph",
  "chrono",

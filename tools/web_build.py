@@ -73,7 +73,7 @@ T = {
        ("Welche Fotoformate werden gelesen?", "JPEG, PNG und HEIC vom iPhone. Aufnahmezeit und GPS liest die App, wenn sie in der Datei stehen. Fotos ohne Zeit stehen als eigenes Ereignis am Schluss."),
        ("Was kostet das?", "Das Herunterladen und Verwenden kostet nichts."),
        ("Kann ich das Buch direkt bestellen?", "Noch nicht. Du exportierst fertige Seiten oder die nummerierten Fotos mit Seitenliste und lädst sie bei deinem Druckdienst hoch.")],
-  fuss="Der Fotobuch-Assistent arbeitet offline. Die Bilder dieser Seite zeigen die echte App mit einem gezeichneten Demo-Set, keine privaten Fotos.", handbuch="Handbuch", code="Quellcode", ver="Version 0.3"),
+  fuss="Der Fotobuch-Assistent arbeitet offline. Die Bilder dieser Seite zeigen die echte App mit einem gezeichneten Demo-Set, keine privaten Fotos.", handbuch="Handbuch", code="Quellcode", ver="Version 0.1"),
  "en": dict(
   lang="en", titel="Photo Book Assistant – turn a thousand photos into your photo book", beschr="The Photo Book Assistant sorts your photos offline: events, duplicates, pages, layouts and print-ready pages. For Windows, Mac and Linux.",
   nav=[("funktionen", "Features"), ("ablauf", "How it works"), ("themen", "Design"), ("download", "Download"), ("faq", "FAQ")],
@@ -114,7 +114,7 @@ T = {
        ("Which photo formats are read?", "JPEG, PNG and iPhone HEIC. Capture time and GPS are read when stored in the file. Photos without a time appear as their own event at the end."),
        ("What does it cost?", "Downloading and using it is free."),
        ("Can I order the book directly?", "Not yet. You export finished pages, or numbered photos with a page list, and upload them to your print service.")],
-  fuss="The Photo Book Assistant works offline. Images on this page show the real app with a drawn demo set, not private photos.", handbuch="Manual (German)", code="Source code", ver="Version 0.3"),
+  fuss="The Photo Book Assistant works offline. Images on this page show the real app with a drawn demo set, not private photos.", handbuch="Manual (German)", code="Source code", ver="Version 0.1"),
 }
 
 

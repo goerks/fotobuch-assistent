@@ -1,6 +1,6 @@
 [package]
 name = "fotobuch-assistent"
-version = "0.3.0"
+version = "0.1.0"
 edition = "2021"
 description = "Fotobuch-Assistent: Fotos lokal ordnen, aussortieren und für den Druck vorbereiten"
 
