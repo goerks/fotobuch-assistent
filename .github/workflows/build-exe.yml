@@ -2,6 +2,11 @@ name: App bauen (Windows, Mac und Linux, portabel)
 
 on:
   workflow_dispatch:
+    inputs:
+      veroeffentlichen:
+        description: "Release veröffentlichen (Tag wird dabei angelegt), z. B. v0.1.0. Leer lassen für reinen Testbau."
+        required: false
+        default: ""
   push:
     tags: ["v*"]   # ein Tag wie v0.1.0 veröffentlicht zusätzlich ein Release mit den Downloads
 
@@ -189,7 +194,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.veroeffentlichen != ''
     needs: [windows, macos, linux]
     runs-on: ubuntu-latest
     permissions:
@@ -207,5 +212,8 @@ jobs:
           ls -la release
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.veroeffentlichen || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Fotobuch-Assistent ${{ inputs.veroeffentlichen || github.ref_name }}
           files: release/*
           generate_release_notes: true
