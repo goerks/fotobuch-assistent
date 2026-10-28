@@ -325,6 +325,44 @@ test("Buch: Seiten mit Layout, Blättern, Übersicht, Detailansicht", async () =
   await warteBis(() => q("#doppelseite") && /Seiten 2–3/.test(q("#buch-pos").textContent), "Sprung zur Doppelseite");
 });
 
+test("Seitenband: Seite wählen, verschieben, leere Seite einfügen, entfernen, zurücknehmen", async () => {
+  const seitenZahl = () => qa("#band .bandseite").length;
+  const nrn = () => qa("#band .bandseite").map((b) => b.dataset.nr + ":" + b.dataset.key);
+  await warteBis(() => q("#band") && seitenZahl() >= 3, "Seitenband");
+  const n0 = seitenZahl();
+  const key2 = qa("#band .bandseite")[1].dataset.key;
+  const key1 = qa("#band .bandseite")[0].dataset.key;
+  assert.ok(q("#band-vor").disabled, "ohne Wahl keine Aktionen");
+  // wählen springt zur Doppelseite
+  klick(qa("#band .bandseite")[1]);
+  await warteBis(() => qa("#band .bandseite")[1].classList.contains("gewaehlt") && !q("#band-vor").disabled, "gewählt");
+  // nach vorn: Seite 2 wird Seite 1
+  klick(q("#band-vor"));
+  await warteBis(() => qa("#band .bandseite")[0].dataset.key === key2, "Seite nach vorn");
+  assert.equal(qa("#band .bandseite")[1].dataset.key, key1);
+  // leere Seite danach
+  klick(q("#band-leer-danach"));
+  await warteBis(() => seitenZahl() === n0 + 1, "leere Seite eingefügt");
+  assert.ok(qa("#band .bandseite")[1].classList.contains("leer"), "leere Seite steht hinter der gewählten");
+  assert.ok(q("#seitenfolge-zurueck"));
+  // leere Seite wählen und löschen
+  klick(qa("#band .bandseite")[1]);
+  await warteBis(() => /Leere Seite löschen/.test(q("#band-entfernen").textContent), "Löschen angeboten");
+  klick(q("#band-entfernen"));
+  await warteBis(() => seitenZahl() === n0 && !qa("#band .bandseite.leer").length, "leere Seite gelöscht");
+  // normale Seite entfernen: eine Seite weniger, Fotos bleiben im Buch
+  const fotos = Number(q("#buch-fotos").textContent);
+  klick(qa("#band .bandseite")[2]);
+  await warteBis(() => !q("#band-entfernen").disabled, "Seite 3 gewählt");
+  klick(q("#band-entfernen"));
+  await warteBis(() => seitenZahl() === n0 - 1, "Seite entfernt");
+  assert.equal(Number(q("#buch-fotos").textContent), fotos);
+  // alles zurücknehmen
+  klick(q("#seitenfolge-zurueck"));
+  await warteBis(() => seitenZahl() === n0 && qa("#band .bandseite")[0].dataset.key === key1, "Seitenfolge zurückgesetzt");
+  assert.ok(nrn().length === n0);
+});
+
 test("Export: schreibt Dateien, zeigt Ergebnis, App lässt sich beenden", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#btn-export"), "Export-Knopf");

@@ -127,6 +127,44 @@ fn seitenplanung_mit_panorama_und_hoch_quer_paarung() {
     let a4 = p.lock().unwrap().ansicht();
     assert_eq!(a4["buch"]["seiten"][0]["fotos"].as_array().unwrap().len(), n1);
     assert_eq!(a4["fotos"][&foto]["vs"], false);
+
+    // Seitenfolge: leere Seite einfügen, Seite verschieben, entfernen, alles zurücknehmen
+    let key = |a: &Value, i: usize| a["buch"]["seiten"][i]["key"].as_str().unwrap().to_string();
+    let n0 = a4["buch"]["seiten"].as_array().unwrap().len();
+    let (k0, k1, k2) = (key(&a4, 0), key(&a4, 1), key(&a4, 2));
+    p.lock().unwrap().leere_seite_einfuegen(&k1, false).unwrap();
+    let a5 = p.lock().unwrap().ansicht();
+    assert_eq!(a5["buch"]["seiten"].as_array().unwrap().len(), n0 + 1);
+    assert_eq!(art(&a5["buch"]["seiten"][1]), 4, "leere Seite steht vor Seite 2");
+    assert!(a5["buch"]["seiten"][1]["fotos"].as_array().unwrap().is_empty());
+    assert_eq!(a5["seitenplan"]["eingefuegte_leere"], 1);
+    assert!(a5["seitenplan"]["seiten_benoetigt"].as_i64().unwrap() >= n0 as i64 + 1);
+    // Seite 1 hinter Seite 3 stellen
+    p.lock().unwrap().seite_verschieben(&k0, &k2, true).unwrap();
+    let a6 = p.lock().unwrap().ansicht();
+    assert_eq!(key(&a6, 3), k0, "Seite 1 steht jetzt nach der ursprünglichen Seite 3");
+    // leere Seite wieder entfernen
+    let lk = a6["buch"]["seiten"].as_array().unwrap().iter().find(|s| art(s) == 4).unwrap()["key"].as_str().unwrap().to_string();
+    p.lock().unwrap().seite_entfernen(&lk).unwrap();
+    assert!(p.lock().unwrap().ansicht()["buch"]["seiten"].as_array().unwrap().iter().all(|s| art(s) != 4));
+    // normale Seite entfernen: Fotos wandern auf die Nachbarseite
+    let a7 = p.lock().unwrap().ansicht();
+    let fotos_vor: usize = a7["buch"]["seiten"].as_array().unwrap().iter().map(|s| s["fotos"].as_array().unwrap().len()).sum();
+    let nr_normal = a7["buch"]["seiten"].as_array().unwrap().iter().position(|s| art(s) == 0).unwrap();
+    let nk = key(&a7, nr_normal);
+    p.lock().unwrap().seite_entfernen(&nk).unwrap();
+    let a8 = p.lock().unwrap().ansicht();
+    let fotos_nach: usize = a8["buch"]["seiten"].as_array().unwrap().iter().map(|s| s["fotos"].as_array().unwrap().len()).sum();
+    assert_eq!(fotos_vor, fotos_nach, "kein Foto geht verloren");
+    assert_eq!(a8["buch"]["seiten"].as_array().unwrap().len(), n0 - 1, "eine Seite weniger");
+    p.lock().unwrap().seitenfolge_zuruecksetzen();
+    let a9 = p.lock().unwrap().ansicht();
+    assert_eq!(a9["buch"]["seiten"].as_array().unwrap().len(), n0);
+    assert_eq!(key(&a9, 0), k0);
+    // Seitenaufträge enthalten leere Seiten
+    p.lock().unwrap().leere_seite_einfuegen(&k0, true).unwrap();
+    let paket = p.lock().unwrap().seitenauftraege().unwrap();
+    assert!(paket.auftraege.iter().any(|a| a.fotos.is_empty()));
 }
 
 /// Gestaltung: Thema wählen, Wahl bleibt nach Neustart, Felder liegen im Themenbereich, Export schreibt Deckblatt und Seiten im Thema.

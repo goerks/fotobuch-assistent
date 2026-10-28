@@ -26,6 +26,7 @@
     kg: 280, // Bildgrösse in Schritt 3 (Pixel)
     wegFilter: "alle",
     buchPos: 0, // Doppelseite (0-basiert)
+    bandSel: null, // Schlüssel der im Seitenband gewählten Seite
     buchAnsicht: "doppel",
     layoutOffen: null,
     zoom: 200,
@@ -1184,6 +1185,7 @@
           h("img", { src: vorschauUrl(p.id, gross ? 900 : 360), alt: f.n, loading: "lazy" }))
       );
     });
+    if (sp.art === 4) el.append(h("span", { class: "frei-text leerseite" }, "Leere Seite"));
     if (sp.frei) el.append(h("span", { class: "frei-text" }, "Freie Seite"));
     else if (!voll && sp.fotos.length) {
       const text = st.beschriftung ? sp.beschriftung : null;
@@ -1250,6 +1252,56 @@
       if (panel.platz) requestAnimationFrame(panel.platz);
     }).catch((e) => meldung(e.message));
     return panel;
+  }
+
+  // Seitenband: alle Seiten als kleine Vorschau, nach Ereignis eingefärbt. Seiten lassen sich wählen, verschieben,
+  // entfernen und mit leeren Seiten ergänzen (Knöpfe oder Ziehen mit der Maus).
+  function seitenband(b) {
+    const seiten = b.seiten;
+    const idx = (key) => seiten.map((s, i) => (s.key === key ? i : -1)).filter((i) => i >= 0);
+    if (S.bandSel && !idx(S.bandSel).length) S.bandSel = null;
+    const tue = (pfad, daten) => aktion(async () => { await api(pfad, daten); await ladeUndZeige(); });
+    const sel = S.bandSel ? idx(S.bandSel) : [];
+    const von = sel.length ? sel[0] : -1, bis = sel.length ? sel[sel.length - 1] : -1;
+    const verschiebe = (key, ziel, danach) => tue("/api/seite/zug", { key, ziel, danach });
+    const items = seiten.map((sp, i) => {
+      const gewaehlt = sp.key === S.bandSel;
+      const sichtbar = (S.buchPos === 0 ? [0] : [S.buchPos * 2 - 1, S.buchPos * 2]).includes(i);
+      const knopf = h("button", { type: "button", class: "bandseite" + (gewaehlt ? " gewaehlt" : "") + (sichtbar && S.buchAnsicht === "doppel" ? " sichtbar" : "") + (sp.art === 4 ? " leer" : ""), "data-nr": sp.nr, "data-key": sp.key, draggable: "true",
+        title: "Seite " + sp.nr + " · " + sp.titel + (sp.art === 4 ? " · leere Seite" : ""), "aria-pressed": gewaehlt ? "true" : "false", style: "--ev:" + EV_FARBEN[(sp.ereignis || 0) % EV_FARBEN.length],
+        onclick: () => { S.bandSel = gewaehlt ? null : sp.key; if (!gewaehlt) S.buchPos = Math.ceil(i / 2); zeige(); } },
+        seiteElement(sp, false), h("span", { class: "bandnr" }, String(sp.nr)));
+      knopf.addEventListener("dragstart", (ev) => { S.bandZieh = sp.key; ev.dataTransfer && ev.dataTransfer.setData("text/plain", sp.key); });
+      knopf.addEventListener("dragover", (ev) => { if (S.bandZieh && S.bandZieh !== sp.key) { ev.preventDefault(); const r = knopf.getBoundingClientRect(); knopf.classList.toggle("ziel-davor", ev.clientX < r.left + r.width / 2); knopf.classList.toggle("ziel-danach", ev.clientX >= r.left + r.width / 2); } });
+      knopf.addEventListener("dragleave", () => knopf.classList.remove("ziel-davor", "ziel-danach"));
+      knopf.addEventListener("drop", (ev) => { ev.preventDefault(); const r = knopf.getBoundingClientRect(); const key = S.bandZieh; S.bandZieh = null; knopf.classList.remove("ziel-davor", "ziel-danach"); if (key && key !== sp.key) { S.bandSel = key; verschiebe(key, sp.key, ev.clientX >= r.left + r.width / 2); } });
+      knopf.addEventListener("dragend", () => { S.bandZieh = null; });
+      return h("div", { class: "banditem" + (sp.beschriftung ? " ereignisanfang" : "") }, sp.beschriftung ? h("span", { class: "bandtitel", style: "color:" + EV_FARBEN[(sp.ereignis || 0) % EV_FARBEN.length] }, sp.beschriftung) : h("span", { class: "bandtitel" }), knopf);
+    });
+    const hat = von >= 0;
+    // Anker für eine neue leere Seite: die gewählte Seite, bei einer leeren Seite die nächste Seite mit Fotos
+    const leerAn = (danach) => {
+      if (seiten[von].art !== 4) return { anker: S.bandSel, danach };
+      for (let i = von - 1; i >= 0; i--) if (seiten[i].art !== 4) return { anker: seiten[i].key, danach: true };
+      for (let i = von + 1; i < seiten.length; i++) if (seiten[i].art !== 4) return { anker: seiten[i].key, danach: false };
+      return null;
+    };
+    const taste = (id, text, aktiv, fn, titel) => h("button", { type: "button", class: "knopf klein-knopf", id, disabled: !hat || !aktiv, title: titel || "", onclick: fn }, text);
+    const sp = hat ? seiten[von] : null;
+    const bar = h("div", { class: "zeile bandleiste", id: "bandleiste" },
+      h("b", {}, hat ? "Seite " + seiten[von].nr + (bis > von ? "–" + seiten[bis].nr : "") : "Seite wählen"),
+      taste("band-vor", "◂ nach vorn", hat && von > 0, () => verschiebe(S.bandSel, seiten[von - 1].key, false), "Seite eine Position nach vorn"),
+      taste("band-zurueck", "nach hinten ▸", hat && bis < seiten.length - 1, () => verschiebe(S.bandSel, seiten[bis + 1].key, true), "Seite eine Position nach hinten"),
+      taste("band-leer-davor", "Leere Seite davor", hat, () => tue("/api/seite/leer", leerAn(false)), "Eine leere Seite vor dieser Seite einfügen"),
+      taste("band-leer-danach", "Leere Seite danach", hat, () => tue("/api/seite/leer", leerAn(true)), "Eine leere Seite nach dieser Seite einfügen"),
+      taste("band-entfernen", sp && sp.art === 4 ? "Leere Seite löschen" : "Seite entfernen", hat, () => { const k = S.bandSel; S.bandSel = null; tue("/api/seite/entfernen", { key: k }); }, "Fotos wandern auf die Nachbarseite; ein Foto mit eigener Seite wird zum normalen Foto"));
+    const w = S.a.zahlen.seitenfolge || 0;
+    return h("div", { class: "seitenband", id: "seitenband" },
+      h("h2", {}, "Seitenband"),
+      h("p", { class: "still" }, "Wähle eine Seite und verschiebe sie, füge eine leere Seite ein oder nimm sie heraus. Seiten lassen sich auch mit der Maus an eine andere Stelle ziehen. Die Farbe zeigt das Ereignis."),
+      h("div", { class: "band", id: "band" }, items),
+      bar,
+      w || S.a.zahlen.verschiebungen ? h("div", { class: "zeile" }, h("span", { class: "still" }, (w ? pl(w, "Änderung", "Änderungen") + " an der Seitenfolge. " : "") ), h("button", { type: "button", class: "knopf", id: "seitenfolge-zurueck", onclick: () => { S.bandSel = null; tue("/api/seitenfolge/zuruecksetzen", {}); } }, "Alle Änderungen an der Seitenfolge zurücknehmen")) : null);
   }
 
   function viewBuch() {
@@ -1320,12 +1372,13 @@
             ? h("figure", { class: "seitenspalte" },
                 h("div", { class: "seitenkopf" }, layoutKnopf(sp) || h("span")),
                 seiteElement(sp, true),
-                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")),
+                h("figcaption", {}, "Seite " + sp.nr + " · " + sp.titel + (sp.art === 1 ? " · ganze Seite" : sp.art === 2 ? " · links über die Doppelseite" : sp.art === 3 ? " · rechts über die Doppelseite" : sp.art === 4 ? " · leere Seite" : sp.fotos.length ? " · " + pl(sp.fotos.length, "Foto", "Fotos") : "")),
                 S.layoutOffen && S.layoutOffen === sp.key ? layoutPanel(sp, ankerNr[sp.nr]) : null)
             : h("figure", { class: "seitenspalte leer-seite" }))),
         h("div", { class: "tastatur" }, h("kbd", {}, "←"), " ", h("kbd", {}, "→"), " blättern · Seite 1 steht allein, danach folgen Doppelseiten wie im gedruckten Buch · «Layout wählen» zeigt Vorlagen zur Anordnung einer Seite · Klick auf ein Foto: gross ansehen, mit Begründung, entfernen oder zurückholen")
       );
     }
+    if (b.seiten.length) v.append(seitenband(b));
     if (S.a.zahlen.verschiebungen) {
       v.append(h("div", { class: "zeile" }, h("span", {}, S.a.zahlen.verschiebungen + " von Hand verschobene Fotos. "), h("button", { type: "button", class: "knopf", id: "verschiebungen-zurueck", onclick: () => aktion(async () => { await api("/api/seiten/zuruecksetzen", {}); await ladeUndZeige(); }) }, "Alle Verschiebungen zurücksetzen")));
     }

@@ -444,6 +444,22 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             p.verschiebungen_zuruecksetzen();
             Ok(ok())
         }
+        "/api/seite/leer" => {
+            p.leere_seite_einfuegen(&text(d, "anker")?, d.get("danach").and_then(|v| v.as_bool()).unwrap_or(false))?;
+            Ok(ok())
+        }
+        "/api/seite/zug" => {
+            p.seite_verschieben(&text(d, "key")?, &text(d, "ziel")?, d.get("danach").and_then(|v| v.as_bool()).unwrap_or(false))?;
+            Ok(ok())
+        }
+        "/api/seite/entfernen" => {
+            p.seite_entfernen(&text(d, "key")?)?;
+            Ok(ok())
+        }
+        "/api/seitenfolge/zuruecksetzen" => {
+            p.seitenfolge_zuruecksetzen();
+            Ok(ok())
+        }
         "/api/ereignis/teilen" => {
             p.ereignis_teilen_bei(&text(d, "id")?)?;
             Ok(ok())

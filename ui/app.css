@@ -313,3 +313,22 @@ a{color:var(--akzent)}
 .zl-grenze{color:var(--akzent);font-size:.95rem}
 .textknopf{border:0;background:transparent;color:var(--akzent);font-weight:600;cursor:pointer;padding:4px 6px}
 .orte-zeile summary{cursor:pointer;color:var(--akzent);font-weight:600;font-size:.88rem}
+
+/* Seitenband (Schritt 3): Seiten einfügen, verschieben, entfernen */
+.seitenband{margin-top:22px}
+.band{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px;align-items:flex-end}
+.banditem{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
+.banditem.ereignisanfang{margin-left:12px}
+.bandtitel{font-size:11px;font-weight:600;height:15px;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bandseite{position:relative;width:88px;padding:3px 3px 0;border:2px solid transparent;border-top:4px solid var(--ev,#888);border-radius:5px;background:var(--flaeche,#fff);cursor:pointer;color:inherit;font:inherit}
+.bandseite .seite{pointer-events:none}
+.bandseite .sfoto{pointer-events:none}
+.bandseite .frei-text,.bandseite .snummer,.bandseite .sbeschr{display:none}
+.bandseite.leer .frei-text{display:grid;font-size:9px}
+.bandseite.sichtbar{box-shadow:0 0 0 2px #2a6db566}
+.bandseite.gewaehlt{border-color:#2a6db5;border-top-color:var(--ev,#888);background:#2a6db51a}
+.bandseite.ziel-davor{box-shadow:-5px 0 0 0 #2a6db5}
+.bandseite.ziel-danach{box-shadow:5px 0 0 0 #2a6db5}
+.bandnr{display:block;font-size:10px;text-align:center;opacity:.7;padding:1px 0 2px}
+.bandleiste{flex-wrap:wrap;gap:8px}
+.seite .leerseite{font-size:13px}

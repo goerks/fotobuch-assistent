@@ -23,7 +23,7 @@ use crate::foto::Foto;
 use crate::gestaltung::{feld_im_bereich, monat_name, Gestaltung};
 use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
-use crate::pages::{lade_profil, Profil, PROFILE};
+use crate::pages::{erlaubte_seitenzahl, lade_profil, Profil, PROFILE};
 use crate::umfang::{self, Eingabe};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
 
@@ -83,6 +83,13 @@ struct CacheEintrag {
     foto: Foto,
 }
 
+/// Eine von Hand eingefügte leere Seite: steht vor oder nach der Seite mit dem Schlüssel `anker`.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct LeereSeite {
+    pub anker: String,
+    pub danach: bool,
+}
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(default)]
 struct Zustand {
@@ -99,6 +106,8 @@ struct Zustand {
     ereignis_verbinden: BTreeSet<String>,
     ereignis_dichte: BTreeMap<String, i64>,
     ereignis_seiten: BTreeMap<String, i64>,
+    leere_seiten: BTreeMap<u64, LeereSeite>,
+    seiten_zug: Vec<(String, String, bool)>,
     gestaltung: Gestaltung,
     schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
@@ -166,6 +175,8 @@ pub struct Projekt {
     pub ereignis_verbinden: BTreeSet<String>,
     pub ereignis_dichte: BTreeMap<String, i64>,
     pub ereignis_seiten: BTreeMap<String, i64>,
+    pub leere_seiten: BTreeMap<u64, LeereSeite>,
+    pub seiten_zug: Vec<(String, String, bool)>,
     pub gestaltung: Gestaltung,
     pub schritt: i64,
     cache: BTreeMap<String, CacheEintrag>,
@@ -233,6 +244,8 @@ impl Projekt {
             ereignis_verbinden: BTreeSet::new(),
             ereignis_dichte: BTreeMap::new(),
             ereignis_seiten: BTreeMap::new(),
+            leere_seiten: BTreeMap::new(),
+            seiten_zug: Vec::new(),
             gestaltung: Gestaltung::default(),
             schritt: 1,
             cache: BTreeMap::new(),
@@ -275,6 +288,8 @@ impl Projekt {
                 self.ereignis_verbinden = z.ereignis_verbinden;
                 self.ereignis_dichte = z.ereignis_dichte;
                 self.ereignis_seiten = z.ereignis_seiten;
+                self.leere_seiten = z.leere_seiten;
+                self.seiten_zug = z.seiten_zug;
                 self.gestaltung = z.gestaltung;
                 self.schritt = if z.schritt == 0 { 1 } else { z.schritt };
                 self.cache = z.cache;
@@ -304,6 +319,8 @@ impl Projekt {
             ereignis_verbinden: self.ereignis_verbinden.clone(),
             ereignis_dichte: self.ereignis_dichte.clone(),
             ereignis_seiten: self.ereignis_seiten.clone(),
+            leere_seiten: self.leere_seiten.clone(),
+            seiten_zug: self.seiten_zug.clone(),
             gestaltung: self.gestaltung.clone(),
             schritt: self.schritt,
             cache: self.cache.clone(),
@@ -877,6 +894,9 @@ impl Projekt {
                 let zahlen = self.ereignis_zahlen(&einst);
                 let seiten = self.seiten_gruppen_ex(&zahlen);
                 let ziel = seiten.get(nr.wrapping_sub(1)).ok_or("Diese Seite gibt es nicht.")?;
+                if ziel.2 == 4 {
+                    return Err("Das ist eine leere Seite.".into());
+                }
                 if ziel.2 != 0 {
                     return Err("Auf dieser Seite steht ein Foto über die ganze Seite.".into());
                 }
@@ -927,16 +947,25 @@ impl Projekt {
                 }
             })
             .collect();
+        let n_leer = self.seiten_roh(zahlen).1.iter().filter(|&&x| x != 0).count() as i64;
+        let (summe, buch, frei) = if n_leer > 0 {
+            let summe = plan.summe + n_leer;
+            let buch = plan.buch.max(erlaubte_seitenzahl(summe.max(1), &profil));
+            (summe, buch, buch - summe)
+        } else {
+            (plan.summe, plan.buch, plan.leer)
+        };
         json!({
             "fotos": total,
             "pro_seite_von": e.pro_seite_von,
             "pro_seite_bis": e.pro_seite_bis,
             "ziel": e.seiten_ziel,
             "ereignisse_getrennt": getrennt,
-            "seiten_benoetigt": plan.summe,
-            "buch_seiten": plan.buch,
-            "leere_seiten": plan.leer,
-            "ueber_maximum": plan.buch > profil.max(),
+            "seiten_benoetigt": summe,
+            "buch_seiten": buch,
+            "leere_seiten": frei,
+            "eingefuegte_leere": n_leer,
+            "ueber_maximum": buch > profil.max(),
             "kleinere_stufe": plan.kleinere,
             "groessere_stufe": plan.groessere,
             "seiten_je_ereignis": ereignisse.iter().map(|e| e["seiten"].clone()).collect::<Vec<_>>(),
@@ -977,6 +1006,80 @@ impl Projekt {
         }
         self.speichern();
         Ok(())
+    }
+
+    /// Seiten des Buchs mit Schlüssel (für die Seitenfolge-Befehle).
+    fn seiten_schluessel_liste(&self) -> Vec<(String, u8)> {
+        let einst = self.einstufungen();
+        let zahlen = self.ereignis_zahlen(&einst);
+        let (roh, leer) = self.seiten_roh(&zahlen);
+        roh.iter().zip(leer.iter()).map(|(s, &l)| (self.seiten_schluessel(s, l), s.2)).collect()
+    }
+
+    /// Leere Seite vor oder nach der Seite `anker` einfügen.
+    pub fn leere_seite_einfuegen(&mut self, anker: &str, danach: bool) -> Res<()> {
+        if self.ergebnis.is_none() {
+            return Err("Noch nicht analysiert".into());
+        }
+        if !self.seiten_schluessel_liste().iter().any(|(k, a)| k == anker && *a != 4) {
+            return Err("Unbekannte Seite".into());
+        }
+        let id = self.leere_seiten.keys().max().copied().unwrap_or(0) + 1;
+        self.leere_seiten.insert(id, LeereSeite { anker: anker.to_string(), danach });
+        self.speichern();
+        Ok(())
+    }
+
+    /// Seite `key` vor oder nach die Seite `ziel` stellen.
+    pub fn seite_verschieben(&mut self, key: &str, ziel: &str, danach: bool) -> Res<()> {
+        let liste = self.seiten_schluessel_liste();
+        if !liste.iter().any(|(k, _)| k == key) || !liste.iter().any(|(k, _)| k == ziel) {
+            return Err("Unbekannte Seite".into());
+        }
+        if key == ziel {
+            return Ok(());
+        }
+        self.seiten_zug.retain(|(k, _, _)| k != key);
+        self.seiten_zug.push((key.to_string(), ziel.to_string(), danach));
+        self.speichern();
+        Ok(())
+    }
+
+    /// Seite aus dem Buch nehmen: eine leere Seite verschwindet, die Fotos einer normalen Seite wandern auf die Nachbarseite,
+    /// ein Foto mit eigener Seite wird zum normalen Foto.
+    pub fn seite_entfernen(&mut self, key: &str) -> Res<()> {
+        if let Some(id) = key.strip_prefix("leer:") {
+            let id: u64 = id.parse().map_err(|_| "Unbekannte Seite")?;
+            self.leere_seiten.remove(&id).ok_or("Unbekannte Seite")?;
+            self.seiten_zug.retain(|(k, z, _)| k != key && z != key);
+            self.speichern();
+            return Ok(());
+        }
+        let einst = self.einstufungen();
+        let zahlen = self.ereignis_zahlen(&einst);
+        let seiten = self.seiten_gruppen_ex(&zahlen);
+        let nr = seiten.iter().position(|s| !s.1.is_empty() && self.ids[s.1[0]] == key).ok_or("Unbekannte Seite")?;
+        if seiten[nr].2 != 0 {
+            let id = self.ids[seiten[nr].1[0]].clone();
+            self.seitenart.insert(id, "normal".into());
+        } else {
+            let frei = |s: &(usize, Vec<usize>, u8)| s.2 == 0 && s.1.iter().any(|k| !self.verschoben.contains_key(&self.ids[*k]) && !seiten[nr].1.contains(k));
+            let ziel = (0..nr).rev().find(|&k| frei(&seiten[k])).or_else(|| (nr + 1..seiten.len()).find(|&k| frei(&seiten[k]))).ok_or("Es gibt keine andere Seite für diese Fotos.")?;
+            let anker = seiten[ziel].1.iter().copied().find(|k| !self.verschoben.contains_key(&self.ids[*k])).unwrap();
+            for &x in &seiten[nr].1 {
+                self.verschoben.insert(self.ids[x].clone(), self.ids[anker].clone());
+            }
+        }
+        self.speichern();
+        Ok(())
+    }
+
+    /// Alle Handänderungen an der Seitenfolge zurücknehmen (leere Seiten, verschobene Seiten und Fotos).
+    pub fn seitenfolge_zuruecksetzen(&mut self) {
+        self.leere_seiten.clear();
+        self.seiten_zug.clear();
+        self.verschoben.clear();
+        self.speichern();
     }
 
     pub fn umfang_zuruecksetzen(&mut self) {
@@ -1187,6 +1290,11 @@ impl Projekt {
 
     /// Wie `seiten_gruppen`, dazu die Seitenart: 0 normal, 1 ganze Seite, 2 linke und 3 rechte Hälfte eines Fotos über die Doppelseite.
     fn seiten_gruppen_ex(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> Vec<(usize, Vec<usize>, u8)> {
+        self.seiten_roh(zahlen).0
+    }
+
+    /// Wie `seiten_gruppen_ex`; dazu je Seite die Nummer einer von Hand eingefügten leeren Seite (Art 4, ohne Fotos), sonst 0.
+    fn seiten_roh(&self, zahlen: &[(Vec<usize>, Vec<usize>)]) -> (Vec<(usize, Vec<usize>, u8)>, Vec<u64>) {
         let getrennt = self.einstellungen.ereignisse_getrennt;
         let erg = self.erg();
         let plan = self.umfang_plan(zahlen);
@@ -1231,21 +1339,79 @@ impl Projekt {
         }
         self.paarung_verbessern(&mut aus);
         self.verschiebungen_anwenden(&mut aus);
+        let mut leer: Vec<u64> = vec![0; aus.len()];
+        self.seitenfolge_anwenden(&mut aus, &mut leer);
         // Ein Foto über die Doppelseite beginnt auf einer linken Seite (gerade Seitennummer, Seite 1 steht allein).
         let mut k = 0;
         while k < aus.len() {
             if aus[k].2 == 2 && k % 2 == 0 {
-                if k + 2 < aus.len() && aus[k + 2].2 <= 1 {
+                if k + 2 < aus.len() && (aus[k + 2].2 <= 1 || aus[k + 2].2 == 4) {
                     let p = aus.remove(k + 2);
+                    let l = leer.remove(k + 2);
                     aus.insert(k, p);
+                    leer.insert(k, l);
                 } else {
                     aus[k].2 = 1; // keine passende Nachbarseite: nur eine ganze Seite
                     aus.remove(k + 1);
+                    leer.remove(k + 1);
                 }
             }
             k += 1;
         }
-        aus
+        (aus, leer)
+    }
+
+    /// Schlüssel einer Seite: erstes Foto, bei leeren Seiten «leer:<Nummer>».
+    fn seiten_schluessel(&self, seite: &(usize, Vec<usize>, u8), leer: u64) -> String {
+        if seite.2 == 4 { format!("leer:{leer}") } else { self.ids[seite.1[0]].clone() }
+    }
+
+    /// Leere Seiten einfügen und Seiten von Hand verschieben (über die ganze Doppelseite gehören 2 + 3 immer zusammen).
+    /// Zuerst wandern die Seiten mit Fotos, dann kommen die leeren Seiten dazu (sie bleiben bei ihrer Nachbarseite),
+    /// zuletzt werden leere Seiten selbst verschoben.
+    fn seitenfolge_anwenden(&self, aus: &mut Vec<(usize, Vec<usize>, u8)>, leer: &mut Vec<u64>) {
+        let ist_leer = |k: &str| k.starts_with("leer:");
+        for (key, ziel, danach) in self.seiten_zug.iter().filter(|(k, z, _)| !ist_leer(k) && !ist_leer(z)) {
+            self.seite_zug_anwenden(aus, leer, key, ziel, *danach);
+        }
+        for (&id, l) in &self.leere_seiten {
+            let Some(mut p) = aus.iter().position(|s| s.2 != 4 && self.ids[s.1[0]] == l.anker) else { continue };
+            if l.danach {
+                if aus[p].2 == 2 {
+                    p += 1;
+                }
+                p += 1;
+            }
+            let ev = aus[p.min(aus.len() - 1)].0;
+            aus.insert(p, (ev, Vec::new(), 4));
+            leer.insert(p, id);
+        }
+        for (key, ziel, danach) in self.seiten_zug.iter().filter(|(k, z, _)| ist_leer(k) || ist_leer(z)) {
+            self.seite_zug_anwenden(aus, leer, key, ziel, *danach);
+        }
+    }
+
+    fn seite_zug_anwenden(&self, aus: &mut Vec<(usize, Vec<usize>, u8)>, leer: &mut Vec<u64>, key: &str, ziel: &str, danach: bool) {
+        if key == ziel {
+            return;
+        }
+        let ks: Vec<String> = aus.iter().zip(leer.iter()).map(|(s, &l)| self.seiten_schluessel(s, l)).collect();
+        let (Some(a), Some(b)) = (ks.iter().position(|k| k == key), ks.iter().position(|k| k == ziel)) else { return };
+        let a_ende = if aus[a].2 == 2 { a + 1 } else { a };
+        let b_ende = if aus[b].2 == 2 { b + 1 } else { b };
+        if b >= a && b <= a_ende {
+            return;
+        }
+        let block: Vec<_> = aus.drain(a..=a_ende).collect();
+        let block_l: Vec<u64> = leer.drain(a..=a_ende).collect();
+        let n = a_ende - a + 1;
+        let b_neu = if b > a_ende { b - n } else { b };
+        let b_ende_neu = if b > a_ende { b_ende - n } else { b_ende };
+        let pos = if danach { b_ende_neu + 1 } else { b_neu };
+        for (k, (s, l)) in block.into_iter().zip(block_l).enumerate() {
+            aus.insert(pos + k, s);
+            leer.insert(pos + k, l);
+        }
     }
 
     /// Von Hand verschobene Fotos auf die gewählte Seite legen. Leere Seiten fallen weg.
@@ -1328,7 +1494,7 @@ impl Projekt {
         let (_, fotos, art) = self
             .seiten_gruppen_ex(&zahlen)
             .into_iter()
-            .find(|(_, f, _)| self.ids[f[0]] == key)
+            .find(|(_, f, _)| !f.is_empty() && self.ids[f[0]] == key)
             .ok_or("Unbekannte Seite")?;
         // Ein Foto über die Doppelseite wird als ganze Doppelseite gezeigt
         let (varianten, ar) = if art >= 2 { (self.doppel_varianten(fotos[0]), self.seiten_verhaeltnis() * 2.0) } else { (self.seiten_varianten(&fotos, art), self.seiten_verhaeltnis()) };
@@ -1349,7 +1515,15 @@ impl Projekt {
         let bereich = self.gestaltung.stil().bereich;
         let mut seiten = Vec::new();
         let mut vorher: Option<usize> = None;
-        for (nr, (ereignis, fotos, ganz)) in self.seiten_gruppen_ex(zahlen).into_iter().enumerate() {
+        let (roh, leer_ids) = self.seiten_roh(zahlen);
+        for (nr, ((ereignis, fotos, ganz), leer_id)) in roh.into_iter().zip(leer_ids).enumerate() {
+            if ganz == 4 {
+                let beschriftung = if vorher != Some(ereignis) { Some(self.ereignis_anzeigename(ereignis)) } else { None };
+                vorher = Some(ereignis);
+                seiten.push(json!({"beschriftung": beschriftung, "nr": nr + 1, "ereignis": ereignis, "titel": self.ereignis_anzeigename(ereignis),
+                    "key": format!("leer:{leer_id}"), "leer_id": leer_id, "layout": 0, "layouts": 1, "ganz": false, "art": 4, "fotos": []}));
+                continue;
+            }
             let beschriftung = if vorher != Some(ereignis) { Some(self.ereignis_anzeigename(ereignis)) } else { None };
             vorher = Some(ereignis);
             let varianten = self.seiten_varianten(&fotos, ganz);
@@ -1395,6 +1569,10 @@ impl Projekt {
         for (nr, (ereignis, fotos, art)) in self.seiten_gruppen_ex(&zahlen).into_iter().enumerate() {
             let text = if vorher != Some(ereignis) { Some(self.ereignis_anzeigename(ereignis)) } else { None };
             vorher = Some(ereignis);
+            if fotos.is_empty() {
+                auftraege.push(crate::seitenexport::Auftrag { nr: nr + 1, text, fotos: Vec::new() });
+                continue;
+            }
             let varianten = self.seiten_varianten(&fotos, art);
             let wahl = self.layout_wahl.get(&self.ids[fotos[0]]).copied().unwrap_or(0) % varianten.len();
             let felder = &varianten[wahl];
@@ -1450,7 +1628,7 @@ impl Projekt {
             }
         }
         let zahlen = self.ereignis_zahlen(einst);
-        self.seiten_gruppen_ex(&zahlen).into_iter().next().map(|(_, f, _)| f[0])
+        self.seiten_gruppen_ex(&zahlen).into_iter().find(|(_, f, _)| !f.is_empty()).map(|(_, f, _)| f[0])
     }
 
     pub fn setze_gestaltung(&mut self, neu: &serde_json::Map<String, Value>) -> Res<()> {
@@ -1473,7 +1651,7 @@ impl Projekt {
         let titelfoto = self.titelfoto_index(einst).map(|i| self.ids[i].clone());
         let seiten = self.seiten_gruppen_ex(zahlen);
         let schritt = (seiten.len() / 8).max(1);
-        let kandidaten: Vec<String> = seiten.iter().step_by(schritt).take(8).map(|(_, f, _)| self.ids[f[0]].clone()).collect();
+        let kandidaten: Vec<String> = seiten.iter().filter(|s| !s.1.is_empty()).step_by(schritt).take(8).map(|(_, f, _)| self.ids[f[0]].clone()).collect();
         crate::gestaltung::ansicht(&self.gestaltung, &self.titel_auto(), &self.untertitel_auto(einst), titelfoto.as_deref(), &kandidaten)
     }
 
@@ -1644,6 +1822,7 @@ impl Projekt {
                 "entfernt_gruende": entfernt_gruende,
                 "eigene_entscheidungen": self.entscheidungen.len(),
                 "verschiebungen": self.verschoben.len(),
+                "seitenfolge": self.leere_seiten.len() + self.seiten_zug.len(),
                 "ereignis_aenderungen": self.ereignis_teilen.len() + self.ereignis_verbinden.len(),
             },
             "ereignisse": ereignisse,
@@ -1722,6 +1901,9 @@ impl Projekt {
         let rel_von: HashMap<usize, (usize, String)> = reihenfolge.iter().map(|(ei, i, rel)| (*i, (*ei, rel.clone()))).collect();
         let mut zeilen: Vec<Vec<String>> = Vec::new();
         for (seitennr, (_ereignis, fotos)) in seiten.iter().enumerate() {
+            if fotos.is_empty() {
+                zeilen.push(vec![(seitennr + 1).to_string(), "(leere Seite)".into(), "".into(), "".into(), "".into(), "".into()]);
+            }
             for &i in fotos {
                 let (ei, rel) = &rel_von[&i];
                 let f = &self.fotos[i];

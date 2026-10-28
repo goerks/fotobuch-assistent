@@ -245,6 +245,7 @@ def test_reise_wird_zum_album(umgebung):
             seite.wait_for_selector("#uebersicht .seitenkarte")
             seite.wait_for_timeout(1500)
             bild("buch-uebersicht", voll=False)
+            assert seite.locator("#band .bandseite").count() >= 3, "Seitenband zeigt die Seiten des Buchs"
             seite.evaluate("window.__fotobuch.S.buchAnsicht = 'doppel'; window.__fotobuch.zeige()")
 
             # 4. Buch durchblättern, jede Doppelseite prüfen und festhalten

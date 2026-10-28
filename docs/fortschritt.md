@@ -180,3 +180,12 @@ Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach 
 - Lesbare Namen: «Sa 18.07. Nachmittag» (Wochentag, Datum, Tageszeit); gleiche Namen werden nummeriert. Ortsnamen kann die App offline nicht ermitteln.
 - Orte eingeklappt, Teilen und Zusammenlegen als Textknöpfe. Vergleich: [docs/galerie/schritte/02-ereignisse.png](galerie/schritte/02-ereignisse.png).
 
+
+## Schritt 3: Seiten einfügen und umordnen
+
+- Neues **Seitenband** im Schritt «Buch»: alle Seiten als Vorschau, nach Ereignis eingefärbt, aktuelle Doppelseite hervorgehoben.
+- Seite wählen, **nach vorn/hinten** schieben (auch mit der Maus ziehen), **leere Seite** davor oder danach einfügen und löschen, **Seite entfernen** (Fotos wandern auf die Nachbarseite, ein Foto mit eigener Seite wird zum normalen Foto).
+- Ein Foto über die Doppelseite bleibt als Paar zusammen. Leere Seiten zählen für die Seitenzahl und gehen in den Export (leere Seite im Stil des Themas) und in die CSV.
+- «Alle Änderungen an der Seitenfolge zurücknehmen» stellt den Vorschlag wieder her. Gespeichert im Projekt (`leere_seiten`, `seiten_zug`).
+- Noch offen: Ereignisse als Ganzes verschieben (geht vorerst seitenweise).
+- Vorher/Nachher: `docs/galerie/schritte/03-seitenband.png`.
