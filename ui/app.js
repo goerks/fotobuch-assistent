@@ -26,6 +26,7 @@
     kg: 280, // Bildgrösse in Schritt 3 (Pixel)
     wegFilter: "alle",
     buchPos: 0, // Doppelseite (0-basiert)
+    aussTab: "serien", // Reiter im Schritt Aussortieren
     bandSel: null, // Schlüssel der im Seitenband gewählten Seite
     buchAnsicht: "doppel",
     layoutOffen: null,
@@ -603,14 +604,25 @@
     v.append(h("div", { class: "zeile" }, h("label", { for: "kg" }, "Bildgrösse"), kg));
 
     // Serien
-    v.append(h("h2", {}, "Fast gleiche Serien"));
+    const sSerien = h("section", { id: "tab-serien", hidden: S.aussTab !== "serien" });
     const serien = serienListe();
     if (!serien.length) {
-      v.append(h("div", { class: "leer" }, "Keine Serien gefunden. Es gibt nichts zu prüfen."));
+      sSerien.append(h("div", { class: "leer" }, "Keine Serien gefunden. Es gibt nichts zu prüfen."));
     } else {
       const g = serien[S.serie];
       const ev = a.ereignisse[g.ereignis];
-      v.append(
+      const geprueft = serien.filter((x) => x.entschieden).length;
+      sSerien.append(
+        h("div", { class: "fortschritt" },
+          h("div", { class: "balken" }, h("div", { style: "width:" + Math.round((100 * geprueft) / serien.length) + "%" })),
+          h("span", { class: "still", id: "serien-fortschritt" }, geprueft + " von " + serien.length + " Serien geprüft")),
+        h("div", { class: "serienband", id: "serienband" },
+          serien.map((x, k) => h("button", { type: "button", class: "serienchip" + (k === S.serie ? " aktiv" : "") + (x.entschieden ? " fertig" : ""), "data-i": k,
+            style: "--ev:" + EV_FARBEN[(x.ereignis || 0) % EV_FARBEN.length], title: "Serie " + (k + 1) + " · " + ereignisName(a.ereignisse[x.ereignis]),
+            onclick: () => springeSerie(k) },
+            h("span", { class: "chipbilder" }, x.ids.slice(0, 3).map((id) => h("img", { src: vorschauUrl(id, 96), alt: "", loading: "lazy" }))),
+            h("span", { class: "chiptext" }, (k + 1) + " · " + (x.entschieden ? "geprüft ✓" : "offen"))))));
+      sSerien.append(
         h(
           "div",
           { class: "zeile" },
@@ -618,15 +630,15 @@
           h("b", { id: "serie-titel" }, "Serie " + (S.serie + 1) + " von " + serien.length),
           h("span", { class: "still" }, (g.entschieden ? "geprüft" : "noch offen") + " · " + ereignisName(ev)),
           h("button", { type: "button", class: "knopf", id: "btn-serie-weiter", onclick: () => springeSerie(S.serie + 1) }, "Nächste →"),
-          h("button", { type: "button", class: "knopf", id: "btn-serie-offen", onclick: () => springeSerie(naechsteOffene(S.serie)) }, "Nächste offene"),
+          h("button", { type: "button", class: "knopf", id: "btn-serie-offen", onclick: () => springeSerie(naechsteOffene(S.serie)) }, "Weiter zur nächsten offenen Serie →"),
           h("button", { type: "button", class: "knopf", id: "btn-alle-vorschlaege", onclick: alleVorschlaege }, "Alle Vorschläge übernehmen")
         )
       );
-      v.append(
+      sSerien.append(
         h("div", { class: "serie", id: "serie", style: "--kg:" + S.kg + "px" },
           g.ids.map((id, i) => serienKarte(id, i, g)))
       );
-      v.append(
+      sSerien.append(
         h("div", { class: "zeile" },
           h("button", { type: "button", class: "knopf", id: "btn-vorschlag", onclick: () => serieAktion(g.nr, "vorschlag") }, "Zurück zum Vorschlag"),
           h("button", { type: "button", class: "knopf", id: "btn-keines", onclick: () => serieAktion(g.nr, "keines") }, "Keines davon behalten")),
@@ -636,7 +648,16 @@
       );
     }
 
-    v.append(...viewOrte(a));
+    const sWeg = h("section", { id: "tab-weg", hidden: S.aussTab !== "weg" });
+    const sDupl = h("section", { id: "tab-dupl", hidden: S.aussTab !== "dupl" });
+    const dupFotos = Object.entries(a.fotos).filter(([, f]) => !f.b && !f.x && (f.g.startsWith("Exaktes Duplikat") || f.g.startsWith("Screenshot")));
+    sDupl.append(
+      h("p", { class: "still" }, "Exakte Kopien derselben Datei und Bildschirmfotos sind schon aussortiert. Klicke ein Foto an, um es doch ins Buch zu holen."),
+      dupFotos.length
+        ? h("div", { class: "raster gross", id: "dupl-liste", style: "--kg:" + Math.round(S.kg * 0.85) + "px" }, dupFotos.slice(0, 120).map(([id, f]) => rasterKarte(id, f)))
+        : h("p", { class: "still" }, "Keine Duplikate und keine Screenshots gefunden."));
+    const sOrte = h("section", { id: "tab-orte", hidden: S.aussTab !== "orte" });
+    sOrte.append(...viewOrte(a));
 
     // Aussortierte mit Begründung
     const KAT = [
@@ -646,23 +667,29 @@
     const alleWeg = Object.entries(a.fotos).filter(([id, f]) => !f.b && !f.x);
     const zaehleKat = (k) => (k === "alle" ? alleWeg.length : alleWeg.filter(([, f]) => f.g.startsWith(k)).length);
     const weg = alleWeg.filter(([, f]) => S.wegFilter === "alle" || f.g.startsWith(S.wegFilter));
-    v.append(h("h2", {}, "Aussortiert (" + alleWeg.length + ")"));
+    sWeg.append(h("h2", {}, "Aussortiert (" + alleWeg.length + ")"));
     if (!alleWeg.length) {
-      v.append(h("p", { class: "still" }, "Es wurde nichts aussortiert."));
+      sWeg.append(h("p", { class: "still" }, "Es wurde nichts aussortiert."));
     } else {
       const sel = h("select", { id: "weg-filter", "aria-label": "Grund filtern" },
         KAT.filter(([k]) => k === "alle" || zaehleKat(k) > 0).map(([k, t]) => h("option", { value: k, selected: S.wegFilter === k }, t + " (" + zaehleKat(k) + ")")));
       sel.addEventListener("change", () => { S.wegFilter = sel.value; S.zeigeEntfernt = 60; zeige(); });
-      v.append(
+      sWeg.append(
         h("p", { class: "still" }, "Zu jedem Foto steht, warum es nicht im Buch ist. Klicke ein Foto an für die grosse Ansicht und um es doch ins Buch zu holen."),
         h("div", { class: "zeile" }, h("label", { for: "weg-filter" }, "Grund"), sel),
         h("div", { class: "raster gross", id: "aussortiert", style: "--kg:" + Math.round(S.kg * 0.85) + "px" },
           weg.slice(0, S.zeigeEntfernt).map(([id, f]) => rasterKarte(id, f)))
       );
       if (weg.length > S.zeigeEntfernt) {
-        v.append(h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", onclick: () => { S.zeigeEntfernt += 120; zeige(); } }, "Mehr anzeigen")));
+        sWeg.append(h("div", { class: "zeile" }, h("button", { type: "button", class: "knopf", onclick: () => { S.zeigeEntfernt += 120; zeige(); } }, "Mehr anzeigen")));
       }
     }
+    const wegZahl = Object.values(a.fotos).filter((f) => !f.b && !f.x).length;
+    const reiter = [["serien", "Serien (" + z.serien_entschieden + " von " + z.serien + " geprüft)"], ["dupl", "Duplikate und Screenshots (" + (z.screenshots + Object.values(a.fotos).filter((f) => !f.b && !f.x && f.g.startsWith("Exaktes Duplikat")).length) + ")"], ["orte", "Orte"], ["weg", "Aussortiert (" + wegZahl + ")"]];
+    const leiste = h("div", { class: "reiter", role: "tablist", id: "reiter" },
+      reiter.map(([k, t]) => h("button", { type: "button", role: "tab", id: "reiter-" + k, class: "reiter-knopf" + (S.aussTab === k ? " aktiv" : ""), "aria-selected": S.aussTab === k ? "true" : "false",
+        onclick: () => { S.aussTab = k; zeige(); } }, t)));
+    v.append(leiste, sSerien, sDupl, sOrte, sWeg);
     const nichtLesbar = Object.values(a.fotos).filter((f) => f.x).length;
     if (nichtLesbar) v.append(h("div", { class: "warn" }, nichtLesbar + " Dateien konnten nicht gelesen werden und sind nicht im Buch."));
     if (a.zahlen.eigene_entscheidungen) {
@@ -771,7 +798,11 @@
       h("span", { class: "marke-b" }, behalten ? "Im Buch" : "Entfernt"),
       id === g.vorschlag ? h("span", { class: "marke-v" }, "Vorschlag") : null,
       h("button", { type: "button", class: "lupe-knopf", "aria-label": "Gross ansehen", onclick: (ev) => { ev.stopPropagation(); lupe(id); } }, "🔍"),
-      h("div", { class: "info" }, h("span", {}, f.n), h("span", {}, f.z.slice(11) + " · " + f.mp + " MP · Q " + f.q))
+      h("div", { class: "info" }, h("span", {}, f.n), h("span", {}, f.z.slice(11) + " · " + f.mp + " MP · Q " + f.q)),
+      h("div", { class: "qbalken" },
+        [["Qualität", f.q], ["Schärfe", f.sc], ["Auflösung", f.ap]].map(([t, w]) =>
+          h("div", { class: "qzeile" }, h("span", {}, t), h("div", { class: "balken" }, h("div", { style: "width:" + (w || 0) + "%" })), h("b", {}, String(w || 0))))),
+      h("p", { class: "qgrund" }, f.gd)
     );
   }
 

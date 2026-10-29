@@ -189,3 +189,10 @@ Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach 
 - «Alle Änderungen an der Seitenfolge zurücknehmen» stellt den Vorschlag wieder her. Gespeichert im Projekt (`leere_seiten`, `seiten_zug`).
 - Noch offen: Ereignisse als Ganzes verschieben (geht vorerst seitenweise).
 - Vorher/Nachher: `docs/galerie/schritte/03-seitenband.png`.
+
+## Schritt 4: Aussortieren
+
+- **Reiter** statt einer langen Seite: Serien, Duplikate und Screenshots, Orte, Aussortiert.
+- **Serienband** mit allen Serien (nach Ereignis gefärbt, «geprüft» oder «offen») und Fortschrittsbalken; «Weiter zur nächsten offenen Serie».
+- **Vergleich mit Balken** für Qualität, Schärfe und Auflösung und der Begründung je Foto.
+- Vorher/Nachher: `docs/galerie/schritte/04-aussortieren.png`.

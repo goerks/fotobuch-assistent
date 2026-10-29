@@ -332,3 +332,24 @@ a{color:var(--akzent)}
 .bandnr{display:block;font-size:10px;text-align:center;opacity:.7;padding:1px 0 2px}
 .bandleiste{flex-wrap:wrap;gap:8px}
 .seite .leerseite{font-size:13px}
+
+/* Aussortieren: Reiter, Serienband, Qualitätsbalken (Schritt 4) */
+.reiter{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--rand,#d6dae2);margin:16px 0 12px}
+.reiter-knopf{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 14px;font:inherit;color:inherit;opacity:.75;cursor:pointer}
+.reiter-knopf.aktiv{border-bottom-color:#2a6db5;font-weight:700;opacity:1}
+.fortschritt{display:flex;align-items:center;gap:12px;margin:8px 0}
+.balken{flex:1;height:8px;background:#dfe2e8;border-radius:4px;overflow:hidden}
+.balken>div{height:100%;background:#1f7a4d;border-radius:4px}
+.serienband{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px}
+.serienchip{flex:0 0 auto;width:96px;box-sizing:border-box;border:2px solid #d6dae2;border-top:5px solid var(--ev,#888);border-radius:6px;padding:5px;background:var(--flaeche,#fff);color:inherit;font:inherit;cursor:pointer;text-align:left}
+.serienchip.aktiv{border-color:#1f4e8c;border-top-color:var(--ev,#888);background:#2a6db51a}
+.chipbilder{display:flex;gap:2px}
+.chipbilder img{width:26px;height:26px;object-fit:cover;border-radius:3px}
+.chiptext{display:block;font-size:12px;margin-top:4px;color:#7a5b00;font-weight:600}
+.serienchip.fertig .chiptext{color:#1f7a4d}
+.qbalken{padding:6px 10px 0;display:flex;flex-direction:column;gap:3px;font-size:12px}
+.qzeile{display:flex;align-items:center;gap:8px}
+.qzeile>span{width:64px;opacity:.75}
+.qzeile>b{width:24px;text-align:right;font-weight:600}
+.karte.weg .balken>div{background:#b5504d}
+.qgrund{margin:4px 10px 8px;font-size:12px;line-height:1.35;opacity:.85}

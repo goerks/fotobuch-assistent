@@ -150,6 +150,15 @@ test("Aussortieren: Serie zeigt Vorschlag, Klick und Tastatur ändern die Auswah
   klick(q("#btn-naechster"));
   await warteBis(() => q("#serie"), "Serienansicht");
   assert.match(q("#serie-titel").textContent, /Serie 1 von 1/);
+  assert.equal(qa("#serienband .serienchip").length, 1, "Serienband zeigt jede Serie");
+  assert.match(q("#serien-fortschritt").textContent, /0 von 1 Serien geprüft/);
+  assert.ok(q("#serie .qbalken"), "Qualitätsbalken im Vergleich");
+  assert.ok(q("#tab-orte").hidden && q("#tab-weg").hidden && !q("#tab-serien").hidden, "nur der Reiter Serien ist offen");
+  klick(q("#reiter-dupl"));
+  await warteBis(() => !q("#tab-dupl").hidden && q("#tab-serien").hidden, "Reiter Duplikate");
+  assert.ok(qa("#dupl-liste .karte").length >= 1, "Duplikat im Reiter");
+  klick(q("#reiter-serien"));
+  await warteBis(() => !q("#tab-serien").hidden, "Reiter Serien");
   let karten = qa("#serie .karte");
   assert.equal(karten.length, 2);
   const vorschlag = karten.find((k) => k.querySelector(".marke-v"));

@@ -1768,6 +1768,8 @@ impl Projekt {
                     "raw": f.ist_raw,
                     "o": erg.ort_von[i],
                     "q": (100.0 * score(f, self.maxs)).round() as i64,
+                    "sc": (100.0 * if self.maxs > 0.0 { (f.schaerfe / self.maxs).min(1.0) } else { 0.0 }).round() as i64,
+                    "ap": (100.0 * (f.megapixel() / 12.0).min(1.0)).round() as i64,
                     "r": rang.get(&i),
                     "gd": self.begruendung(i, e, rang.get(&i).copied()),
                     "ort": erg.ort_von[i].map(|o| self.ort_name(o)),
