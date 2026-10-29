@@ -319,7 +319,9 @@ a{color:var(--akzent)}
 .band{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px;align-items:flex-end}
 .banditem{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
 .banditem.ereignisanfang{margin-left:12px}
-.bandtitel{font-size:11px;font-weight:600;height:15px;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bandtitel{font-size:11px;font-weight:600;height:17px;display:flex;align-items:center;gap:2px;white-space:nowrap;overflow:visible}
+.bandname{max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.evschieber{border:1px solid currentColor;background:none;color:inherit;border-radius:4px;font-size:10px;line-height:1;padding:1px 4px;cursor:pointer;flex:0 0 auto}
 .bandseite{position:relative;width:88px;padding:3px 3px 0;border:2px solid transparent;border-top:4px solid var(--ev,#888);border-radius:5px;background:var(--flaeche,#fff);cursor:pointer;color:inherit;font:inherit}
 .bandseite .seite{pointer-events:none}
 .bandseite .sfoto{pointer-events:none}

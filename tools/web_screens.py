@@ -68,7 +68,9 @@ def main(arbeit: Path, ziel: Path):
                 s.wait_for_selector("#doppelseite .sfoto"); shot("6c-panorama")
             s.click("#doppelseite .sfoto >> nth=0"); s.wait_for_selector("#lupe-grund"); shot("6d-foto-detail"); s.keyboard.press("Escape")
             s.click("#btn-ansicht-uebersicht"); s.wait_for_selector("#uebersicht .seitenkarte"); s.wait_for_timeout(1500); shot("6e-uebersicht")
-            s.evaluate("window.__fotobuch.S.buchAnsicht='doppel'; window.__fotobuch.zeige()")
+            s.evaluate("window.__fotobuch.S.buchAnsicht='doppel'; window.__fotobuch.S.buchPos=3; window.__fotobuch.zeige()")
+            s.wait_for_selector("#band .bandseite"); s.evaluate("document.querySelector('#seitenband').scrollIntoView()"); shot("6f-seitenband")
+            s.evaluate("window.scrollTo(0,0)")
             gehe(7)
             for t in THEMEN:
                 gehe(5); s.click(f'.themakarte[data-thema="{t}"]')

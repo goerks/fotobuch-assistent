@@ -1074,6 +1074,63 @@ impl Projekt {
         Ok(())
     }
 
+    /// Ein ganzes Ereignis (alle seine Seiten) um ein Ereignis nach vorn (`richtung` < 0) oder hinten verschieben.
+    /// `key` ist eine Seite des Ereignisses.
+    pub fn ereignis_verschieben(&mut self, key: &str, richtung: i64) -> Res<()> {
+        let einst = self.einstufungen();
+        let zahlen = self.ereignis_zahlen(&einst);
+        let (roh, leer) = self.seiten_roh(&zahlen);
+        let keys: Vec<String> = roh.iter().zip(leer.iter()).map(|(s, &l)| self.seiten_schluessel(s, l)).collect();
+        let pos = keys.iter().position(|k| k == key).ok_or("Unbekannte Seite")?;
+        let ev = roh[pos].0;
+        // Zusammenhängende Seiten desselben Ereignisses
+        let (mut von, mut bis) = (pos, pos);
+        while von > 0 && roh[von - 1].0 == ev {
+            von -= 1;
+        }
+        while bis + 1 < roh.len() && roh[bis + 1].0 == ev {
+            bis += 1;
+        }
+        let mut neue: Vec<(String, String, bool)> = Vec::new();
+        if richtung < 0 {
+            if von == 0 {
+                return Err("Das Ereignis steht schon ganz vorn.".into());
+            }
+            let nev = roh[von - 1].0;
+            let mut nvon = von - 1;
+            while nvon > 0 && roh[nvon - 1].0 == nev {
+                nvon -= 1;
+            }
+            for k in von..=bis {
+                if k > von && roh[k].2 == 3 {
+                    continue;
+                }
+                neue.push((keys[k].clone(), keys[nvon].clone(), false));
+            }
+        } else {
+            if bis + 1 >= roh.len() {
+                return Err("Das Ereignis steht schon ganz hinten.".into());
+            }
+            let nev = roh[bis + 1].0;
+            let mut nbis = bis + 1;
+            while nbis + 1 < roh.len() && roh[nbis + 1].0 == nev {
+                nbis += 1;
+            }
+            for k in (von..=bis).rev() {
+                if roh[k].2 == 3 {
+                    continue;
+                }
+                neue.push((keys[k].clone(), keys[nbis].clone(), true));
+            }
+        }
+        for (k, _, _) in &neue {
+            self.seiten_zug.retain(|(x, _, _)| x != k);
+        }
+        self.seiten_zug.extend(neue);
+        self.speichern();
+        Ok(())
+    }
+
     /// Alle Handänderungen an der Seitenfolge zurücknehmen (leere Seiten, verschobene Seiten und Fotos).
     pub fn seitenfolge_zuruecksetzen(&mut self) {
         self.leere_seiten.clear();

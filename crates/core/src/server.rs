@@ -452,6 +452,10 @@ fn aktion(app: &Arc<App>, pfad: &str, d: &Value) -> Res<Value> {
             p.seite_verschieben(&text(d, "key")?, &text(d, "ziel")?, d.get("danach").and_then(|v| v.as_bool()).unwrap_or(false))?;
             Ok(ok())
         }
+        "/api/ereignis/verschieben" => {
+            p.ereignis_verschieben(&text(d, "key")?, d.get("richtung").and_then(|v| v.as_i64()).unwrap_or(1))?;
+            Ok(ok())
+        }
         "/api/seite/entfernen" => {
             p.seite_entfernen(&text(d, "key")?)?;
             Ok(ok())

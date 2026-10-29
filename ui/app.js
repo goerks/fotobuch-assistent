@@ -1307,7 +1307,14 @@
       knopf.addEventListener("dragleave", () => knopf.classList.remove("ziel-davor", "ziel-danach"));
       knopf.addEventListener("drop", (ev) => { ev.preventDefault(); const r = knopf.getBoundingClientRect(); const key = S.bandZieh; S.bandZieh = null; knopf.classList.remove("ziel-davor", "ziel-danach"); if (key && key !== sp.key) { S.bandSel = key; verschiebe(key, sp.key, ev.clientX >= r.left + r.width / 2); } });
       knopf.addEventListener("dragend", () => { S.bandZieh = null; });
-      return h("div", { class: "banditem" + (sp.beschriftung ? " ereignisanfang" : "") }, sp.beschriftung ? h("span", { class: "bandtitel", style: "color:" + EV_FARBEN[(sp.ereignis || 0) % EV_FARBEN.length] }, sp.beschriftung) : h("span", { class: "bandtitel" }), knopf);
+      const evKnopf = (text, richtung, titel) => h("button", { type: "button", class: "evschieber", "data-richtung": richtung, title: titel, "aria-label": titel,
+        onclick: (ev) => { ev.stopPropagation(); tue("/api/ereignis/verschieben", { key: sp.key, richtung }); } }, text);
+      return h("div", { class: "banditem" + (sp.beschriftung ? " ereignisanfang" : "") },
+        sp.beschriftung
+          ? h("span", { class: "bandtitel", style: "color:" + EV_FARBEN[(sp.ereignis || 0) % EV_FARBEN.length] },
+              evKnopf("◂", -1, "Ereignis «" + sp.beschriftung + "» nach vorn schieben"), h("span", { class: "bandname" }, sp.beschriftung), evKnopf("▸", 1, "Ereignis «" + sp.beschriftung + "» nach hinten schieben"))
+          : h("span", { class: "bandtitel" }),
+        knopf);
     });
     const hat = von >= 0;
     // Anker für eine neue leere Seite: die gewählte Seite, bei einer leeren Seite die nächste Seite mit Fotos

@@ -370,6 +370,16 @@ test("Seitenband: Seite wählen, verschieben, leere Seite einfügen, entfernen, 
   klick(q("#seitenfolge-zurueck"));
   await warteBis(() => seitenZahl() === n0 && qa("#band .bandseite")[0].dataset.key === key1, "Seitenfolge zurückgesetzt");
   assert.ok(nrn().length === n0);
+  // Ganzes Ereignis nach hinten schieben und zurücknehmen
+  const titel = qa("#band .ereignisanfang");
+  if (titel.length >= 2) {
+    const ersterEv = qa("#band .bandseite")[0].dataset.key;
+    klick(titel[0].querySelector('.evschieber[data-richtung="1"]'));
+    await warteBis(() => qa("#band .bandseite")[0].dataset.key !== ersterEv, "Ereignis nach hinten");
+    assert.equal(seitenZahl(), n0, "keine Seite geht verloren");
+    klick(q("#seitenfolge-zurueck"));
+    await warteBis(() => qa("#band .bandseite")[0].dataset.key === ersterEv, "Ereignisse zurückgestellt");
+  }
 });
 
 test("Export: schreibt Dateien, zeigt Ergebnis, App lässt sich beenden", async () => {
