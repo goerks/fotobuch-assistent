@@ -263,6 +263,23 @@ test("Umfang: Bereich, Dichte, Seitenzahl je Ereignis und Auswahl-Galerie", asyn
   await warteBis(() => Number(q("#buch-fotos").textContent) === imBuch, "Foto zurückgeholt");
 });
 
+test("Druckdienst: Profil und Produkt wählen, Regel und feste Seitenzahlen", async () => {
+  if (!q("#profil")) klick(q('[data-schritt="4"]'));
+  await warteBis(() => q("#profil"), "Umfang-Ansicht");
+  assert.equal(q("#profil").value, "allgemein");
+  setze(q("#profil"), "pixum");
+  await warteBis(() => /26 bis 202 Seiten, in 4er-Schritten/.test(q("#regel-text").textContent), "Pixum-Regel");
+  assert.ok(q("#regel-quelle a[href*='pixum.de']"), "Quelle mit Link");
+  assert.ok(qa("#produkt option").length >= 3, "mehrere Produkte");
+  setze(q("#produkt"), "hardcover-layflat");
+  await warteBis(() => /26 bis 130 Seiten/.test(q("#regel-text").textContent), "Layflat-Regel");
+  setze(q("#profil"), "ifolor");
+  await warteBis(() => /Feste Seitenzahlen: 26, 36, 48/.test(q("#regel-text").textContent), "feste Zahlen");
+  assert.match(q("#zaehler .gross").textContent, /^(26|36|48|60|72|84|96|108|120|132) Seiten$/);
+  setze(q("#profil"), "allgemein");
+  await warteBis(() => /24 bis 200 Seiten/.test(q("#regel-text").textContent), "zurück zu eigenen Regeln");
+});
+
 test("Gestaltung: Thema wählen, anpassen, Deckblatt und Titelfoto", async () => {
   klick(q("#btn-naechster"));
   await warteBis(() => q("#themen"), "Themen");

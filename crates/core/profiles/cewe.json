@@ -1,0 +1,10 @@
+{
+  "name": "Cewe Fotobuch",
+  "geprueft_am": "2026-10-30",
+  "quelle": ["https://www.cewe.ch/de/fotobuch.html", "https://www.heise.de/download/specials/Die-besten-Fotobuch-Anbieter-im-Vergleich-6130953"],
+  "hinweis": "Die Schrittweite von 4 Seiten stammt aus einem Testbericht (Extraseiten im Viererpack), nicht aus dem Cewe-Editor. Prüfe sie dort kurz.",
+  "produkte": [
+    { "id": "hardcover", "name": "Hardcover, Klebebindung (Digitaldruck)", "verifiziert": false, "seiten_min": 26, "seiten_schritt": 4, "seiten_max": 202, "format": "Gross 21 × 28 cm (auch Panorama 28 × 21 cm)" },
+    { "id": "softcover", "name": "Softcover", "verifiziert": false, "seiten_min": 26, "seiten_schritt": 4, "seiten_max": 130, "format": "Gross 21 × 28 cm", "hinweis": "Mindestseitenzahl nicht angegeben, 26 angenommen." }
+  ]
+}

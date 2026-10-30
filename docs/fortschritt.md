@@ -196,3 +196,10 @@ Aufklappfenster (Layout wählen) hängen am Knopf, wählen oben oder unten nach 
 - **Serienband** mit allen Serien (nach Ereignis gefärbt, «geprüft» oder «offen») und Fortschrittsbalken; «Weiter zur nächsten offenen Serie».
 - **Vergleich mit Balken** für Qualität, Schärfe und Auflösung und der Begründung je Foto.
 - Vorher/Nachher: `docs/galerie/schritte/04-aussortieren.png`.
+
+## Schritt 5: Druckdienst-Profile
+
+- Echte Profile für **Cewe, Pixum, Ifolor und Saal Digital** (Dateien `crates/core/profiles/*.json`) mit Produkten (Hardcover, Softcover, Layflat), Seitenregeln, Quelle und Prüfdatum. «Eigene Regeln» bleibt für alle anderen.
+- **Feste Seitenzahlen** (Ifolor: 26, 36, 48 … 132) werden geplant, der Zähler zeigt die Stufen davor und danach.
+- Quellen: Anbieter-Seiten und ein heise-Test (Stand 30.10.2026). Die Schrittweite von Cewe stammt nur aus dem Testbericht und ist im Profil so vermerkt.
+- Vorher/Nachher: `docs/galerie/schritte/05-druckdienst.png`.

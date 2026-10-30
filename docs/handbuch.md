@@ -36,7 +36,7 @@ Gib einen Bereich an, wie viele Fotos auf eine Seite sollen (zum Beispiel 2 bis 
 
 Die Option «Jedes Ereignis beginnt auf einer neuen Seite» macht das Buch übersichtlicher, braucht aber oft mehr Seiten.
 
-**Wichtig:** Die Seitenregeln der Anbieter (Mindestseitenzahl, Schrittweite, Höchstzahl) sind noch nicht geprüft. Gelb markierte Profile zeigen das. Prüfe die Werte bei deinem Druckdienst und passe sie unter «Seitenregeln anpassen» an.
+**Druckdienst:** Wähle Anbieter und Produkt (Cewe, Pixum, Ifolor, Saal Digital oder «Eigene Regeln»). Die Seitenregeln stehen in einem Satz da, mit Quelle und Prüfdatum, zum Beispiel «26 bis 202 Seiten, in 4er-Schritten». Ifolor hat feste Seitenzahlen: Die App wählt die nächste passende und zeigt, wie viele Seiten frei bleiben. Die Werte stammen von den Anbieter-Seiten und aus Testberichten (Stand 30.10.2026). Anbieter ändern sie ab und zu: Schau vor dem Bestellen kurz im Editor nach. Unter «Seitenregeln anpassen» kannst du eigene Zahlen eintragen.
 
 ### 5. Export
 Der Assistent kopiert die Fotos nummeriert in einen Ordner pro Ereignis und schreibt `seitenliste.csv` (welches Foto auf welche Seite) und `LIESMICH.txt`. Lade danach die Fotos in der Software deines Druckdienstes hoch. Ein direkter Import in Cewe, Pixum oder Ifolor ist noch nicht möglich. Ein bestehender, gefüllter Zielordner wird nie überschrieben.

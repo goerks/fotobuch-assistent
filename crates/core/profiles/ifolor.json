@@ -1,14 +1,9 @@
 {
-  "name": "Ifolor (Entwurf, unverifiziert)",
-  "verifiziert": false,
-  "hinweis": "Ifolor bietet laut einer Quelle nur feste Seitenzahlen, die zu Projektbeginn gewählt werden. Genaue Werte noch nicht geprüft. Platzhalter, bis Etappe 0 geklärt ist.",
-  "seiten_min": null,
-  "seiten_schritt": null,
-  "seiten_max": null,
-  "beschnitt_mm": null,
-  "einzel_oder_doppelseiten": null,
-  "dateityp": null,
-  "aufloesung_dpi": null,
-  "quelle": null,
-  "geprueft_am": null
+  "name": "Ifolor Fotobuch",
+  "geprueft_am": "2026-10-30",
+  "quelle": ["https://www.ifolor.ch/en/photo-book/soft"],
+  "hinweis": "Ifolor bietet feste Seitenzahlen, die du am Anfang wählst. Geprüft ist das Softcover A4; andere Produkte können andere Zahlen haben.",
+  "produkte": [
+    { "id": "softcover-a4", "name": "Softcover A4", "verifiziert": true, "seiten_liste": [26, 36, 48, 60, 72, 84, 96, 108, 120, 132], "format": "A4 hoch" }
+  ]
 }

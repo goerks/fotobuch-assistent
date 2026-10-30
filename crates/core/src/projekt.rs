@@ -23,7 +23,7 @@ use crate::foto::Foto;
 use crate::gestaltung::{feld_im_bereich, monat_name, Gestaltung};
 use crate::layout::layout_varianten;
 use crate::orte::{bilde_orte, Ort};
-use crate::pages::{erlaubte_seitenzahl, lade_profil, Profil, PROFILE};
+use crate::pages::{erlaubte_seitenzahl, lade_anbieter, lade_profil, lade_profil_produkt, Profil, PROFILE};
 use crate::umfang::{self, Eingabe};
 use crate::scanner::{self, analysiere_foto, datei_zeiten, finde_fotos};
 
@@ -47,6 +47,8 @@ pub struct Einstellungen {
     /// Gewünschte Seitenzahl des Buchs; leer = so viele wie nötig.
     pub seiten_ziel: Option<i64>,
     pub profil: String,
+    /// Produkt des Anbieters (Einband, Bindung); leer = das erste.
+    pub produkt: String,
     pub seiten_min: Option<i64>,
     pub seiten_schritt: Option<i64>,
     pub seiten_max: Option<i64>,
@@ -67,6 +69,7 @@ impl Default for Einstellungen {
             pro_seite_bis: 5,
             seiten_ziel: None,
             profil: "allgemein".into(),
+            produkt: String::new(),
             seiten_min: None,
             seiten_schritt: None,
             seiten_max: None,
@@ -353,7 +356,7 @@ impl Projekt {
 
     pub fn profil(&self) -> Profil {
         let e = &self.einstellungen;
-        let basis = lade_profil(&e.profil).or_else(|| lade_profil("allgemein")).unwrap();
+        let basis = lade_profil_produkt(&e.profil, &e.produkt).or_else(|| lade_profil("allgemein")).unwrap();
         basis.mit_vorgaben(e.seiten_min, e.seiten_schritt, e.seiten_max)
     }
 
@@ -711,6 +714,16 @@ impl Projekt {
                         return Err("Unbekanntes Profil".into());
                     }
                     e.profil = n.to_string();
+                    e.produkt = String::new();
+                }
+                "produkt" => {
+                    let n = v.as_str().unwrap_or("");
+                    let anbieter = neu.get("profil").and_then(|x| x.as_str()).unwrap_or(&e.profil).to_string();
+                    let a = lade_anbieter(&anbieter).ok_or("Unbekanntes Profil")?;
+                    if !n.is_empty() && !a.produkte.iter().any(|p| p.id == n) {
+                        return Err("Unbekanntes Produkt".into());
+                    }
+                    e.produkt = n.to_string();
                 }
                 "seitenformat" => {
                     let n = v.as_str().unwrap_or("");
@@ -754,6 +767,9 @@ impl Projekt {
         if neu.get("profil").map_or(false, |v| v.as_str().map_or(false, |s| !s.is_empty())) {
             // Beim Profilwechsel eigene Seitenregeln zurücksetzen
             let e = &mut self.einstellungen;
+            if !neu.contains_key("produkt") {
+                e.produkt = String::new();
+            }
             if !neu.contains_key("seiten_min") {
                 e.seiten_min = None;
             }
@@ -1858,12 +1874,19 @@ impl Projekt {
             "gestaltung": self.gestaltung_ansicht(&einst, &zahlen),
             "profil": {
                 "name": profil.name,
+                "produkt": profil.produkt,
                 "verifiziert": profil.verifiziert,
                 "hinweis": profil.hinweis,
-                "seiten_min": profil.seiten_min,
-                "seiten_schritt": profil.seiten_schritt,
-                "seiten_max": profil.seiten_max,
+                "seiten_min": profil.min(),
+                "seiten_schritt": profil.schritt(),
+                "seiten_max": profil.max(),
+                "seiten_liste": profil.seiten_liste,
+                "regel": profil.regel_text(),
+                "quelle": profil.quelle,
+                "geprueft_am": profil.geprueft_am,
+                "format": profil.format,
                 "auswahl": PROFILE,
+                "anbieter": PROFILE.iter().filter_map(|n| lade_anbieter(n).map(|a| json!({"id": n, "name": a.name, "produkte": a.produkte.iter().map(|p| json!({"id": p.id, "name": p.name})).collect::<Vec<_>>()}))).collect::<Vec<_>>(),
             },
             "zahlen": {
                 "dateien": self.fotos.len(),

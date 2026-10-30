@@ -1,0 +1,11 @@
+{
+  "name": "Pixum Fotobuch",
+  "geprueft_am": "2026-10-30",
+  "quelle": ["https://www.pixum.de/fotobuch/ideen/fotobuch-mit-vielen-seiten"],
+  "hinweis": "Pixum nennt die Grenzen je Einband, Papier und Format. Bei Glanz-Premiumpapier sind es höchstens 154 Seiten, beim Format XXL quer bei Layflat 106.",
+  "produkte": [
+    { "id": "hardcover-klebebindung", "name": "Hardcover, Klebebindung", "verifiziert": true, "seiten_min": 26, "seiten_schritt": 4, "seiten_max": 202, "format": "Gross 28 × 21 cm" },
+    { "id": "hardcover-layflat", "name": "Hardcover, Layflat", "verifiziert": true, "seiten_min": 26, "seiten_schritt": 4, "seiten_max": 130, "format": "Gross 28 × 21 cm" },
+    { "id": "softcover", "name": "Softcover, Klebebindung", "verifiziert": true, "seiten_min": 26, "seiten_schritt": 4, "seiten_max": 130, "format": "Gross quer oder hoch" }
+  ]
+}

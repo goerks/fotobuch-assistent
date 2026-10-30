@@ -355,3 +355,9 @@ a{color:var(--akzent)}
 .qzeile>b{width:24px;text-align:right;font-weight:600}
 .karte.weg .balken>div{background:#b5504d}
 .qgrund{margin:4px 10px 8px;font-size:12px;line-height:1.35;opacity:.85}
+
+/* Druckdienst-Profile (Schritt 5) */
+.regelchips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.chip-regel{background:#e8f0fb;color:#1c2330;border-radius:999px;padding:5px 14px;font-size:14px}
+.hinweisbox.ok{background:#eef7f1;border:1px solid #bfe0cb;border-radius:10px;padding:12px 16px;font-size:14px;line-height:1.5;color:#1d4b32;margin:8px 0}
+.hinweisbox.ok a{color:inherit}

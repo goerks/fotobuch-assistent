@@ -884,8 +884,11 @@
     };
     const getrennt = h("input", { type: "checkbox", id: "getrennt", checked: e.ereignisse_getrennt });
     getrennt.addEventListener("change", () => speichere({ ereignisse_getrennt: getrennt.checked }));
-    const profil = h("select", { id: "profil" }, prof.auswahl.map((n) => h("option", { value: n, selected: n === e.profil }, n)));
+    const profil = h("select", { id: "profil" }, prof.anbieter.map((n) => h("option", { value: n.id, selected: n.id === e.profil || (e.profil === "cewe-pixum" && n.id === "cewe") }, n.id === "allgemein" ? "Eigene Regeln" : n.name)));
     profil.addEventListener("change", () => speichere({ profil: profil.value }));
+    const aktAnbieter = prof.anbieter.find((n) => n.id === e.profil || (e.profil === "cewe-pixum" && n.id === "cewe")) || prof.anbieter[0];
+    const produkt = h("select", { id: "produkt", disabled: aktAnbieter.produkte.length < 2 }, aktAnbieter.produkte.map((x) => h("option", { value: x.id, selected: x.id === prof.produkt }, x.name)));
+    produkt.addEventListener("change", () => speichere({ produkt: produkt.value }));
     const ziel = h("input", { type: "number", id: "ziel-seiten", min: 1, max: 1000, step: 1, value: e.seiten_ziel || "", placeholder: "so viel nötig" });
     ziel.addEventListener("change", () => speichere({ seiten_ziel: ziel.value || null }));
 
@@ -894,11 +897,21 @@
         feld("von", "Fotos pro Seite von", null, zahlFeld("von", e.pro_seite_von, 1, 12, "pro_seite_von")),
         feld("bis", "bis", null, zahlFeld("bis", e.pro_seite_bis, 1, 12, "pro_seite_bis")),
         feld("ziel-seiten", "Buchgrösse in Seiten", "Leer: so viele wie nötig", ziel),
-        feld("profil", "Druckdienst", null, profil)),
+        feld("profil", "Druckdienst", null, profil),
+        feld("produkt", "Produkt", null, produkt)),
       h("div", { class: "zeile" }, getrennt, h("label", { for: "getrennt" }, "Jedes Ereignis beginnt auf einer neuen Seite"))
     );
-    if (!prof.verifiziert) {
-      v.append(h("div", { class: "warn" }, "Die Seitenregeln dieses Profils sind noch nicht geprüft (" + prof.seiten_min + " Seiten, Schritt " + prof.seiten_schritt + ", höchstens " + prof.seiten_max + "). Prüfe sie bei deinem Druckdienst und passe sie unten an." + (prof.hinweis ? " " + prof.hinweis : "")));
+    v.append(h("div", { class: "regelchips", id: "regel" },
+      h("span", { class: "chip-regel", id: "regel-text" }, prof.regel),
+      prof.format ? h("span", { class: "chip-regel" }, "Format " + prof.format) : null));
+    if (e.profil !== "allgemein" && prof.geprueft_am) {
+      const quellen = prof.quelle.map((u) => h("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, u.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]));
+      v.append(h("div", { class: prof.verifiziert ? "hinweisbox ok" : "warn", id: "regel-quelle" },
+        "Regeln geprüft am " + prof.geprueft_am.split("-").reverse().join(".") + " · Quelle: ",
+        quellen.flatMap((x, i) => (i ? [", ", x] : [x])),
+        ". Anbieter ändern ihre Regeln ab und zu: Schau vor dem Bestellen kurz im Editor nach." + (prof.hinweis ? " " + prof.hinweis : "")));
+    } else if (!prof.verifiziert) {
+      v.append(h("div", { class: "warn" }, "Eigene Regeln: Die Zahlen unten sind Annahmen (" + prof.seiten_min + " Seiten, Schritt " + prof.seiten_schritt + ", höchstens " + prof.seiten_max + "). Trage die Werte deines Druckdienstes unter «Seitenregeln anpassen» ein."));
     }
 
     const mn = h("input", { type: "number", id: "seiten-min", min: 1, max: 1000, value: e.seiten_min || "", placeholder: prof.seiten_min });

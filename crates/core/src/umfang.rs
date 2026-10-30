@@ -183,9 +183,8 @@ pub fn plane(ein: &[Eingabe], von: i64, bis: i64, profil: &Profil, ziel: Option<
     }
     let summe = cursor - 1;
     let buch = erlaubte_seitenzahl(summe.max(1), profil);
-    let schritt = profil.schritt();
-    let kleinere = (buch - schritt >= profil.min() && min_summe <= buch - schritt && summe > buch - schritt).then_some(buch - schritt);
-    let groessere = (buch + schritt <= profil.max() && max_summe >= buch + schritt).then_some(buch + schritt);
+    let kleinere = profil.kleiner_als(buch).filter(|&k| min_summe <= k && summe > k);
+    let groessere = profil.groesser_als(buch).filter(|&g| max_summe >= g);
     Plan { gruppen, summe, buch, leer: (buch - summe).max(0), kleinere, groessere }
 }
 
