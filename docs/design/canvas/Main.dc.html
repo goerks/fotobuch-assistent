@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Schritt 1: Ereignis als Doppelseiten</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:2200px;height:1320px;box-sizing:border-box;padding:48px 56px;background:#e9ebf0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1c2330;display:flex;flex-direction:column;gap:28px">
+
+<div style="display:flex;align-items:baseline;gap:20px">
+<h1 style="margin:0;font-size:40px;letter-spacing:-0.01em">Schritt 1: Ein Ereignis bekommt Doppelseiten</h1>
+<span style="font-size:20px;color:#4b5565">Vorschlag zur Beurteilung. Links heute, rechts neu. Zahlen im Entwurf sind Beispiele aus dem Demo-Album.</span>
+</div>
+
+<div style="display:flex;gap:36px;align-items:stretch;flex-grow:1;min-height:0">
+
+<!-- VORHER -->
+<section style="width:700px;flex-shrink:0;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:12px"><span style="background:#4b5565;color:#fff;font-weight:700;font-size:16px;padding:4px 14px;border-radius:999px">VORHER</span><span style="font-size:19px;font-weight:600">Schritt «Seiten», wie er heute aussieht</span></div>
+<div style="border:1px solid #c9ced8;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(20,30,50,.12)">
+<img src="/_blob/155fc3ca0cbe34494eab3d462da6a77e" alt="Aktueller Schritt Seiten mit festem Wert Fotos pro Seite" style="display:block;width:100%;height:auto">
+</div>
+<ul style="margin:6px 0 0;padding-left:22px;font-size:18px;line-height:1.5;color:#3a4352">
+<li>Ein einziger Wert «Fotos pro Seite = 3» für das ganze Buch.</li>
+<li>Die App rechnet von den Fotos zur Seitenzahl. Die Meldung «es fehlen 6 Fotos» ist die Folge.</li>
+<li>Ereignisse beginnen auf einer neuen Seite, aber nicht auf einer neuen Doppelseite.</li>
+<li>Welche Fotos eines Ereignisses es ins Buch geschafft haben, sieht man hier nicht.</li>
+</ul>
+</section>
+
+<!-- MITTE -->
+<section style="width:330px;flex-shrink:0;display:flex;flex-direction:column;gap:18px;padding-top:44px">
+<div style="background:#1f4e8c;color:#fff;border-radius:16px;padding:22px 24px;box-shadow:0 10px 30px rgba(20,30,50,.18)">
+<div style="font-size:15px;letter-spacing:.06em;text-transform:uppercase;opacity:.8;margin-bottom:8px">Was ist besser?</div>
+<ol style="margin:0;padding-left:22px;font-size:19px;line-height:1.45;display:flex;flex-direction:column;gap:12px">
+<li><b>Der Bereich ersetzt die feste Zahl.</b> 4 bis 9 Fotos pro Doppelseite. Die App wählt je Ereignis, was passt.</li>
+<li><b>Das Ereignis ist die Einheit.</b> Es beginnt links auf einer neuen Doppelseite und hat einen Regler: kompakt, normal, gross.</li>
+<li><b>Die Seitenzahl folgt daraus.</b> Sie ist eine Anzeige und nicht mehr die Hauptsache.</li>
+<li><b>Die Auswahl ist sichtbar.</b> Unter jedem Ereignis zeigt eine Galerie, was im Buch ist, was aussortiert wurde und warum.</li>
+<li><b>Du kannst überschreiben.</b> Ein Klick holt ein Foto zurück oder nimmt es heraus. Das merkt sich die App.</li>
+</ol>
+</div>
+<div style="background:#fff;border:1px solid #c9ced8;border-radius:16px;padding:18px 22px;font-size:17px;line-height:1.5;color:#3a4352">
+<b style="color:#1c2330">Bleibt gleich:</b> Druckdienst-Profil und Seitenregeln, Layouts pro Seite im Schritt «Buch», alle Entscheidungen von Hand.
+</div>
+<div style="background:#fff6e0;border:1px solid #ecd9a6;border-radius:16px;padding:18px 22px;font-size:17px;line-height:1.5;color:#4a3d12">
+<b>Zu entscheiden:</b> Soll ein kleines Ereignis (unter 4 Fotos) mit dem nächsten eine Doppelseite teilen dürfen? Im Entwurf ja, mit Trennlinie.
+</div>
+</section>
+
+<!-- NACHHER -->
+<section style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:12px"><span style="background:#1f7a4d;color:#fff;font-weight:700;font-size:16px;padding:4px 14px;border-radius:999px">NACHHER</span><span style="font-size:19px;font-weight:600">Neuer Schritt «Umfang» (ersetzt «Seiten»)</span></div>
+
+<div style="display:flex;border:1px solid #c9ced8;border-radius:14px;overflow:hidden;background:#f3f4f7;box-shadow:0 10px 30px rgba(20,30,50,.12);flex-grow:1;min-height:0">
+
+<!-- Seitenleiste -->
+<div style="width:190px;background:#161b26;color:#c9d1e0;padding:20px 16px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;font-size:15px">
+<div style="font-weight:700;color:#fff;margin-bottom:14px;font-size:17px">Fotobuch</div>
+<div style="padding:7px 10px;opacity:.7">1 Fotos laden</div>
+<div style="padding:7px 10px;opacity:.7">2 Ereignisse</div>
+<div style="padding:7px 10px;background:#2a6db5;color:#fff;border-radius:8px;font-weight:600">3 Umfang</div>
+<div style="padding:7px 10px;opacity:.7">4 Aussortieren</div>
+<div style="padding:7px 10px;opacity:.7">5 Gestaltung</div>
+<div style="padding:7px 10px;opacity:.7">6 Buch</div>
+<div style="padding:7px 10px;opacity:.7">7 Export</div>
+</div>
+
+<!-- Inhalt -->
+<div style="flex-grow:1;min-width:0;padding:22px 26px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+<div>
+<div style="font-size:26px;font-weight:700">Umfang</div>
+<div style="font-size:15px;color:#4b5565;margin-top:2px">Wie viel Platz bekommt jedes Ereignis? Die Auswahl der Fotos prüfst du gleich darunter.</div>
+</div>
+
+<!-- Regler -->
+<div style="display:flex;gap:14px">
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:14px 18px;flex-grow:1">
+<div style="font-size:14px;color:#4b5565;margin-bottom:10px">Fotos pro Doppelseite</div>
+<div style="position:relative;height:30px">
+<div style="position:absolute;left:0;right:0;top:12px;height:6px;border-radius:3px;background:#d9dde5"></div>
+<div style="position:absolute;left:22%;right:30%;top:12px;height:6px;border-radius:3px;background:#2a6db5"></div>
+<div style="position:absolute;left:22%;top:5px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #2a6db5;box-sizing:border-box;margin-left:-10px"></div>
+<div style="position:absolute;left:70%;top:5px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #2a6db5;box-sizing:border-box;margin-left:-10px"></div>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#4b5565"><span>2</span><span style="color:#1f4e8c;font-weight:700">von 4 bis 9</span><span>12</span></div>
+</div>
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:14px 18px;width:330px;flex-shrink:0">
+<div style="font-size:14px;color:#4b5565;margin-bottom:8px">Buchgrösse</div>
+<div style="display:flex;border:1px solid #c3c9d4;border-radius:9px;overflow:hidden;font-size:15px">
+<div style="flex:1;text-align:center;padding:7px 0;background:#2a6db5;color:#fff;font-weight:600">So viel nötig</div>
+<div style="flex:1;text-align:center;padding:7px 0;color:#3a4352">Ziel: 28 Seiten</div>
+</div>
+<div style="font-size:13px;color:#4b5565;margin-top:6px">Druckdienst «allgemein»: ab 24 Seiten, in 2er-Schritten</div>
+</div>
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:14px 18px;width:250px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center">
+<div style="font-size:14px;color:#4b5565">Dein Buch</div>
+<div style="font-size:30px;font-weight:700;line-height:1.1">24 Seiten</div>
+<div style="font-size:14px;color:#4b5565">12 Doppelseiten · 68 Fotos</div>
+</div>
+</div>
+
+<!-- Ereignis 1 aufgeklappt -->
+<div style="background:#fff;border:2px solid #2a6db5;border-radius:14px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:16px">
+<div style="flex-grow:1">
+<div style="font-size:19px;font-weight:700">Sa 18.07. · Promenade und Strand</div>
+<div style="font-size:14px;color:#4b5565">34 Fotos aufgenommen · 18 im Buch · 16 aussortiert (Serien, Kopien)</div>
+</div>
+<div style="display:flex;border:1px solid #c3c9d4;border-radius:9px;overflow:hidden;font-size:14px">
+<div style="padding:7px 14px;color:#3a4352">Kompakt</div>
+<div style="padding:7px 14px;background:#2a6db5;color:#fff;font-weight:600">Normal</div>
+<div style="padding:7px 14px;color:#3a4352">Gross</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:15px">
+<span style="width:30px;height:30px;border:1px solid #c3c9d4;border-radius:8px;display:grid;place-items:center;font-weight:700">−</span>
+<b style="font-size:17px">3 Doppelseiten</b>
+<span style="width:30px;height:30px;border:1px solid #c3c9d4;border-radius:8px;display:grid;place-items:center;font-weight:700">+</span>
+</div>
+</div>
+
+<!-- Doppelseiten-Streifen -->
+<div style="display:flex;gap:10px;align-items:stretch">
+<div style="flex:1;border:1px solid #c3c9d4;border-radius:8px;background:#f8f9fb;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;font-size:13px"><span style="color:#4b5565">Seite 2–3</span><b>6 Fotos</b></div>
+<div style="flex:1;border:1px solid #c3c9d4;border-radius:8px;background:#f8f9fb;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;font-size:13px"><span style="color:#4b5565">Seite 4–5</span><b>7 Fotos</b></div>
+<div style="flex:1;border:1px solid #c3c9d4;border-radius:8px;background:#f8f9fb;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;font-size:13px"><span style="color:#4b5565">Seite 6–7</span><b>5 Fotos</b></div>
+</div>
+
+<!-- Galerie -->
+<div>
+<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">
+<b style="font-size:15px">Auswahl aus diesem Ereignis</b>
+<span style="font-size:13px;color:#4b5565">Klick auf ein Foto: ins Buch holen oder herausnehmen. Deine Wahl bleibt erhalten.</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px">
+<sc-for list="{{galerie}}" as="g" hint-placeholder-count="14">
+<div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:#d9dde5;opacity:{{g.deckkraft}};outline:{{g.rahmen}};outline-offset:-3px">
+<img src="{{g.bild}}" alt="" style="display:block;width:100%;height:100%;object-fit:cover">
+<span style="position:absolute;left:5px;bottom:5px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:{{g.farbe}}">{{g.text}}</span>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;gap:18px;margin-top:8px;font-size:13px;color:#4b5565">
+<span><b style="color:#1f7a4d">●</b> im Buch mit Seitenzahl</span>
+<span><b style="color:#7a8494">●</b> aussortiert, mit Grund</span>
+<span><b style="color:#2a6db5">●</b> von dir zurückgeholt</span>
+</div>
+</div>
+</div>
+
+<!-- weitere Ereignisse zugeklappt -->
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:16px"><div style="flex-grow:1"><b style="font-size:16px">So 19.07. · Cardada und Wald</b><div style="font-size:13px;color:#4b5565">32 aufgenommen · 23 im Buch</div></div><span style="font-size:14px;color:#3a4352">Normal</span><b style="font-size:15px;width:140px;text-align:right">4 Doppelseiten</b><span style="color:#2a6db5;font-size:14px;font-weight:600">Auswahl zeigen ▾</span></div>
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:16px"><div style="flex-grow:1"><b style="font-size:16px">Mo 20.07. · Inseln von Brissago</b><div style="font-size:13px;color:#4b5565">27 aufgenommen · 22 im Buch</div></div><span style="font-size:14px;color:#3a4352">Normal</span><b style="font-size:15px;width:140px;text-align:right">4 Doppelseiten</b><span style="color:#2a6db5;font-size:14px;font-weight:600">Auswahl zeigen ▾</span></div>
+<div style="background:#fff;border:1px solid #d6dae2;border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:16px"><div style="flex-grow:1"><b style="font-size:16px">Ohne Aufnahmezeit</b><div style="font-size:13px;color:#4b5565">6 aufgenommen · 5 im Buch · teilt sich eine Doppelseite</div></div><span style="font-size:14px;color:#3a4352">Kompakt</span><b style="font-size:15px;width:140px;text-align:right">1 Doppelseite</b><span style="color:#2a6db5;font-size:14px;font-weight:600">Auswahl zeigen ▾</span></div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto">
+<span style="border:1px solid #c3c9d4;border-radius:9px;padding:9px 18px;font-size:15px;background:#fff">← Zurück</span>
+<span style="background:#2a6db5;color:#fff;border-radius:9px;padding:10px 20px;font-size:15px;font-weight:600">Weiter zum Aussortieren →</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2200,"height":1320}}'>
+class Component extends DCLogic {
+renderVals() {
+const ids = ['003c8018f67f203d4fcf15bd4d567f5f','021ab199cf356dac95bd515508c3f0d9','e2b8a29283927623a20c30cac53040a8','0dc37d77276d9e94142c1c47e40ae122','ef82328da4813dac551c828c203e3138','f0b8a83dc92ed5ae33f744f988b06223','e78a1a553aefeeb8ac3f5bb075a31ff1','018a02fe3e2778f664363b05ef8e03fc','4d998c30ee3dfd99b53ace0e072a330f','6c10c08863463771bc5cd23d749ea0c3','7673c8f62d4494ff64e4d14121acd66f','690d6acffc6ce6555b0ebe5adaeaa018','333e27af335ba84cbc475523aa77dd1f','b403c13d7fa4c5754eb2cb7b9ea80849'];
+const st = [['S. 2','im'],['S. 2','im'],['Serie','aus'],['S. 3','im'],['S. 3','im'],['S. 4','im'],['S. 4','im'],['S. 5','im'],['Kopie','aus'],['Serie','aus'],['S. 6','im'],['Serie','aus'],['S. 6','von'],['S. 7','im']];
+const galerie = ids.map((id, i) => {
+const k = st[i][1];
+return {
+bild: '/_blob/' + id,
+text: st[i][0],
+farbe: k === 'im' ? '#1f7a4d' : k === 'von' ? '#2a6db5' : '#5d6675',
+deckkraft: k === 'aus' ? '0.5' : '1',
+rahmen: k === 'von' ? '3px solid #2a6db5' : 'none'
+};
+});
+return { galerie };
+}
+}
+</script>
+</body>
+</html>

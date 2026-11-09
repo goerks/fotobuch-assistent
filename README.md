@@ -2,7 +2,7 @@
 
 Arbeitstitel. Ein **lokales, offline arbeitendes Werkzeug**, das die Vorarbeit für ein Fotobuch übernimmt: Fotos ordnen, zu Ereignissen gruppieren, Doppelte und fast Gleiche reduzieren, das beste Bild je Serie vorschlagen und alles auf Seiten planen. Danach exportiert es für den Druckdienst deiner Wahl.
 
-**Stand:** Native Desktop-App (Version 0.1): Rust-Kern, Tauri-Fenster, Oberfläche in HTML/CSS/JS. Geführte Oberfläche in fünf Schritten (Laden, Ereignisse, Aussortieren, Seiten, Export). Siehe [docs/fortschritt.md](docs/fortschritt.md).
+**Stand:** Native Desktop-App (Version 0.1): Rust-Kern, Tauri-Fenster, Oberfläche in HTML/CSS/JS. Geführte Oberfläche in sieben Schritten (Laden, Ereignisse, Aussortieren, Umfang, Gestaltung, Buch, Export). Siehe [docs/fortschritt.md](docs/fortschritt.md). Zusammenarbeit und Übergabe: [docs/arbeitsweise.md](docs/arbeitsweise.md), [docs/uebergabe.md](docs/uebergabe.md).
 
 ## Ausprobieren
 

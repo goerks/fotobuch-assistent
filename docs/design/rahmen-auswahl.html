@@ -1,0 +1,240 @@
+<title>Rahmen-Auswahl Fotobuch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: Kartenraster links, Auswahlliste mit Kopier-Text rechts (am Handy darunter).
+   Farben: kühles Grau mit Ultramarin als Akzent. Schrift: Bricolage Grotesque (Titel) + Source Sans 3 (Text). */
+:root{
+  --bg:#eef0f4; --karte:#ffffff; --fg:#161b26; --still:#556071; --rand:#d3d8e2;
+  --akzent:#2740c9; --akzent-text:#ffffff; --akzent-hell:#e3e8fb; --ok:#1b7a4b;
+  --seite:#f4f1ea;
+  --kopf:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --text:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --karte:#1b202b; --fg:#eceff6; --still:#9aa5b8; --rand:#2e3646;
+  --akzent:#8ea2ff; --akzent-text:#10142a; --akzent-hell:#252d52; --ok:#5fcf97; --seite:#2a2c33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --karte:#1b202b; --fg:#eceff6; --still:#9aa5b8; --rand:#2e3646;
+  --akzent:#8ea2ff; --akzent-text:#10142a; --akzent-hell:#252d52; --ok:#5fcf97; --seite:#2a2c33; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--text);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+h1{font-family:var(--kopf);font-size:clamp(28px,4vw,40px);line-height:1.05;margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--kopf);font-size:22px;margin:30px 0 4px}
+.lead{color:var(--still);max-width:62ch;margin:0}
+.gruppe-hinweis{color:var(--still);margin:0 0 14px;max-width:62ch}
+.raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.karte{background:var(--karte);border:2px solid var(--rand);border-radius:12px;padding:10px;text-align:left;cursor:pointer;color:inherit;font:inherit;display:flex;flex-direction:column;gap:8px;position:relative;min-width:0}
+.karte:hover{border-color:var(--akzent)}
+.karte:focus-visible{outline:3px solid var(--akzent);outline-offset:2px}
+.karte[aria-pressed="true"]{border-color:var(--akzent);background:var(--akzent-hell)}
+.karte .titel{font-family:var(--kopf);font-weight:700;font-size:17px;line-height:1.15}
+.karte .sub{color:var(--still);font-size:14px;margin-top:2px}
+.marke{position:absolute;top:6px;right:6px;z-index:5;min-width:26px;height:26px;border-radius:13px;background:var(--akzent);color:var(--akzent-text);font-weight:700;font-size:14px;display:grid;place-items:center;padding:0 7px}
+.marke[hidden]{display:none}
+.pv{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.ph{width:100%;height:100%;background:var(--foto) center/cover no-repeat}
+.abs{position:absolute}
+/* Auswahlfeld */
+.panel{position:sticky;top:16px;background:var(--karte);border:1px solid var(--rand);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel h3{font-family:var(--kopf);margin:0;font-size:20px}
+.liste{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.liste li{display:flex;align-items:center;gap:8px;background:var(--akzent-hell);border-radius:8px;padding:6px 8px;font-weight:600}
+.liste .nr{background:var(--akzent);color:var(--akzent-text);border-radius:50%;width:22px;height:22px;display:grid;place-items:center;font-size:13px;flex:none}
+.liste .name{flex:1;min-width:0}
+.liste button{border:0;background:none;color:var(--still);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px}
+.liste button:hover{color:var(--fg);background:var(--rand)}
+.leer{color:var(--still);margin:0}
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+legend{font-weight:600;margin-bottom:4px;padding:0}
+label.opt{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+label.opt input{margin-top:4px;accent-color:var(--akzent)}
+textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--rand);border-radius:8px;padding:8px;resize:vertical}
+textarea#ausgabe{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;min-height:190px}
+.knopf{font:inherit;font-weight:600;border-radius:9px;padding:11px 16px;border:1px solid var(--akzent);background:var(--akzent);color:var(--akzent-text);cursor:pointer}
+.knopf.zweit{background:transparent;color:var(--akzent)}
+.knopf:focus-visible{outline:3px solid var(--akzent);outline-offset:2px}
+.status{min-height:1.3em;color:var(--ok);font-weight:600;margin:0}
+.reihe{display:flex;gap:8px;flex-wrap:wrap}
+.hinweis{color:var(--still);font-size:14px;margin:0}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.panel{position:static}}
+@media (prefers-reduced-motion:no-preference){.karte{transition:border-color .12s,background .12s}}
+</style>
+
+<div class="wrap">
+<main>
+  <h1>Rahmen fürs Fotobuch auswählen</h1>
+  <p class="lead">Tippe auf die Rahmen, die dir gefallen. Die Reihenfolge, in der du tippst, ist deine Rangliste. Rechts entsteht ein Text, den du kopierst und im Chat einfügst. «Ohne Rahmen» bleibt immer möglich.</p>
+
+  <h2>Kein Rahmen</h2>
+  <p class="gruppe-hinweis">Das Fotobuch funktioniert auch ganz ohne Rahmen. Diese Wahl ist immer dabei.</p>
+  <div class="raster" id="g-keiner"></div>
+
+  <h2>Fensterrahmen</h2>
+  <p class="gruppe-hinweis">Das Foto sieht aus, als blicke man aus einem Fenster. Die Fotos bleiben unbeschnitten.</p>
+  <div class="raster" id="g-fenster"></div>
+
+  <h2>Bilderrahmen</h2>
+  <p class="gruppe-hinweis">Klassische Rahmen wie an der Wand, vom schlichten Holzrahmen bis zum Goldrahmen.</p>
+  <div class="raster" id="g-bild"></div>
+
+  <h2>Spielerisch und Foto-Look</h2>
+  <p class="gruppe-hinweis">Aufkleber, Papier und Filmmaterial für lockere Alben.</p>
+  <div class="raster" id="g-spiel"></div>
+</main>
+
+<aside class="panel" aria-label="Deine Auswahl">
+  <h3>Deine Auswahl</h3>
+  <ol class="liste" id="liste"></ol>
+  <p class="leer" id="leer">Noch nichts gewählt. Dann nehme ich «Ohne Rahmen».</p>
+
+  <fieldset>
+    <legend>Wo sollen Rahmen gelten?</legend>
+    <label class="opt"><input type="radio" name="geltung" value="ganzes Buch" checked> Ein Rahmen fürs ganze Buch</label>
+    <label class="opt"><input type="radio" name="geltung" value="pro Ereignis wählbar"> Pro Ereignis wählbar</label>
+    <label class="opt"><input type="radio" name="geltung" value="pro Seite wählbar"> Pro Seite wählbar</label>
+  </fieldset>
+  <label class="opt"><input type="checkbox" id="rahmenlos" checked> Rahmenlos bleibt bei jedem Thema wählbar</label>
+
+  <div>
+    <label for="notiz" style="font-weight:600">Eigene Wünsche (optional)</label>
+    <textarea id="notiz" rows="3" placeholder="Zum Beispiel: Farben, Reise, Anlass, Mischung aus zwei Rahmen"></textarea>
+  </div>
+
+  <div>
+    <label for="ausgabe" style="font-weight:600">Text für den Chat</label>
+    <textarea id="ausgabe" readonly rows="9"></textarea>
+  </div>
+  <div class="reihe">
+    <button type="button" class="knopf" id="kopieren">Text kopieren</button>
+    <button type="button" class="knopf zweit" id="zurueck">Auswahl löschen</button>
+  </div>
+  <p class="status" id="status" role="status"></p>
+  <p class="hinweis">Kopieren klappt nicht? Tippe in das Textfeld, wähle alles aus und kopiere von Hand.</p>
+</aside>
+</div>
+
+<script>
+(function(){
+// Beispielfoto als SVG: Himmel, Sonne, Meer, Häuser
+var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a90d9"/><stop offset="1" stop-color="#bfe0f5"/></linearGradient><linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f7fb0"/><stop offset="1" stop-color="#1b5a86"/></linearGradient></defs><rect width="400" height="300" fill="url(#h)"/><circle cx="305" cy="70" r="30" fill="#fff4b8"/><rect y="205" width="400" height="95" fill="url(#m)"/><g><rect x="30" y="140" width="64" height="70" fill="#fbf7ee"/><rect x="98" y="120" width="54" height="90" fill="#f3e3c8"/><rect x="156" y="150" width="70" height="60" fill="#fbf7ee"/><rect x="230" y="128" width="60" height="82" fill="#e9c9a6"/><path d="M98 120l27-26 27 26z" fill="#2f6bb5"/><path d="M30 140l32-22 32 22z" fill="#c8553d"/><path d="M230 128l30-24 30 24z" fill="#c8553d"/><rect x="48" y="165" width="14" height="22" fill="#2f6bb5"/><rect x="118" y="150" width="14" height="24" fill="#2f6bb5"/><rect x="250" y="156" width="14" height="24" fill="#2f6bb5"/></g></svg>';
+document.documentElement.style.setProperty('--foto','url("data:image/svg+xml,'+encodeURIComponent(svg)+'")');
+
+var P=function(x,y,w,h,extra){return 'left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;'+(extra||'');};
+function laden(seite,farbe,dunkel){return '<div class="abs" style="top:-3%;bottom:-3%;width:42%;'+seite+':-44%;background:repeating-linear-gradient(0deg,'+farbe+' 0 7px,'+dunkel+' 7px 9px);box-shadow:0 2px 4px rgba(0,0,0,.35)"></div>';}
+
+var STILE=[
+{id:'ohne',g:'keiner',name:'Ohne Rahmen',sub:'Foto pur auf der Seite, auch randlos möglich',
+ pv:'<div class="pv" style="background:var(--seite)"><div class="abs" style="'+P(9,10,82,80)+'"><div class="ph"></div></div></div>'},
+
+{id:'santorini',g:'fenster',name:'Santorini',sub:'Kalkweiss, Rundbogen, blaue Läden',
+ pv:'<div class="pv" style="background:#f6f3ec"><div class="abs" style="'+P(8,10,38,72,'border:4px solid #fff;border-radius:999px 999px 0 0;box-shadow:0 0 0 1px #b4bfd0,0 3px 8px rgba(0,0,0,.25);overflow:hidden')+'"><div class="ph"></div></div><div class="abs" style="'+P(62,26,26,34,'border:4px solid #fff;box-shadow:0 0 0 1px #b4bfd0,0 3px 8px rgba(0,0,0,.25);background:#fff')+'"><div class="ph"></div>'+laden('left','#2b6fb7','#1f5fa5')+laden('right','#2b6fb7','#1f5fa5')+'</div><div class="abs" style="left:0;right:0;bottom:0;height:11%;background:#fff;border-top:3px solid #2b6fb7"></div></div>'},
+
+{id:'bogen',g:'fenster',name:'Bogenfenster',sub:'Terrakotta, weisser Rundbogen',
+ pv:'<div class="pv" style="background:#e3cfb0"><div class="abs" style="'+P(14,10,40,78,'background:#fff;border-radius:999px 999px 4px 4px;padding:3.5%;box-shadow:0 4px 10px rgba(0,0,0,.3)')+'"><div style="width:100%;height:100%;border-radius:999px 999px 2px 2px;overflow:hidden"><div class="ph"></div></div></div><div class="abs" style="'+P(60,28,28,34,'background:#fff;border-radius:999px 999px 3px 3px;padding:3%;box-shadow:0 4px 10px rgba(0,0,0,.3)')+'"><div class="ph" style="border-radius:999px 999px 2px 2px"></div></div></div>'},
+
+{id:'holz',g:'fenster',name:'Altes Holzfenster',sub:'Dunkles Holz, Sprossen, Fensterbank',
+ pv:'<div class="pv" style="background:#d6cbb6"><div class="abs" style="'+P(12,12,76,70,'background:#5b3a22;padding:3.5%;box-shadow:0 4px 10px rgba(0,0,0,.4)')+'"><div style="position:relative;width:100%;height:100%"><div class="ph"></div><div class="abs" style="left:49%;top:0;bottom:0;width:2.5%;background:#5b3a22"></div><div class="abs" style="top:49%;left:0;right:0;height:3.5%;background:#5b3a22"></div></div></div><div class="abs" style="left:8%;right:8%;top:83%;height:5%;background:#7a5231;box-shadow:0 3px 5px rgba(0,0,0,.4)"></div></div>'},
+
+{id:'riviera',g:'fenster',name:'Riviera',sub:'Pastellfassade, grüne Läden',
+ pv:'<div class="pv" style="background:linear-gradient(90deg,#f2c6a0 0 34%,#f0d98a 34% 67%,#e8a8a0 67%)"><div class="abs" style="'+P(19,16,17,52,'border:3px solid #fffdf5;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3)')+'"><div class="ph"></div>'+laden('left','#3e7a55','#2f6844')+laden('right','#3e7a55','#2f6844')+'</div><div class="abs" style="'+P(46,26,15,44,'border:3px solid #fffdf5;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3)')+'"><div class="ph"></div>'+laden('left','#3e7a55','#2f6844')+laden('right','#3e7a55','#2f6844')+'</div><div class="abs" style="'+P(76,14,14,40,'border:3px solid #fffdf5;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3)')+'"><div class="ph"></div></div><div class="abs" style="left:4%;right:4%;top:82%;height:2px;background:#7a5b3a"></div></div>'},
+
+{id:'stahl',g:'fenster',name:'Loft-Stahlfenster',sub:'Schwarzer Rahmen, Quersprossen',
+ pv:'<div class="pv" style="background:#cfd3d6"><div class="abs" style="'+P(10,12,80,76,'background:#14181d;padding:1.8%;box-shadow:0 4px 10px rgba(0,0,0,.4)')+'"><div style="position:relative;width:100%;height:100%"><div class="ph"></div><div class="abs" style="left:33%;top:0;bottom:0;width:1.4%;background:#14181d"></div><div class="abs" style="left:66%;top:0;bottom:0;width:1.4%;background:#14181d"></div><div class="abs" style="top:50%;left:0;right:0;height:1.8%;background:#14181d"></div></div></div></div>'},
+
+{id:'shoji',g:'fenster',name:'Shoji',sub:'Papiergitter, helles Holz',
+ pv:'<div class="pv" style="background:#e9e1cf"><div class="abs" style="'+P(12,12,76,76,'background:#f4efe3;border:3px solid #3b2a1a;padding:2.5%;box-shadow:0 3px 8px rgba(0,0,0,.3)')+'"><div style="position:relative;width:100%;height:100%"><div class="ph"></div><div class="abs" style="inset:0;background:linear-gradient(90deg,transparent 24.4%,#3b2a1a 24.4% 26%,transparent 26% 49.4%,#3b2a1a 49.4% 51%,transparent 51% 74.4%,#3b2a1a 74.4% 76%,transparent 76%),linear-gradient(0deg,transparent 32%,#3b2a1a 32% 34%,transparent 34% 65%,#3b2a1a 65% 67%,transparent 67%);opacity:.75"></div></div></div></div>'},
+
+{id:'gold',g:'bild',name:'Goldrahmen mit Passepartout',sub:'Galerie-Look, warmes Gold',
+ pv:'<div class="pv" style="background:#2e2a26"><div class="abs" style="'+P(11,10,78,80,'background:linear-gradient(135deg,#d9b25c,#8b6a22 40%,#e8cf8a 70%,#a67f2e);padding:3%;box-shadow:0 6px 14px rgba(0,0,0,.6)')+'"><div style="background:#f6f1e6;width:100%;height:100%;padding:9%;box-shadow:inset 0 0 6px rgba(0,0,0,.4)"><div class="ph"></div></div></div></div>'},
+
+{id:'barock',g:'bild',name:'Barock-Zierrahmen',sub:'Breiter Rahmen mit Ornamentkante',
+ pv:'<div class="pv" style="background:#3a2430"><div class="abs" style="'+P(8,9,84,82,'background:repeating-linear-gradient(45deg,#c9a24d 0 6px,#8c6a26 6px 12px);padding:7%;box-shadow:0 6px 14px rgba(0,0,0,.6),inset 0 0 0 2px #f0d98a')+'"><div style="width:100%;height:100%;border:3px solid #f0d98a;box-shadow:0 0 0 3px #8c6a26"><div class="ph"></div></div></div></div>'},
+
+{id:'eiche',g:'bild',name:'Eichenrahmen',sub:'Schlichtes Holz, schmal',
+ pv:'<div class="pv" style="background:#ebe6dc"><div class="abs" style="'+P(11,11,78,78,'background:repeating-linear-gradient(90deg,#b98a55 0 5px,#c89a63 5px 11px);padding:3.2%;box-shadow:0 4px 10px rgba(0,0,0,.35)')+'"><div style="width:100%;height:100%;box-shadow:0 0 0 1px rgba(0,0,0,.35)"><div class="ph"></div></div></div></div>'},
+
+{id:'schwarz',g:'bild',name:'Schwarz mit Passepartout',sub:'Dünner Rahmen, weisser Karton',
+ pv:'<div class="pv" style="background:#e4e6ea"><div class="abs" style="'+P(10,9,80,82,'background:#16181c;padding:1.6%;box-shadow:0 5px 12px rgba(0,0,0,.4)')+'"><div style="background:#fafafa;width:100%;height:100%;padding:11%;box-shadow:inset 0 1px 4px rgba(0,0,0,.25)"><div class="ph"></div></div></div></div>'},
+
+{id:'weiss',g:'bild',name:'Skandi-Weiss',sub:'Weisser Rahmen, viel Luft',
+ pv:'<div class="pv" style="background:#e8ebee"><div class="abs" style="'+P(12,12,76,76,'background:#fff;padding:7%;box-shadow:0 6px 14px rgba(0,0,0,.25)')+'"><div class="ph"></div></div></div>'},
+
+{id:'floater',g:'bild',name:'Schwebendes Foto',sub:'Foto mit Schattenfuge im Rahmen',
+ pv:'<div class="pv" style="background:#d8dadf"><div class="abs" style="'+P(10,9,80,82,'background:#2b2f36;padding:4%;box-shadow:0 5px 12px rgba(0,0,0,.4)')+'"><div style="width:100%;height:100%;background:#0e0f12;padding:5%;box-shadow:inset 0 0 8px #000"><div style="width:100%;height:100%;box-shadow:3px 4px 8px rgba(0,0,0,.7)"><div class="ph"></div></div></div></div></div>'},
+
+{id:'messing',g:'bild',name:'Messing mit Nieten',sub:'Maritim, Bullauge-Stil',
+ pv:'<div class="pv" style="background:#1b3552"><div class="abs" style="'+P(11,11,78,78,'background:linear-gradient(135deg,#e1c37a,#9a7a2e,#e8d190);padding:5%;border-radius:8px;box-shadow:0 5px 12px rgba(0,0,0,.6),inset 0 0 0 2px #6b5217')+'"><div style="width:100%;height:100%;box-shadow:inset 0 0 0 3px #6b5217"><div class="ph"></div></div><span class="abs" style="left:2%;top:2%;width:5px;height:5px;border-radius:50%;background:#5a4510"></span><span class="abs" style="right:2%;top:2%;width:5px;height:5px;border-radius:50%;background:#5a4510"></span><span class="abs" style="left:2%;bottom:2%;width:5px;height:5px;border-radius:50%;background:#5a4510"></span><span class="abs" style="right:2%;bottom:2%;width:5px;height:5px;border-radius:50%;background:#5a4510"></span></div></div>'},
+
+{id:'polaroid',g:'spiel',name:'Polaroid',sub:'Weisser Rand, unten breiter, leicht gedreht',
+ pv:'<div class="pv" style="background:#cdb48a"><div class="abs" style="'+P(18,9,64,82,'background:#fff;padding:5% 5% 17% 5%;transform:rotate(-3deg);box-shadow:0 5px 10px rgba(60,40,20,.6)')+'"><div class="ph"></div><span class="abs" style="left:0;right:0;bottom:4%;text-align:center;font-family:cursive;font-size:12px;color:#444">Sommer 2026</span></div></div>'},
+
+{id:'marke',g:'spiel',name:'Briefmarke',sub:'Zackenrand und Poststempel',
+ pv:'<div class="pv" style="background:#f0e6d1"><div class="abs" style="'+P(14,11,72,78,'background:#fff;border:7px dotted #f0e6d1;padding:4%;box-shadow:0 4px 10px rgba(0,0,0,.35)')+'"><div class="ph"></div><span class="abs" style="right:3%;top:4%;border:2px solid #b5504d;color:#b5504d;font-size:10px;padding:1px 4px;transform:rotate(-8deg);background:rgba(255,255,255,.7)">POST 18.07.</span></div></div>'},
+
+{id:'washi',g:'spiel',name:'Washi-Tape',sub:'Foto mit Klebeband an den Ecken',
+ pv:'<div class="pv" style="background:#ece4d3"><div class="abs" style="'+P(14,13,72,74,'background:#fff;padding:3%;box-shadow:0 3px 8px rgba(0,0,0,.3)')+'"><div class="ph"></div></div><div class="abs" style="'+P(6,8,22,9,'background:rgba(232,120,140,.75);transform:rotate(-35deg)')+'"></div><div class="abs" style="'+P(72,8,22,9,'background:rgba(110,180,170,.75);transform:rotate(35deg)')+'"></div><div class="abs" style="'+P(6,83,22,9,'background:rgba(240,200,90,.75);transform:rotate(35deg)')+'"></div><div class="abs" style="'+P(72,83,22,9,'background:rgba(150,140,210,.75);transform:rotate(-35deg)')+'"></div></div>'},
+
+{id:'film',g:'spiel',name:'Filmstreifen',sub:'Schwarzer Negativrand mit Löchern',
+ pv:'<div class="pv" style="background:#cfd3d8"><div class="abs" style="'+P(8,8,84,84,'background:#15171a;padding:4% 9%;box-shadow:0 4px 10px rgba(0,0,0,.5)')+'"><div class="ph"></div><div class="abs" style="left:2.5%;top:6%;bottom:6%;width:3.5%;background:repeating-linear-gradient(0deg,#e8e8e8 0 8px,transparent 8px 16px);border-radius:1px"></div><div class="abs" style="right:2.5%;top:6%;bottom:6%;width:3.5%;background:repeating-linear-gradient(0deg,#e8e8e8 0 8px,transparent 8px 16px);border-radius:1px"></div></div></div>'}
+];
+
+var auswahl=[]; // Reihenfolge = Rangliste
+var $=function(i){return document.getElementById(i);};
+var HALT='rahmen-auswahl-v1';
+function laden_(){try{var s=JSON.parse(localStorage.getItem(HALT)||'null');if(s){auswahl=(s.a||[]).filter(function(i){return STILE.some(function(x){return x.id===i;});});$('notiz').value=s.n||'';if(s.r)$('rahmenlos').checked=s.r==='ja';if(s.g){var e=document.querySelector('input[name=geltung][value="'+s.g+'"]');if(e)e.checked=true;}}}catch(e){}}
+function speichern_(){try{localStorage.setItem(HALT,JSON.stringify({a:auswahl,n:$('notiz').value,r:$('rahmenlos').checked?'ja':'nein',g:document.querySelector('input[name=geltung]:checked').value}));}catch(e){}}
+function find(id){return STILE.filter(function(x){return x.id===id;})[0];}
+
+function baue(){
+  STILE.forEach(function(s){
+    var b=document.createElement('button');b.type='button';b.className='karte';b.setAttribute('data-id',s.id);b.setAttribute('aria-pressed','false');
+    b.innerHTML='<span class="marke" hidden></span>'+s.pv+'<span><span class="titel">'+s.name+'</span><span class="sub" style="display:block">'+s.sub+'</span></span>';
+    b.addEventListener('click',function(){var i=auswahl.indexOf(s.id);if(i>=0)auswahl.splice(i,1);else auswahl.push(s.id);zeige();});
+    $('g-'+s.g).appendChild(b);
+  });
+}
+function zeige(){
+  document.querySelectorAll('.karte').forEach(function(k){
+    var i=auswahl.indexOf(k.getAttribute('data-id'));var m=k.querySelector('.marke');
+    k.setAttribute('aria-pressed',i>=0?'true':'false');m.hidden=i<0;m.textContent=i>=0?String(i+1):'';
+  });
+  var ol=$('liste');ol.innerHTML='';
+  auswahl.forEach(function(id,i){
+    var li=document.createElement('li');
+    li.innerHTML='<span class="nr">'+(i+1)+'</span><span class="name">'+find(id).name+'</span>';
+    [['↑','nach oben',-1],['↓','nach unten',1],['×','entfernen',0]].forEach(function(t){
+      var b=document.createElement('button');b.type='button';b.textContent=t[0];b.setAttribute('aria-label',find(id).name+' '+t[1]);
+      b.addEventListener('click',function(){
+        if(t[2]===0)auswahl.splice(i,1);else{var j=i+t[2];if(j<0||j>=auswahl.length)return;var x=auswahl[i];auswahl[i]=auswahl[j];auswahl[j]=x;}
+        zeige();});
+      li.appendChild(b);
+    });
+    ol.appendChild(li);
+  });
+  $('leer').hidden=auswahl.length>0;
+  text();speichern_();
+}
+function text(){
+  var z=['Rahmen-Auswahl für den Fotobuch-Assistenten','',];
+  if(auswahl.length){z.push('Meine Rangliste (1 = zuerst umsetzen):');auswahl.forEach(function(id,i){var s=find(id);z.push((i+1)+'. '+s.name+' ('+s.sub+')');});}
+  else z.push('Keine Rahmen gewählt: Fotobuch ohne Rahmen.');
+  z.push('');
+  z.push('Gültigkeit: '+document.querySelector('input[name=geltung]:checked').value);
+  z.push('Rahmenlos bei jedem Thema wählbar: '+($('rahmenlos').checked?'ja':'nein'));
+  var n=$('notiz').value.trim();if(n){z.push('');z.push('Wünsche: '+n);}
+  $('ausgabe').value=z.join('\n');
+}
+function meldung(t){$('status').textContent=t;clearTimeout(meldung.t);meldung.t=setTimeout(function(){$('status').textContent='';},3500);}
+$('kopieren').addEventListener('click',function(){
+  var a=$('ausgabe');var fallback=function(){a.focus();a.select();try{var ok=document.execCommand('copy');meldung(ok?'Kopiert. Füge den Text im Chat ein.':'Text ist markiert. Kopiere ihn von Hand.');}catch(e){meldung('Text ist markiert. Kopiere ihn von Hand.');}};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(a.value).then(function(){meldung('Kopiert. Füge den Text im Chat ein.');},fallback);}else fallback();
+});
+$('zurueck').addEventListener('click',function(){auswahl=[];$('notiz').value='';zeige();});
+['notiz','rahmenlos'].forEach(function(i){$(i).addEventListener('input',function(){text();speichern_();});$(i).addEventListener('change',function(){text();speichern_();});});
+document.querySelectorAll('input[name=geltung]').forEach(function(e){e.addEventListener('change',function(){text();speichern_();});});
+baue();laden_();zeige();
+})();
+</script>
