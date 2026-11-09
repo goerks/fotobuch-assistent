@@ -8,4 +8,6 @@ Vor der Arbeit lesen:
 2. `docs/uebergabe.md`: Stand, Zugänge, offene Punkte in der richtigen Reihenfolge.
 3. `docs/fortschritt.md`: Verlauf je Schritt. `docs/konzept.md`: Idee und Aufbau.
 
+Der Skill «fotobuch-assistent-arbeitsweise» liegt als Kopie in `docs/skill/`.
+
 Kurzregeln: nichts umsetzen ohne bestätigten Design-Vorschlag; Release nur mit Zustimmung; Originale nie verändern, Fotos nie beschneiden; keine echten Fotos ins Repository; lokale KI-Modelle nur auf Auftrag.
